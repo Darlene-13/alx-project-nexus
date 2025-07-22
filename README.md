@@ -12,7 +12,9 @@
 
 ## 🚀 Project Overview
 
-This Movie Recommendation System represents a production-ready backend solution that combines multiple cutting-edge technologies to deliver personalized movie experiences. Built as part of the **ALX ProDev Backend Engineering** program, this project demonstrates mastery of modern backend development practices, API integrations, and scalable architecture design.
+This Movie Recommendation System represents a production-ready backend solution that combines multiple cutting-edge technologies to deliver personalized movie experiences. Built as part of the **ALX ProDev Backend Engineering** program, this project demonstrates mastery of modern backend development practices, API integrations, and scalable architecture design. The system is a modular backend application built with Django, designed to deliver highly personalized movie discovery experiences at scale. This system integrates robust user authentication (JWT), real-time data caching with Redis, background processing via Celery, and third-party APIs like TMDb and SendGrid to provide AI-driven movie recommendations, user interaction features (watchlists, reviews, ratings), and multi-channel notifications. Engineered for performance, extensibility, and production-readiness, this project demonstrates mastery of modern backend practices including API versioning, performance monitoring, external service orchestration, and scalable architecture—making it an ideal showcase for senior backend engineering roles.
+
+
 
 ### Key Highlights
 - **6 Third-Party API Integrations** (TMDb, SendGrid, Firebase, Google Analytics, etc.)
@@ -34,10 +36,10 @@ This Movie Recommendation System represents a production-ready backend solution 
 └─────────────────┘    └──────────────┘    └─────────────────┘
                               │                       │
                               │                       │
-                    ┌─────────────────┐     ┌─────────────────┐
-                    │  Redis Cache    │     │  Celery Worker  │
+                    ┌─────────────────┐     ┌──────────────────┐
+                    │  Redis Cache    │     │  Celery Worker   │
                     │  & Sessions     │     │  + Beat Scheduler│
-                    └─────────────────┘     └─────────────────┘
+                    └─────────────────┘     └──────────────────┘
                               │                       │
                     ┌─────────────────┐     ┌─────────────────┐
                     │ Third-Party APIs│     │  Monitoring     │
@@ -505,7 +507,7 @@ Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
 
 ## 👨‍💻 Author & Acknowledgments
 
-**Developed by:** [Your Name] - ALX ProDev Backend Engineering Program
+**Developed by:** [Darlene Wendy] - ALX ProDev Backend Engineering Program
 
 **Special Thanks:**
 - ALX Team for comprehensive backend training
@@ -513,9 +515,9 @@ Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
 - Open source community for amazing tools and libraries
 
 **Connect:**
-- GitHub: [@yourusername](https://github.com/yourusername)
-- LinkedIn: [Your Profile](https://linkedin.com/in/yourprofile)
-- Email: your.email@example.com
+- GitHub: [@Darlene-13](https://github.com/Darlene-13)
+- LinkedIn: [Darlene Wendy Nasimiyu](https://www.linkedin.com/in/darlene-wendy-638065254/)
+- Email:[Darlene Wendy Nasimiyu] (darlenenasimiyu@gmail.com)
 
 ---
 
