@@ -410,43 +410,6 @@ docker-compose up -d --build
 - **Cache Invalidation:** Smart update strategies
 - **Session Storage:** Redis-based sessions
 
----
-
-## 🤝 API Integration Examples
-
-### TMDb API Integration
-```python
-# Fetch trending movies
-response = requests.get(
-    f"https://api.themoviedb.org/3/trending/movie/week",
-    params={"api_key": settings.TMDB_API_KEY}
-)
-```
-
-### SendGrid Email Example
-```python
-# Send personalized recommendation
-message = Mail(
-    from_email='recommendations@movieapp.com',
-    to_emails=user.email,
-    subject='Your Weekly Movie Picks 🎬',
-    html_content=render_template('email/weekly_digest.html', movies=movies)
-)
-```
-
-### Firebase Push Notification
-```python
-# Send trending movie alert
-message = messaging.Message(
-    notification=messaging.Notification(
-        title='🔥 Trending Now',
-        body=f'{movie.title} is trending in your favorite genre!'
-    ),
-    token=user_device_token
-)
-```
-
----
 
 ## 📚 Additional Resources
 
@@ -500,19 +463,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-### Code of Conduct
-Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
-
----
 
 ## 👨‍💻 Author & Acknowledgments
 
 **Developed by:** [Darlene Wendy] - ALX ProDev Backend Engineering Program
-
-**Special Thanks:**
-- ALX Team for comprehensive backend training
-- TMDb for providing comprehensive movie data
-- Open source community for amazing tools and libraries
 
 **Connect:**
 - GitHub: [@Darlene-13](https://github.com/Darlene-13)
