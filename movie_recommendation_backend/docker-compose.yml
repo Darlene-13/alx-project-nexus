@@ -16,7 +16,9 @@ services:
       - POSTGRES_HOST_AUTH_METHOD=${POSTGRES_HOST_AUTH_METHOD}
     depends_on:
       - postgres
-      - redis 
+      - redis
+    volumes:
+      - .:/app
     networks:
       - movie_recommendation_network
   postgres:

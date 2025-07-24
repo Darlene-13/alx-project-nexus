@@ -14,10 +14,13 @@ django-rest-framework==0.1.0
 django-timezone-field==7.1
 django_celery_results==2.6.0
 djangorestframework==3.16.0
+djangorestframework_simplejwt==5.5.1
+environ==1.0
 kombu==5.5.4
 packaging==25.0
 prompt_toolkit==3.0.51
 psycopg2-binary==2.9.10
+PyJWT==2.10.1
 python-crontab==3.3.0
 python-dateutil==2.9.0.post0
 redis==5.2.1
