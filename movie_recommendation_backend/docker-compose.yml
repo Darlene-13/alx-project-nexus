@@ -19,6 +19,8 @@ services:
       - redis
     volumes:
       - .:/app
+    env_file:
+      - .env
     networks:
       - movie_recommendation_network
   postgres:
@@ -32,7 +34,7 @@ services:
       POSTGRES_HOST: ${POSTGRES_HOST}
       POSTGRES_HOST_AUTH_METHOD: ${POSTGRES_HOST_AUTH_METHOD}
     ports:
-        - "5433:5433"
+        - "5433:5432"
     volumes: 
         - postgres_data:/var/lib/postgresql/data
     networks:

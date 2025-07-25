@@ -1,6 +1,5 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 import re #Regular expressions for validation
@@ -38,10 +37,9 @@ class User(AbstractUser):
     is_premium = models.BooleanField(default=False, help_text="Indicates if the user has a premium account.")
     phone_number = models.CharField(max_length=20, validators=[validate_phone_number], help_text="Phone number must be in the format +999999999 or 999999999.")
     username = models.CharField(max_length=150, unique=True, help_text="Username must be unique.")
-    first_name = models.CharField(max_length=30, blank=True,
-                                  default='GMT+3', help_text="First name of the user.")
+    first_name = models.CharField(max_length=30, blank=True, help_text="First name of the user.")
     last_name = models.CharField(max_length=30, blank=True, help_text="Last name of the user.")
-    preferred_timezone = models.CharField(max_length=50, default='UTC')
+    preferred_timezone = models.CharField(max_length=50, default='GMT+3')
     bio = models.TextField(blank=True, help_text="A short bio about the user.")
     avatar = models.ImageField(upload_to='user_avatars/', # File will be uploaded to media/user_avatars/
                                 blank=True, null=True, help_text="User's avatar image.")
@@ -120,7 +118,7 @@ def full_name(self):
         return self.first_name.strip()
     elif self.last_name:
         return self.last_name.strip()
-    return self.username
+    return self.username  # Fallback logic to username if no names are provided
 
 @property
 def display_name(self):
@@ -242,23 +240,30 @@ def __repr__(self):
 
 # Signal handlers
 @receiver(post_save, sender=User)
-def post_save_user(sender, instance, created, **kwargs):
-    """ Signal handler for post save of user model.
-    This can be used to perform actions after a user is saved.
+def user_post_save(sender, instance, created, **kwargs):
+    """
+    Signal handler that runs after a User is saved.
+    Can be used for creating related objects or logging.
     """
     if created:
-            print(f"New user created: {instance.display_name} (ID: {instance.id})")
-    else:
-        print(f"User updated: {instance.display_name} (ID: {instance.id})")
+        # User was just created - perform initial setup
+        # Use username instead of display_name to avoid attribute issues
+        print(f"New user created: {instance.username} (ID: {instance.id})")
+        
+        # Example: Create notification preferences automatically
+        # (We'll implement this when we create the notifications app)
+        pass
+
 
 @receiver(pre_delete, sender=User)
 def user_pre_delete(sender, instance, **kwargs):
-    """ Signal handler for pre delete of user model.
-    This can be used to perform actions before a user is deleted.
     """
-    print(f"User about to be deleted: {instance.display_name} (ID: {instance.id})")
-
+    Signal handler that runs before a User is deleted.
+    Can be used for cleanup or logging.
+    """
+    print(f"User being deleted: {instance.username}")
+    
+    # Example: Clean up user's uploaded files
     if instance.avatar:
-        # If the user has an avatar, delete the file from the storage
+        # Delete avatar file from storage
         instance.avatar.delete(save=False)
-        print(f"Avatar deleted for user: {instance.display_name} (ID: {instance.id})")
