@@ -21,7 +21,7 @@ RUN apt-get update \
 COPY requirements.txt /app/
 
 # Install Python dependencies
-RUN pip instal --no-cache-dir --upgrade pip \
+RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 # Copy project files
@@ -33,5 +33,5 @@ RUN mkdir -p /app/staticfiles/
 RUN mkdir -p /app/mediafiles/
 
 # Create  non-root user for security
-RUN adduser --diabled-password --gecos '' movie_recommendation_user \
+RUN adduser --disabled-password --gecos '' movie_recommendation_user \
     && chown -R movie_recommendation_user:movie_recommendation_user /app

@@ -114,7 +114,7 @@ REST_FRAMEWORK = {
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://localhost:6379/1',  # Use 'redis://redis:6379/1' when running Django in Docker
+        'LOCATION': 'redis://redis:6379/1',
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             'SERIALIZER': 'django_redis.serializers.pickle.PickleSerializer',
@@ -139,6 +139,11 @@ CACHE_MIDDLEWARE_KEY_PREFIX = 'property_listings'
 # Session engine configuration
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 SESSION_CACHE_ALIAS = 'default'
+
+# CELERY SETTINGS
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
