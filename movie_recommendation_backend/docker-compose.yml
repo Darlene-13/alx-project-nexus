@@ -4,6 +4,7 @@ services:
   backend:
     build: .
     command: python manage.py runserver 0.0.0.0:8000
+    restart: unless-stopped
     ports:
       - "8001:8000"
     environment: 
@@ -25,6 +26,7 @@ services:
       - movie_recommendation_network
   postgres:
     image: postgres:latest
+    restart: unless-stopped
     container_name: movie_recommendation_postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -34,22 +36,24 @@ services:
       POSTGRES_HOST: ${POSTGRES_HOST}
       POSTGRES_HOST_AUTH_METHOD: ${POSTGRES_HOST_AUTH_METHOD}
     ports:
-        - "5433:5432"
+        - "5434:5432"
     volumes: 
         - postgres_data:/var/lib/postgresql/data
     networks:
       - movie_recommendation_network
   redis:
     image: redis:latest
+    restart: unless-stopped
     container_name: movie_recommendation_redis
     ports: 
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis_data:/data
     networks:
       - movie_recommendation_network
   celery:
     build: .
+    restart: unless-stopped
     command: celery -A movie_recommendation_backend worker -l info
     depends_on:
       - backend
@@ -63,6 +67,7 @@ services:
       - movie_recommendation_network
   celery-beat:
     build: .
+    restart: unless-stopped
     command: celery -A movie_recommendation_backend beat -l info
     depends_on:
       - backend

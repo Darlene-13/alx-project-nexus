@@ -8,6 +8,7 @@ The views handle, http requests, authentication, data validation, business logic
 
 """
 
+import json
 import logging
 from django.conf import settings
 from django.utils import timezone
@@ -51,6 +52,7 @@ logger = logging.getLogger(__name__)
 activity_logger = logging.getLogger('user_activity')
 
 
+
 def log_user_action(user, action, details=None, request=None):
     """
     Utility function to log user actions consistently.
@@ -67,34 +69,25 @@ def log_user_action(user, action, details=None, request=None):
     if request:
         log_data['ip_address'] = get_client_ip(request)
         log_data['user_agent'] = request.META.get('HTTP_USER_AGENT', '')
+    else:
+        # Set defaults when no request is provided
+        log_data['ip_address'] = 'unknown'
+        log_data['user_agent'] = 'unknown'
 
-    #  Log this to the activity logger
+    # Log this to the activity logger
     activity_logger.info(
         f"User Action: {log_data['action']} | User: {log_data['username']} | "
         f"IP: {log_data['ip_address']} | User Agent: {log_data['user_agent']} | "
         f"Timestamp: {log_data['timestamp']} | Details: {log_data['details']}"
-        )
-    
-    # Log to main logger for debugging purposes
-    logger.info(
-        f"User Action: {log_data['action']} | User: {log_data['username']} | "
-        f"IP: {log_data['ip_address']} | User Agent: {log_data['user_agent']} | "
+    )
 
-        f"Timestamp: {log_data['timestamp']} | Details: {log_data['details']}"    
-        )
-    
 def get_client_ip(request):
-    """
-    Get client IP address from the request headers.
-    Handles reverse proxy scenarios (load balancers, CONS)
-    """
-
+    """Get the client's IP address from the request."""
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
         ip = x_forwarded_for.split(',')[0]
     else:
-        ip = request.META.get('REMOTE_ADDR')
-    
+        ip = request.META.get('REMOTE_ADDR', 'unknown')
     return ip
 
 
@@ -138,7 +131,7 @@ class UserRegistrationView(APIView):
                             'username': user.username,
                             'email': user.email,
                             'ip_address': get_client_ip(request),
-                            'favorite_genres_count': user.favorite_genres.count(),
+                            'favorite_genres_count': len(json.loads(user.favorite_genres or '[]')),
                             'created_at': user.date_joined.isoformat(),
                         }
                     )
@@ -258,14 +251,13 @@ class UserLoginView(APIView):
                     'details': serializer.errors
                 }, status=status.HTTP_400_BAD_REQUEST
             )
-                
 class UserLogoutView(APIView):
     """
     View for the user logout.
     HTTP methods: POST
     URL: /api/v1/auth/logout/
     """
-    
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -274,18 +266,17 @@ class UserLogoutView(APIView):
         Expects 'refresh_token' in request data.
         Returns success message on successful logout.
         """
-        
         try:
             # Get refresh token from request.
             refresh_token = request.data.get('refresh_token')
-            
+
             if refresh_token:
                 # Blacklist the refresh token to prevent re-use
                 token = RefreshToken(refresh_token)
                 token.blacklist()
-                
+
                 logger.info(f"User {request.user.username} logged out successfully.")
-                
+
                 log_user_action(
                     user=request.user,
                     action='User Logout',
@@ -296,17 +287,24 @@ class UserLogoutView(APIView):
                     request=request
                 )
 
-                logger.info(f"User {request.user.username} logged out successfully.")
-                
                 return Response({
                     'message': 'You have been logged out successfully.'
-                }, status=status.HTTP_200_OK)   
+                }, status=status.HTTP_200_OK)
+            else:
+                logger.warning(f"Logout failed: No refresh token provided for user {request.user.username}")
+                return Response({
+                    'error': 'Refresh token not provided.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
         except Exception as e:
             logger.error(f"Logout failed for {request.user.username}: {str(e)}")
             return Response({
                 'error': 'Logout failed due to server error.',
                 'details': str(e) if settings.DEBUG else 'Please try again'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
         
 class UserProfileViewSet(ModelViewSet):
     """
@@ -343,7 +341,7 @@ class UserProfileViewSet(ModelViewSet):
         """
         Handle GET request to retrieve the user profile.
         """
-        serializer = self.get_serializer_class(request.user)
+        serializer = self.get_serializer(request.user)
         log_user_action(
             user=request.user,
             action='User Profile Viewed',
@@ -433,7 +431,6 @@ class UserProfileViewSet(ModelViewSet):
                         'user': response_serializer.data,
                         'message': 'Profile updated successfully'
                     }, status=status.HTTP_200_OK)
-                    
             except Exception as e:
                 logger.error(f"Profile update failed for {request.user.username}: {str(e)}")
                 return Response({
