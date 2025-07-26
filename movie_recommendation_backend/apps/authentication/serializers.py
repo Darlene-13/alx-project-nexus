@@ -278,7 +278,7 @@ class PasswordChangeSerializer(serializers.Serializer):
         """
         Validate the current password against the user's stored password.
         """
-        user = user.context['request'].user
+        user = self.context['request'].user
         if not user.check_password(value):
             raise serializers.ValidationError("Current password is incorrect.")
         return value
@@ -417,3 +417,10 @@ class UserStatsSerializer(serializers.ModelSerializer):
     ratings_given = serializers.IntegerField(read_only=True)
     account_age_days = serializers.IntegerField(read_only=True)
     is_active_user = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'total_interactions', 'favorite_movies_count', 
+                 'ratings_given', 'account_age_days', 'is_active_user']
+        read_only_fields = fields
+        
