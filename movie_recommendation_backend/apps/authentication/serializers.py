@@ -157,11 +157,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         user.save()
         return user
 
-class UserUpdateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['email', 'first_name', 'last_name', 'age', 'phone_number', 'country', 'preferred_timezone', 'bio', 'avatar', 'device_type']
-
 class UserUpdateSerializer(serializers.Serializer):
     """
     Serializer for user update.
@@ -239,8 +234,193 @@ class UserUpdateSerializer(serializers.Serializer):
         """
         Update the user instance with validated data.
         """
-        # Update user profile information
+        # Handle favoruite genres
+        favorite_genres = validated_data.pop('favorite_genres', None)
+
+        # Remove current_password from the validated_data
+        validated_data.pop('current_password', None)
+
+        # Update user fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
+
+        # Update favorite genres if provided
+        if favorite_genres is not None:
+            instance.set_favorite_genres(json.dumps(favorite_genres))
+
         instance.save()
         return instance
+    
+
+class PasswordChangeSerializer(serializers.Serializer):
+    """
+    Serializer for changing the password of a user."""
+    current_password = serializers.CharField(
+        write_only=True,
+        required=True,
+        style={'input_type': 'password'},
+        help_text="Current password for the user."
+    )
+    new_password = serializers.CharField(
+        write_only=True,
+        required=True,
+        style={'input_type': 'password'},
+        help_text="New password for the user."
+    )
+    new_password_confirm = serializers.CharField(
+        write_only=True,
+        required=True,
+        style={'input_type': 'password'},
+        help_text="Confirm the new password."
+    )
+
+    def validate_curreny_password(self, value):
+        """
+        Validate the current password against the user's stored password.
+        """
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Current password is incorrect.")
+        return value
+    
+    def validate_new_password(self, value):
+        """
+        Validate the new password against Django's password validation rules.
+        """
+        try:
+            validate_password(value, user=self.context['request'].user)
+        except ValidationError as e:
+            raise serializers.ValidationError({"new_password": list(e.messages)})
+        return value
+    
+    def validate(self, attrs):
+        """ 
+        Validate that the new password and the confirmation match.
+        """
+        new_password = attrs.get('new_password')
+        new_password_confirm = attrs.get('new_password_confirm')
+
+        if new_password != new_password_confirm:
+            raise serializers.ValidationError({"new_password": "New passwords do not match."})
+    
+        # Ensure that the new password is different from the current password.
+        current_password = attrs.get('current_password')
+        if new_password == current_password:
+            raise serializers.ValidationError({"new_password": "New password cannot be the same as the current password."})
+        
+        return attrs
+    
+    def save(self):
+        """
+        Save the newly updated password
+        """
+        user = self.context['request'].user
+        new_password = self.validated_data['new_password']
+        user.set_password(new_password)
+        user.last_password_change = timezone.now()
+        user.save()
+        return user
+    
+class LoginSerializer(serializers.Serializer):
+    """
+    Serializer for the user login.
+    """
+    identifier = serializers.CharField(
+        write_only=True,
+        style={'input_type': 'text'},
+        help_text="Username or email for login."
+    )
+    password = serializers.CharField(
+        write_only=True,
+        style={'input_type': 'password'},
+        help_text="Password for the user."
+    )
+
+    def validate(self, attrs):
+        """
+        Validate the user login credentials.
+        """
+        identifier = attrs.get('identifier')
+        password = attrs.get('password')
+
+        # Check if the user exists by username or email
+        if identifier and password:
+            user = None
+
+            if '@' in identifier:
+                # If identifier is an email
+                try:
+                    user = User.objects.get(email=identifier)
+                except User.DoesNotExist:
+                    pass
+
+            else:
+                try:
+                    user = User.objects.get(username=identifier)
+                except User.DoesNotExist:
+                    pass
+
+        # Authenticate the user and ensure that the account is active
+        if user and user.check_password(password):
+            if not user.is_active:
+                raise serializers.ValidationError("This account is inactive.")
+            attrs['user'] = user
+        else:
+            raise serializers.ValidationError("Invalid credentials. Please try again.")
+        return attrs
+    
+
+class UserDeviceSerializer(serializers.ModelSerializer):
+    """
+    Serializer for user device information. It updates the device information for the user.
+    """
+    class Meta:
+        model = User
+        fields = ['device_token', 'device_type']
+        extra_kwargs = {
+            'device_token': {'required': True, 'write_only': True},
+            'device_type': {'required': True, 'write_only': True},
+        }
+
+    def validate(self, value):
+        """
+        Validate the device token and type for consistency.
+        """
+        device_token = value.get('device_token')
+        device_type = value.get('device_type')
+
+        if device_token and not device_type:
+            raise serializers.ValidationError({"device_type": "Device type is required if device token is provided."})
+        if device_type and not device_token:
+            raise serializers.ValidationError({"device_token": "Device token is required if device type is provided."})
+
+        return value
+    
+
+# UTILITY SERIALIZERS
+# These serializers are used for utilitiy purposes such as sending notifications or other non-user related tasks.
+class UserMinimalSerializer(serializers.ModelSerializer):
+    """
+    Minimal serializer for user information, used in notifications and other utility tasks.
+    """
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name']
+        read_only_fields = fields
+
+class UserStatsSerializer(serializers.ModelSerializer):
+    """
+    Serializer for user statistics, used in analytics and reporting.
+    """
+    total_interactions = serializers.IntegerField(read_only=True)
+    favorite_movies_count = serializers.IntegerField(read_only=True)
+    ratings_given = serializers.IntegerField(read_only=True)
+    account_age_days = serializers.IntegerField(read_only=True)
+    is_active_user = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'total_interactions', 'favorite_movies_count', 
+                 'ratings_given', 'account_age_days', 'is_active_user']
+        read_only_fields = fields
+        
