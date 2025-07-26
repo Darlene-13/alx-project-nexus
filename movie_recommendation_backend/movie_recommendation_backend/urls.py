@@ -20,11 +20,11 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
-from rest_framework import permissions
 
-# Swagger documentation setup
+# Fixed schema view
 schema_view = get_schema_view(
     openapi.Info(
         title="Movie Recommendation API",
@@ -42,10 +42,16 @@ urlpatterns = [
     
     # Authentication endpoints
     path('api/v1/auth/', include('apps.authentication.urls')),
+    # Future app URLs (we'll add these as we build more apps)
+    # path('api/v1/movies/', include('apps.movies.urls')),
+    # path('api/v1/recommendations/', include('apps.recommendations.urls')),
+    # path('api/v1/notifications/', include('apps.notifications.urls')),
+    # path('api/v1/analytics/', include('apps.analytics.urls')),
     
-    # API Documentation
+    # API Documentation (fix the paths)
     path('api/docs/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('api/redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+    path('api/schema/', schema_view.without_ui(cache_timeout=0), name='schema-json'),
 ]
 
 # Serve media files in development

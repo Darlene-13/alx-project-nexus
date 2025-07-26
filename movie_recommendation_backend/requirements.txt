@@ -9,6 +9,7 @@ click-repl==0.3.0
 cron-descriptor==1.4.5
 Django==5.2.4
 django-celery-beat==2.8.1
+django-cors-headers==4.7.0
 django-ipware==7.0.1
 django-redis==6.0.0
 django-rest-framework==0.1.0

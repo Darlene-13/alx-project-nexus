@@ -18,7 +18,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
     """
     # Computed fields from the model properties
     full_name = serializers.CharField(source='get_full_name', read_only=True)
-    age = serializers.IntegerField(source='get_age', read_only=True)
+    age = serializers.SerializerMethodField(read_only=True)
+
 
     # JSON field handling -Converrt JSON string to python list
     favorite_genres_list = serializers.ListField(
@@ -33,29 +34,32 @@ class UserProfileSerializer(serializers.ModelSerializer):
         source='can_receive_push_notifications',
         read_only=True
     )
+    
 
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'email', 'full_name', 'first_name', 'last_name', 'age', # Basic user information
-            'date_of_birth', 'age', 'bio', 'avatar', 'country', 'preferred_timezone','preferred_language', # Profile details
-            'phone_number', 'country', 'preferred_timezone',
+            'id', 'username', 'email', 'full_name', 'first_name', 'last_name', # Basic user information
+            'date_of_birth', 'age', 'bio', 'avatar', 'country', 'preferred_timezone','preferred_language','phone_number', # Profile details
             'favorite_genres_list',  # Preferences
-            'is_active', 'is_staff', 'is_superuser', 'last_login', 'date_joined' # Status and timestamps
+            'is_active', 'is_staff', 'is_superuser', 'last_login', 'date_joined', # Status and timestamps
             'device_type', 'can_receive_push', # Device and notification preferences
         ]
         read_only_fields = ['id', 'username', 'email']
 
-    def get_can_receive_push(self, obj):
-        """
-        Custom method to determine if the user can receive push notifications.
-        """
-        return obj.can_receive_push_notifications
 
+    def get_age(self, obj):
+
+        if obj.date_of_birth:
+            today = timezone.now().date()
+            age = today.year - obj.date_of_birth.year - ((today.month, today.day) < (obj.date_of_birth.month, obj.date_of_birth.day))
+            return age
+        return None
+    
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     """
-    Serialier for user registration (CREATE-ONLY)
+    Serializer for user registration (CREATE-ONLY)
     """
     password = serializers.CharField(
         write_only=True,
@@ -76,20 +80,37 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         allow_blank=False,
         help_text="Enter a valid email address."
     )
-    # Handle favorite genres as a list of integers
+    
+    # Handle favorite genres as a list of strings
     favorite_genres = serializers.ListField(
         child=serializers.CharField(),
         required=False,
         allow_empty=True,
         help_text="List of favorite genres as strings."
     )
+    
+    # Age is calculated from date_of_birth, so it's read-only
+    age = serializers.SerializerMethodField(read_only=True)
+    
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'password_confirm', 'first_name', 'last_name', # Required for registration.
-                  'first_name', 'last_name', 'age', 'phone_number', 'country', 'preferred_timezone', 'favorite_genres', 'bio', 'avatar', 'device_type']
+        fields = [
+            'username', 'email', 'password', 'password_confirm', 
+            'first_name', 'last_name', 'age', 'phone_number', 
+            'country', 'preferred_timezone', 'favorite_genres', 
+            'bio', 'avatar', 'device_type', 'date_of_birth'
+        ]
         extra_kwargs = {
-            'password': {'write_only': True, 'validators': [validate_password]},
+            'password': {'write_only': True},
+            'phone_number': {'required': False},  # Make phone optional if needed
+            'country': {'required': False},
+            'preferred_timezone': {'required': False},
+            'bio': {'required': False},
+            'avatar': {'required': False},
+            'device_type': {'required': False},
+            'date_of_birth': {'required': False}
         }
+
     def validate_email(self, value):
         """
         Ensure that the email is unique.
@@ -99,10 +120,12 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return value
 
     def validate_username(self, value):
-        """ Ensure that the username is unique."""
+        """
+        Ensure that the username is unique.
+        """
         if User.objects.filter(username=value).exists():
             raise serializers.ValidationError("Username is already in use.")
-    
+        
         if len(value) < 3:
             raise serializers.ValidationError("Username must be at least 3 characters long.")
         return value    
@@ -114,7 +137,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         try:
             validate_password(value)
         except ValidationError as e:
-            raise serializers.ValidationError({"password": list(e.messages)})
+            raise serializers.ValidationError(list(e.messages))
         return value
     
     def validate_favorite_genres(self, value):
@@ -129,12 +152,14 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return value
     
     def validate(self, attrs):
-        """ Object level validation it validates multiple fields together."""
+        """
+        Object level validation - validates multiple fields together.
+        """
         password = attrs.get('password')
-        password_confirm = attrs.get('password_confirm', None)
+        password_confirm = attrs.get('password_confirm')
         
         if password != password_confirm:
-            raise serializers.ValidationError({"password": "Passwords do not match."})
+            raise serializers.ValidationError({"password_confirm": "Passwords do not match."})
         
         # Validate the device token for type consistency
         device_type = attrs.get('device_type')
@@ -143,19 +168,46 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"device_type": "Device type is required if device token is provided."})
         if device_type and not device_token:
             raise serializers.ValidationError({"device_token": "Device token is required if device type is provided."})
+        
         return attrs
+    
     def create(self, validated_data):
-        """ Create a new user with validated data."""
-
+        """
+        Create a new user with validated data.
+        """
+        # Remove password_confirm from validated_data
+        validated_data.pop('password_confirm', None)
+        
         # Handle favorite genres with JSON conversion
         favorite_genres = validated_data.pop('favorite_genres', [])
-        # Create user (password will be automatically hashed)
-        user = User.objects.create(**validated_data)
+        
+        # Extract password to handle separately
+        password = validated_data.pop('password')
+        
+        # Create user with create_user method (properly hashes password)
+        user = User.objects.create_user(
+            password=password,
+            **validated_data
+        )
+        
         # Set the favorite genres as a JSON string
         if favorite_genres:
-            user.set_favorite_genres(json.dumps(favorite_genres))
-        user.save()
+            user.favorite_genres = json.dumps(favorite_genres)
+            user.save()
+        
         return user
+    
+    def get_age(self, obj):
+        """
+        Calculate age from date_of_birth.
+        """
+        if obj.date_of_birth:
+            today = timezone.now().date()
+            age = today.year - obj.date_of_birth.year - (
+                (today.month, today.day) < (obj.date_of_birth.month, obj.date_of_birth.day)
+            )
+            return age
+        return None
 
 class UserUpdateSerializer(serializers.Serializer):
     """
