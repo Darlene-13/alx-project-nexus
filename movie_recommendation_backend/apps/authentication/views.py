@@ -308,7 +308,7 @@ class UserLogoutView(APIView):
                 'details': str(e) if settings.DEBUG else 'Please try again'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-class UserProfileViewSet(APIView):
+class UserProfileViewSet(ModelViewSet):
     """
     Viewset for user profile management.
 

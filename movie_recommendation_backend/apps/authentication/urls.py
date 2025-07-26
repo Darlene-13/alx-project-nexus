@@ -11,7 +11,7 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
-from apps.authentication.views import (
+from .views import (
     UserDebugView,
     UserSearchView, 
     UserRegistrationView,
