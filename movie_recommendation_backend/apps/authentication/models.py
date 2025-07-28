@@ -170,8 +170,8 @@ def remove_favorite_genre(self, genre_id):
         self.set_favorite_genres(current_favorites)
 
 def has_device_for_push(self):
-    """ Checks if the user has a device token for push notifications."""
-    return bool(self.device_token)
+    """Checks if the user has a device token for push notifications."""
+    return bool(self.device_token and self.device_type)
 
 def is_adult(self):
     """ Check is the user is over 18 years of age"""

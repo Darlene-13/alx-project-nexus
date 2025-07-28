@@ -263,39 +263,25 @@ class UserLogoutView(APIView):
     def post(self, request):
         """
         Handle user logout.
-        Expects 'refresh_token' in request data.
-        Returns success message on successful logout.
+        Only requires valid access token (in Authorization header).
         """
         try:
-            # Get refresh token from request.
-            refresh_token = request.data.get('refresh_token')
-
-            if refresh_token:
-                # Blacklist the refresh token to prevent re-use
-                token = RefreshToken(refresh_token)
-                token.blacklist()
-
-                logger.info(f"User {request.user.username} logged out successfully.")
-
-                log_user_action(
-                    user=request.user,
-                    action='User Logout',
-                    details={
-                        'username': request.user.username,
-                        'method': 'manual',
-                    },
-                    request=request
-                )
-
-                return Response({
-                    'message': 'You have been logged out successfully.'
-                }, status=status.HTTP_200_OK)
-            else:
-                logger.warning(f"Logout failed: No refresh token provided for user {request.user.username}")
-                return Response({
-                    'error': 'Refresh token not provided.'
-                }, status=status.HTTP_400_BAD_REQUEST)
-
+            logger.info(f"User {request.user.username} logged out successfully.")
+            
+            log_user_action(
+                user=request.user,
+                action='User Logout',
+                details={
+                    'username': request.user.username,
+                    'method': 'manual',
+                },
+                request=request
+            )
+            
+            return Response({
+                'message': 'You have been logged out successfully.'
+            }, status=status.HTTP_200_OK)
+            
         except Exception as e:
             logger.error(f"Logout failed for {request.user.username}: {str(e)}")
             return Response({
@@ -304,8 +290,6 @@ class UserLogoutView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-
-        
 class UserProfileViewSet(ModelViewSet):
     """
     Viewset for user profile management.
@@ -576,9 +560,9 @@ class UserProfileViewSet(ModelViewSet):
                 
                 return Response({
                     'message': 'Device information updated successfully',
-                    'can_receive_push': user.has_device_for_push()
-                }, status=status.HTTP_200_OK)
-                
+                    'device_type': user.device_type,
+                    'has_device_token': bool(user.device_token)
+                }, status=status.HTTP_200_OK)                
             except Exception as e:
                 logger.error(f"Device update failed for {request.user.username}: {str(e)}")
                 return Response({
