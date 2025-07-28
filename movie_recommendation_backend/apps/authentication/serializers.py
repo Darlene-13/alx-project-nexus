@@ -476,3 +476,4 @@ class UserStatsSerializer(serializers.ModelSerializer):
                  'ratings_given', 'account_age_days', 'is_active_user']
         read_only_fields = fields
         
+        
