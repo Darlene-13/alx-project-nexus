@@ -1,0 +1,310 @@
+{
+	"info": {
+		"_postman_id": "dffe4145-8bb4-4e9c-a3fd-006250617a46",
+		"name": "Movie Recommendation API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "46679321",
+		"_collection_link": "https://darlenewendie.postman.co/workspace/Darlene-Wendie's-Workspace~27028d8b-95d7-4712-8fc5-3aae0d40f724/collection/46679321-dffe4145-8bb4-4e9c-a3fd-006250617a46?action=share&source=collection_link&creator=46679321"
+	},
+	"item": [
+		{
+			"name": "1. Register",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"username\": \"jane_doe_2025\",\n  \"email\": \"jane.doe@testmail.com\",\n  \"password\": \"#SecurePass789\",\n  \"password_confirm\": \"#SecurePass789\",\n  \"first_name\": \"Jane\",\n  \"last_name\": \"Doe\",\n  \"date_of_birth\": \"1988-11-25\",\n  \"phone_number\": \"+254798765432\",\n  \"bio\": \"Software developer who loves thriller movies\",\n  \"country\": \"Kenya\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{api_base}}/auth/register/",
+					"host": [
+						"{{api_base}}"
+					],
+					"path": [
+						"auth",
+						"register",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "2. User Login",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"identifier\": \"Darlene Wendie\",\n  \"password\": \"#Nasimiyu1\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{api_base}}/auth/login/",
+					"host": [
+						"{{api_base}}"
+					],
+					"path": [
+						"auth",
+						"login",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3. Get User Profile",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzUzNzIwOTk3LCJpYXQiOjE3NTM3MTczOTcsImp0aSI6ImJmNDc2NTk4NzRhMzQ1M2I5ZjNkNTNhMWIyZTk2YWRkIiwidXNlcl9pZCI6IjExIn0.j2fxYd_wDBZ1J7VRy2m6uiLSFhu-x4xv7tMoAlnSwy8",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{api_base}}/auth/users/",
+					"host": [
+						"{{api_base}}"
+					],
+					"path": [
+						"auth",
+						"users",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "4. Update User Profile",
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzUzNzIwOTk3LCJpYXQiOjE3NTM3MTczOTcsImp0aSI6ImJmNDc2NTk4NzRhMzQ1M2I5ZjNkNTNhMWIyZTk2YWRkIiwidXNlcl9pZCI6IjExIn0.j2fxYd_wDBZ1J7VRy2m6uiLSFhu-x4xv7tMoAlnSwy8",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{api_base}}/auth/users/10/",
+					"host": [
+						"{{api_base}}"
+					],
+					"path": [
+						"auth",
+						"users",
+						"10",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "5. Change Password",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzUzNzIwOTk3LCJpYXQiOjE3NTM3MTczOTcsImp0aSI6ImJmNDc2NTk4NzRhMzQ1M2I5ZjNkNTNhMWIyZTk2YWRkIiwidXNlcl9pZCI6IjExIn0.j2fxYd_wDBZ1J7VRy2m6uiLSFhu-x4xv7tMoAlnSwy8",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"current_password\": \"#TestPass123\",\n  \"new_password\": \"#NewPassword456\",\n  \"new_password_confirm\": \"#NewPassword456\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{api_base}}/auth/users/change-password/",
+					"host": [
+						"{{api_base}}"
+					],
+					"path": [
+						"auth",
+						"users",
+						"change-password",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "6: Update Device Info",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzUzNzIwOTk3LCJpYXQiOjE3NTM3MTczOTcsImp0aSI6ImJmNDc2NTk4NzRhMzQ1M2I5ZjNkNTNhMWIyZTk2YWRkIiwidXNlcl9pZCI6IjExIn0.j2fxYd_wDBZ1J7VRy2m6uiLSFhu-x4xv7tMoAlnSwy8",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"device_type\": \"android\",\n  \"device_token\": \"fcm_token_example_123456789\",\n  \"app_version\": \"1.0.0\",\n  \"os_version\": \"Android 13\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{api_base}}/auth/users/update-device/?aa",
+					"host": [
+						"{{api_base}}"
+					],
+					"path": [
+						"auth",
+						"users",
+						"update-device",
+						""
+					],
+					"query": [
+						{
+							"key": "aa",
+							"value": null
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "7. Get User Stats",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzUzNzIwOTk3LCJpYXQiOjE3NTM3MTczOTcsImp0aSI6ImJmNDc2NTk4NzRhMzQ1M2I5ZjNkNTNhMWIyZTk2YWRkIiwidXNlcl9pZCI6IjExIn0.j2fxYd_wDBZ1J7VRy2m6uiLSFhu-x4xv7tMoAlnSwy8",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{api_base}}/auth/users/stats/?",
+					"host": [
+						"{{api_base}}"
+					],
+					"path": [
+						"auth",
+						"users",
+						"stats",
+						""
+					],
+					"query": [
+						{
+							"key": "",
+							"value": null
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "8: Token Refresh",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"refresh\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc1NDMyMjE5NywiaWF0IjoxNzUzNzE3Mzk3LCJqdGkiOiJiM2E3MTg2ZmYyNzQ0NDI4YTJlODk5ZjA1YjEzN2Q3NCIsInVzZXJfaWQiOiIxMSJ9.6YiVDVyY_PAEQH6SOZhJfn2gGIrPtoAFmAn-yI-ssWM\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{api_base}}/auth/token/refresh/",
+					"host": [
+						"{{api_base}}"
+					],
+					"path": [
+						"auth",
+						"token",
+						"refresh",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "9. User Logout\"",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzUzNzIyMzIwLCJpYXQiOjE3NTM3MTg3MjAsImp0aSI6IjIyNGUwZTRkMDQ4YzRmZWVhNTRmMTA4ODI1NTZjNzYyIiwidXNlcl9pZCI6IjExIn0.P8x_ECRAL3PFgN54_aagTRcUpiMMOq5JryREOfkg-40",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{api_base}}/auth/logout/",
+					"host": [
+						"{{api_base}}"
+					],
+					"path": [
+						"auth",
+						"logout",
+						""
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
