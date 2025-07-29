@@ -117,11 +117,6 @@ def auth_hub(request):
             'description': 'API schema - JSON schema for the authentication API',
             'status': 'active'
         },
-        {
-            'url': '/authentication/api/schema/',
-            'description': 'API schema - JSON schema for the authentication API',
-            'status': 'active'
-        },
     ]
     
     context = {
