@@ -39,8 +39,17 @@ RUN adduser --disabled-password --gecos '' movie_recommendation_user \
 # Switch to non-root user
 USER movie_recommendation_user
 
+# Copy entrypoint
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Set the entrypoint
+ENTRYPOINT ["/entrypoint.sh"]
+
 # Expose port
 EXPOSE 8000
 
 # Start the Django development server
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+
+
