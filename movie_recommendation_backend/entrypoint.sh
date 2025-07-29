@@ -8,4 +8,4 @@ fi
 
 # Start the app normally
 echo "🟢 Starting server..."
-exec gunicorn movie_recommendation_backend.wsgi:application --bind 0.0.0.0:$PORT
+exec gunicorn movie_recommendation_backend.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120 --log-level info

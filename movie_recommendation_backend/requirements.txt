@@ -21,6 +21,7 @@ djangorestframework_simplejwt==5.5.1
 dotenv==0.9.9
 drf-yasg==1.21.10
 environ==1.0
+gunicorn==23.0.0
 inflection==0.5.1
 kombu==5.5.4
 packaging==25.0

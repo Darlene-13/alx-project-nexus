@@ -9,6 +9,7 @@ services:
       - "8001:8000"
     environment: 
       - DEBUG=1  #Change this when it comes to deployment and Production.
+      - PORT=${PORT}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
@@ -54,6 +55,7 @@ services:
   celery:
     build: .
     restart: unless-stopped
+    entrypoint: ""
     command: celery -A movie_recommendation_backend worker -l info
     depends_on:
       - backend
@@ -68,6 +70,7 @@ services:
   celery-beat:
     build: .
     restart: unless-stopped
+    entrypoint: ""
     command: celery -A movie_recommendation_backend beat -l info
     depends_on:
       - backend
