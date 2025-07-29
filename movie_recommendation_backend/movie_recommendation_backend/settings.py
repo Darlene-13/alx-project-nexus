@@ -14,7 +14,6 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 from datetime import timedelta
-import dj_database_url
 
 
 load_dotenv() 
@@ -34,7 +33,13 @@ AUTH_USER_MODEL = 'authentication.User'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver','0.0.0.0', '*.onrender.com']
+ALLOWED_HOSTS = [
+    '127.0.0.1',
+    'localhost',
+    'testserver',
+    '0.0.0.0',
+    'alx-project-nexus-y0c5.onrender.com', 
+]
 
 # Application definition
 
