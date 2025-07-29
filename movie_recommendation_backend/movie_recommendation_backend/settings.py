@@ -41,6 +41,12 @@ ALLOWED_HOSTS = [
     'alx-project-nexus-y0c5.onrender.com', 
 ]
 
+# CRSF Settings
+CSRF_TRUSTED_ORIGINS = [
+    'https://alx-project-nexus-y0c5.onrender.com'
+]
+
+
 # Application definition
 
 INSTALLED_APPS = [
