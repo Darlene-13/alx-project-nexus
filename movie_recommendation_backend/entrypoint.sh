@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Optional: run database migrations if RUN_MIGRATIONS is true
+# Run database migrations if RUN_MIGRATIONS is true
 if [ "$RUN_MIGRATIONS" = "true" ]; then
     echo "Running migrations..."
     python3 manage.py migrate --noinput
