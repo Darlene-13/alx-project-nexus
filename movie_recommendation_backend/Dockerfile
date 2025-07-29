@@ -50,5 +50,3 @@ EXPOSE 8000
 
 # Optional fallback (usually ignored if entrypoint handles startup)
 CMD ["python3", "manage.py", "runserver", "0.0.0.0:8000"]
-
-
