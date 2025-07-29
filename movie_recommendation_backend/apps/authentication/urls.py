@@ -18,10 +18,14 @@ from .views import (
     UserProfileViewSet,
     UserLoginView,
     UserLogoutView,
+    auth_hub,
 ) 
 router = DefaultRouter()
 router.register(r'users', UserProfileViewSet, basename='user-profile')
 urlpatterns = [
+
+    path('', auth_hub, name='hub'),
+    
     path('admin/', admin.site.urls),
     path('register/',  UserRegistrationView.as_view(), name='user-register'),
     path('login/', UserLoginView.as_view(), name='user-login'),

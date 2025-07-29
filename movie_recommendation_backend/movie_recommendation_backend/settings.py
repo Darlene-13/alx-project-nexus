@@ -98,21 +98,6 @@ TEMPLATES = [
     },
 ]
 
-# Debug template paths
-import os
-print("BASE_DIR:", BASE_DIR)
-template_dir = BASE_DIR / 'templates'
-print("Template directory path:", template_dir)
-print("Template directory exists:", template_dir.exists())
-if template_dir.exists():
-    print("Files in template directory:", list(template_dir.iterdir()))
-else:
-    print("Template directory not found!")
-
-# Check what Django is actually using
-from django.conf import settings
-print("Django TEMPLATES setting:", settings.TEMPLATES[0]['DIRS'] if hasattr(settings, 'TEMPLATES') else "Not set yet")
-
 
 WSGI_APPLICATION = 'movie_recommendation_backend.wsgi.application'
 
@@ -169,6 +154,9 @@ SESSION_CACHE_ALIAS = 'default'
 # CELERY SETTINGS
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
 
 # Swagger settings
 SWAGGER_SETTINGS = {

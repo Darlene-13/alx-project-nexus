@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from django.contrib.auth.models import update_last_login
 from django.db import transaction
 from django.core.exceptions import PermissionDenied
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
 from django.contrib.auth import login, logout
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -51,6 +51,86 @@ logger = logging.getLogger(__name__)
 #Logger for user activity
 activity_logger = logging.getLogger('user_activity')
 
+# WEB INTERFACE VIEWS (Add this section at the very top after imports)
+def auth_hub(request):
+    """Authentication app hub showing all available endpoints"""
+    
+    # Define your actual authentication endpoints with correct URLs
+    auth_endpoints = [
+        {
+            'url': '/authentication/api/v1/auth/register/',
+            'description': 'User registration endpoint - Create new user accounts',
+            'status': 'active'
+        },
+        {
+            'url': '/authentication/api/v1/auth/login/',
+            'description': 'User login endpoint - Authenticate users and get tokens',
+            'status': 'active'
+        },
+        {
+            'url': '/api/v1/auth/logout/',
+            'description': 'User logout endpoint - Invalidate user sessions',
+            'status': 'active'
+        },
+        {
+            'url': '/api/v1/auth/token/refresh/',
+            'description': 'JWT token refresh - Get new access token using refresh token',
+            'status': 'active'
+        },
+        {
+            'url': '/api/v1/auth/token/verify/',
+            'description': 'JWT token verification - Verify and obtain token pair',
+            'status': 'active'
+        },
+        {
+            'url': '/api/v1/auth/search/',
+            'description': 'User search endpoint - Search for users in the system',
+            'status': 'active'
+        },
+        {
+            'url': '/api/v1/auth/debug/',
+            'description': 'Debug endpoint - Development and testing utilities',
+            'status': 'active'
+        },
+        {
+            'url': '/api/v1/auth/users/',
+            'description': 'User profile management - CRUD operations for user profiles',
+            'status': 'active'
+        },
+        {
+            'url': '/authentication/admin/',
+            'description': 'Django admin interface - Administrative user management',
+            'status': 'active'
+        },
+        {
+            'url': '/authentication/api/docs/',
+            'description': 'API documentation - Swagger UI for exploring API endpoints',
+            'status': 'active'
+        },
+        {
+            'url': '/authentication/api/redoc/',
+            'description': 'API documentation - ReDoc UI for exploring API endpoints',
+            'status': 'active'
+        },
+        {
+            'url': '/authentication/api/schema/',
+            'description': 'API schema - JSON schema for the authentication API',
+            'status': 'active'
+        },
+        {
+            'url': '/authentication/api/schema/',
+            'description': 'API schema - JSON schema for the authentication API',
+            'status': 'active'
+        },
+    ]
+    
+    context = {
+        'endpoints': auth_endpoints,
+        'app_name': 'Authentication API',
+        'app_description': 'RESTful JWT-based authentication system with user management'
+    }
+    
+    return render(request, 'authentication/auth_hub.html', context)
 
 
 def log_user_action(user, action, details=None, request=None):

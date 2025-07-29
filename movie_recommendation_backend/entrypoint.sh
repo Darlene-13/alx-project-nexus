@@ -6,10 +6,14 @@ if [ "$RUN_MIGRATIONS" = "true" ]; then
     python3 manage.py migrate --noinput
 fi
 
-# Seed the database with users
-echo "📦 Seeding users..."
-python3 movie_recommendation_backend/seed_users.py
-
+# Seed only if not already seeded
+if [ ! -f /app/.db_seeded ]; then
+  echo "Seeding database..."
+  python manage.py seed_data
+  touch /app/.db_seeded
+else
+  echo "Database already seeded, skipping..."
+fi
 
 # Start the app normally
 echo "Starting server..."

@@ -42,10 +42,10 @@ schema_view = get_schema_view(
 
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('authentication/admin/', admin.site.urls),
     path('', landing_page, name='landing_page'),
     # Authentication endpoints
-    path('api/v1/auth/', include('apps.authentication.urls')),
+    path('authentication/api/v1/auth/', include('apps.authentication.urls')),
     # Future app URLs (we'll add these as we build more apps)
     # path('api/v1/movies/', include('apps.movies.urls')),
     # path('api/v1/recommendations/', include('apps.recommendations.urls')),
@@ -53,9 +53,9 @@ urlpatterns = [
     # path('api/v1/analytics/', include('apps.analytics.urls')),
     
     # API Documentation (fix the paths)
-    path('api/docs/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
-    path('api/redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
-    path('api/schema/', schema_view.without_ui(cache_timeout=0), name='schema-json'),
+    path('authentication/api/docs/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+    path('authentication/api/redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+    path('authentication/api/schema/', schema_view.without_ui(cache_timeout=0), name='schema-json'),
 ]
 
 # Serve media files in development
