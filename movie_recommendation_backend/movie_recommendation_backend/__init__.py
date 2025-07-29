@@ -1,5 +1,5 @@
 # Movie_recommendation_backend Celery configuration
 
-from .celery import app as celery
+from .celery_app import app as celery_app
 
 __all__ = ('celery',)
