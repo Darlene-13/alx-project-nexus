@@ -86,7 +86,7 @@ ROOT_URLCONF = 'movie_recommendation_backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -97,6 +97,22 @@ TEMPLATES = [
         },
     },
 ]
+
+# Debug template paths
+import os
+print("BASE_DIR:", BASE_DIR)
+template_dir = BASE_DIR / 'templates'
+print("Template directory path:", template_dir)
+print("Template directory exists:", template_dir.exists())
+if template_dir.exists():
+    print("Files in template directory:", list(template_dir.iterdir()))
+else:
+    print("Template directory not found!")
+
+# Check what Django is actually using
+from django.conf import settings
+print("Django TEMPLATES setting:", settings.TEMPLATES[0]['DIRS'] if hasattr(settings, 'TEMPLATES') else "Not set yet")
+
 
 WSGI_APPLICATION = 'movie_recommendation_backend.wsgi.application'
 
@@ -119,10 +135,12 @@ DATABASES = {
     }
 }
 
+REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379")
+
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://redis:6379/1',
+        'LOCATION': REDIS_URL,
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             'SERIALIZER': 'django_redis.serializers.pickle.PickleSerializer',
