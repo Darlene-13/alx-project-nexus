@@ -33,7 +33,7 @@ AUTH_USER_MODEL = 'authentication.User'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver','0.0.0.0', '*.onrender.com'].split(',')
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver','0.0.0.0', '*.onrender.com']
 
 # Application definition
 
