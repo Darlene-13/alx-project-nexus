@@ -174,7 +174,7 @@ class GenreAdmin(admin.ModelAdmin):
 
 # Movie Admin
 
-@admin.regier(Movie)
+@admin.register(Movie)
 class MovieAdmin(admin.ModelAdmin):
     """
     Comprehensive admin interface for Movie model.
