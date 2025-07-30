@@ -68,32 +68,32 @@ def auth_hub(request):
             'status': 'active'
         },
         {
-            'url': '/api/v1/auth/logout/',
+            'url': '/authentication/api/v1/auth/logout/',
             'description': 'User logout endpoint - Invalidate user sessions',
             'status': 'active'
         },
         {
-            'url': '/api/v1/auth/token/refresh/',
+            'url': '/authentication/api/v1/auth/token/refresh/',
             'description': 'JWT token refresh - Get new access token using refresh token',
             'status': 'active'
         },
         {
-            'url': '/api/v1/auth/token/verify/',
+            'url': '/authentication/api/v1/auth/token/verify/',
             'description': 'JWT token verification - Verify and obtain token pair',
             'status': 'active'
         },
         {
-            'url': '/api/v1/auth/search/',
+            'url': '/authentication/api/v1/auth/search/',
             'description': 'User search endpoint - Search for users in the system',
             'status': 'active'
         },
         {
-            'url': '/api/v1/auth/debug/',
+            'url': '/authentication/api/v1/auth/debug/',
             'description': 'Debug endpoint - Development and testing utilities',
             'status': 'active'
         },
         {
-            'url': '/api/v1/auth/users/',
+            'url': '/authentication/api/v1/auth/users/',
             'description': 'User profile management - CRUD operations for user profiles',
             'status': 'active'
         },
