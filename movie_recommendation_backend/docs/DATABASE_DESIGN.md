@@ -111,7 +111,7 @@ Core movie information with simplified cast/crew data.
 movies {
     id: bigint PRIMARY KEY
     tmdb_id: integer UNIQUE NOT NULL
-    imdb_id: varchar(20) UNIQUE NULL
+    omdb_id: varchar(20) UNIQUE NULL
     title: varchar(200) NOT NULL
     original_title: varchar(200) NOT NULL
     overview: text DEFAULT ''
@@ -126,7 +126,7 @@ movies {
     -- Ratings
     tmdb_rating: decimal(3,1) NULL
     tmdb_vote_count: integer DEFAULT 0
-    imdb_rating: decimal(3,1) NULL
+    omdb_rating: decimal(3,1) NULL
     our_rating: decimal(3,1) NULL      -- User-generated average
     
     -- Media Assets
