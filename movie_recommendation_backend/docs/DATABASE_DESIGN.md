@@ -280,8 +280,7 @@ notification_logs {
     recipient: varchar(200) NOT NULL         -- Email address or device token
     status: varchar(20) DEFAULT 'pending'    -- 'pending', 'sent', 'delivered', 'failed', 'opened', 'clicked'
     external_id: varchar(100) NULL           -- SendGrid/Firebase message ID
-    error_message: text DEFAULT ''
-    
+    error_message: text DEFAULT ''    
     -- Delivery Tracking Timestamps
     sent_at: timestamp NULL
     delivered_at: timestamp NULL
