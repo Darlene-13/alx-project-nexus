@@ -86,6 +86,53 @@ class MovieInteractionsView(generics.ListAPIView):
 
 # === RECOMMENDATION VIEWS ===
 
+class UserRecommendationCreateView(generics.CreateAPIView):
+    """
+    Create individual recommendations manually.
+    Used by algorithms or admins to create specific recommendations.
+    POST: Create a new recommendation for a user-movie-algorithm combination
+    """
+    
+    serializer_class = UserRecommendationCreateSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def perform_create(self, serializer):
+        """Add any additional logic when creating recommendation"""
+        recommendation = serializer.save()
+        
+        # Optional: Log that a recommendation was manually created
+        UserMovieInteraction.create_interaction(
+            user=recommendation.user,
+            movie=recommendation.movie,
+            interaction_type='recommendation_created',
+            source='api',
+            metadata={
+                'recommendation_id': recommendation.id,
+                'algorithm': recommendation.algorithm,
+                'score': float(recommendation.score),
+                'created_via': 'manual_api'
+            }
+        )
+        
+        return recommendation
+    
+    def create(self, request, *args, **kwargs):
+        """Override to provide detailed response"""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        recommendation = self.perform_create(serializer)
+        
+        # Return recommendation with full details
+        response_serializer = UserRecommendationSerializer(recommendation)
+        
+        return Response({
+            'message': 'Recommendation created successfully',
+            'recommendation': response_serializer.data,
+            'created_at': recommendation.generated_at
+        }, status=status.HTTP_201_CREATED)
+
+
 class UserRecommendationsView(generics.ListAPIView):
     """
     Get personalized recommendations for current user.
