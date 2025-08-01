@@ -125,7 +125,7 @@ class UserMovieInteraction(models.Model):
     @classmethod
     def get_movie_average_rating(cls, movie):
         """Calculate average rating for a specific movie"""
-        avg_rating = cls.objects.filter(
+        avg_rating = cls.objects.filter( 
             movie=movie,
             interaction_type='rating',
             rating__isnull=False
@@ -446,8 +446,6 @@ class UserRecommendations(models.Model):
             'is_fresh': self.is_fresh,
             'relevance_score': self.relevance_score
         }
-
-    # === PRIVATE HELPER METHODS ===
     
     @classmethod
     def _recommend_popular_movies(cls, user, algorithm, limit):
@@ -504,7 +502,7 @@ class UserRecommendations(models.Model):
             print(f"Sending notification to {user.username}")
             print(f"Recommendations: {len(recommendations)} movies")
             
-            # Here you would call your notification service:
+            # Call the notification service:
             # - Email service
             # - Push notification service  
             # - SMS service
@@ -514,3 +512,32 @@ class UserRecommendations(models.Model):
         except Exception as e:
             print(f"Notification failed: {e}")
             return False
+        
+class UserProfile(models.Model):
+    """
+    User preferences and data specific to recommendations only
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='recommendation_profile')
+    
+    # Cold start solution fields
+    age = models.PositiveIntegerField(null=True, blank=True)
+    preferred_genres = models.ManyToManyField('movies.Genre', blank=True)
+    
+    # Onboarding tracking
+    onboarding_completed = models.BooleanField(default=False)
+    onboarding_completed_at = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'recommendation_user_profiles'
+        
+    def __str__(self):
+        return f"RecommendationProfile for {self.user.username}"
+    
+    @classmethod
+    def get_or_create_for_user(cls, user):
+        """Ensure every user has a recommendation profile"""
+        profile, created = cls.objects.get_or_create(user=user)
+        return profile
