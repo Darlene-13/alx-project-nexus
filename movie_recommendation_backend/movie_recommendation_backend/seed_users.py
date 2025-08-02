@@ -53,26 +53,36 @@ LAST_NAMES = [
 
 def create_superuser():
     """Create superuser from environment variables or defaults"""
-    username = 'admin'
-    email = 'admin@movierecommendation.com'
-    password = 'admin123'
+    username = os.environ.get('DJANGO_SUPERUSER_USERNAME', 'admin')
+    email = os.environ.get('DJANGO_SUPERUSER_EMAIL', 'admin@movierecommendation.com')
+    password = os.environ.get('DJANGO_SUPERUSER_PASSWORD', 'admin123')
     
     try:
-        if not User.objects.filter(username=username).exists():
-            superuser = User.objects.create_superuser(
-                username=username,
-                email=email,
-                password=password,
-                first_name='Super',
-                last_name='Admin'
-            )
-            print(f'👑 Superuser created: {username} ({email})')
+        # Delete any existing superuser first to avoid conflicts
+        User.objects.filter(username=username).delete()
+        
+        superuser = User.objects.create_superuser(
+            username=username,
+            email=email,
+            password=password,
+            first_name='Super',
+            last_name='Admin'
+        )
+        print(f'👑 Superuser created: {username} ({email})')
+        
+        # Verify the user was created properly
+        if User.objects.filter(username=username, is_superuser=True).exists():
+            print(f'✅ Superuser verification successful')
             return superuser
         else:
-            print(f'👑 Superuser already exists: {username}')
-            return User.objects.get(username=username)
+            print(f'❌ Superuser verification failed')
+            return None
+            
     except IntegrityError as e:
         print(f'⚠️  Superuser creation failed: {e}')
+        return None
+    except Exception as e:
+        print(f'⚠️  Unexpected error creating superuser: {e}')
         return None
 
 def generate_username(first_name, last_name, index):
