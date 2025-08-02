@@ -25,7 +25,7 @@ class UserActivityLogAdmin(admin.ModelAdmin):
         'action_type',
         'source', 
         ('timestamp', admin.DateFieldListFilter),
-        ('user', admin.RelatedOnlyFieldFilter),
+        ('user', admin.RelatedOnlyFieldListFilter),
     ]
     
     search_fields = [
@@ -150,7 +150,7 @@ class PopularityMetricsAdmin(admin.ModelAdmin):
     
     list_filter = [
         ('date', admin.DateFieldListFilter),
-        ('movie', admin.RelatedOnlyFieldFilter),
+        ('movie', admin.RelatedOnlyFieldListFilter),
         'view_count',
         'average_rating',
     ]
