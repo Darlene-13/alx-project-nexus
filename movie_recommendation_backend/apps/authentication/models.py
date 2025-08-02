@@ -6,6 +6,7 @@ import re #Regular expressions for validation
 import json
 from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 # To ensure that the phone number is in a valid format
 def validate_phone_number(value):
@@ -79,6 +80,23 @@ class User(AbstractUser):
                                    null=True,
                                    help_text="Type of device used by the user. This field is optional and can be left blank.")
     
+    # Recommendation preferences (add these)
+    favorite_genres = models.JSONField(default=list)  # Your original design
+    algorithm_preference = models.CharField(max_length=50, null=True, blank=True)
+    diversity_preference = models.FloatField(default=0.5, validators=[MinValueValidator(0.0), MaxValueValidator(1.0)])
+    novelty_preference = models.FloatField(default=0.5, validators=[MinValueValidator(0.0), MaxValueValidator(1.0)])
+    content_rating_preference = models.CharField(max_length=10, null=True, blank=True)
+    preferred_decade = models.CharField(max_length=10, null=True, blank=True)
+    
+    # Onboarding tracking
+    onboarding_completed = models.BooleanField(default=False)
+    onboarding_completed_at = models.DateTimeField(null=True, blank=True)
+    cold_start_preferences_collected = models.BooleanField(default=False)
+    
+    # Privacy settings
+    allow_demographic_targeting = models.BooleanField(default=True)
+    data_usage_consent = models.BooleanField(default=False)
+
     # Account status fields
     is_active = models.BooleanField(default=True, help_text="Indicates if the user account is active.")
     is_superuser = models.BooleanField(default=False, help_text="Indicates if the user has superuser privileges.")
@@ -179,6 +197,35 @@ def is_adult(self):
         return None
     return self.age >= 18
 
+@property
+def age(self):
+    if self.date_of_birth:
+        from datetime import date
+        today = date.today()
+        return today.year - self.date_of_birth.year - ((today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day))
+    return None
+
+@property
+def age_group(self):
+    if not self.age:
+        return None
+    if self.age < 18: return 'teen'
+    elif self.age < 30: return 'young_adult'
+    elif self.age < 50: return 'adult'
+    else: return 'senior'
+
+@property
+def is_new_user(self):
+    return not self.onboarding_completed and not self.cold_start_preferences_collected
+
+@property
+def cold_start_strategy(self):
+    if self.age and self.country:
+        return 'demographic'
+    elif self.favorite_genres:
+        return 'content_based'
+    else:
+        return 'popular'
 
 def clean(self):
     """ Custom clean method to validate the user model fields"""

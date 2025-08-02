@@ -1,336 +1,346 @@
-# Django admin configuration for the User model
-
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User
-import json
-from django.urls import reverse
-from django.utils.safestring import mark_safe
-from django.db.models import Q
 from django.contrib.auth import get_user_model
-from django.utils.html import format_html
-import csv
 from django.http import HttpResponse
+from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
+from datetime import date
+import csv
+import json
+import logging
 
+from .models import User
+from apps.recommendations.models import UserRecommendations, UserMovieInteraction
+
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
-class CustomUserAdmin(BaseUserAdmin):
-    """
-    Custom User Admin that extends Django's built-in UserAdmin.
-    
-    Why extend BaseUserAdmin instead of admin.ModelAdmin?
-    - BaseUserAdmin provides user management features (password changes, permissions)
-    - It handles user creation and editing forms properly
-    - It includes security features like password hashing
-    - We just add our custom fields to the existing functionality
-    """
-    
-    # LIST VIEW CONFIGURATION
 
-    # Fields to display in the admin list view (main user list page)
+class AdminConfig:
+    """Configuration constants for admin interface."""
+    
+    LIST_PER_PAGE = 25
+    MAX_INLINE_ITEMS = 10
+    GENRES_DISPLAY_LIMIT = 5
+    
+    # CSS styles for status indicators
+    STYLES = {
+        'no_genres': 'color: gray;',
+        'few_genres': 'color: green;',
+        'many_genres': 'color: blue;',
+        'invalid': 'color: red;',
+        'avatar': 'width:50px;height:50px;border-radius:50%;',
+        'no_avatar': 'width:50px;height:50px;background:#eee;border-radius:50%;text-align:center;'
+    }
+
+
+class UserUtils:
+    """Utility functions for user operations."""
+    
+    @staticmethod
+    def calculate_age(birth_date):
+        """Calculate age from date of birth."""
+        if not birth_date:
+            return None
+        today = date.today()
+        age = today.year - birth_date.year
+        if (today.month, today.day) < (birth_date.month, birth_date.day):
+            age -= 1
+        return age
+
+    @staticmethod
+    def safe_json_parse(json_string, default=None):
+        """Safely parse JSON string with fallback."""
+        try:
+            return json.loads(json_string) if json_string else (default or [])
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.warning(f"Failed to parse JSON: {json_string}, Error: {e}")
+            return default or []
+
+    @staticmethod
+    def get_user_attribute(user, attr_name, default=''):
+        """Safely get user attribute with default value."""
+        return getattr(user, attr_name, default)
+
+
+class ExportMixin:
+    """Reusable mixin for CSV export functionality."""
+
+    def export_users_csv(self, request, queryset):
+        """Export selected users to CSV with comprehensive data."""
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename=users_export.csv'
+
+        writer = csv.writer(response)
+        
+        # Define headers
+        headers = [
+            'ID', 'Username', 'Email', 'Full Name', 'Age', 'Country',
+            'Premium Status', 'Device Type', 'Favorite Genres Count',
+            'Total Interactions', 'Total Recommendations', 'Last Login',
+            'Date Joined'
+        ]
+        writer.writerow(headers)
+
+        # Write user data
+        for user in queryset.select_related().prefetch_related('recommendations', 'interactions'):
+            self._write_user_row(writer, user)
+
+        count = queryset.count()
+        self.message_user(request, f"Successfully exported {count} users to CSV.")
+        return response
+
+    def _write_user_row(self, writer, user):
+        """Write a single user row to CSV."""
+        age = UserUtils.calculate_age(user.date_of_birth)
+        genres = UserUtils.safe_json_parse(user.favorite_genres)
+        full_name = f"{user.first_name} {user.last_name}".strip() or user.username
+        
+        row_data = [
+            user.id,
+            user.username,
+            user.email,
+            full_name,
+            age,
+            UserUtils.get_user_attribute(user, 'country'),
+            'Yes' if UserUtils.get_user_attribute(user, 'is_premium') else 'No',
+            UserUtils.get_user_attribute(user, 'device_type'),
+            len(genres),
+            getattr(user, 'interactions', {}).count() if hasattr(user, 'interactions') else 0,
+            getattr(user, 'recommendations', {}).count() if hasattr(user, 'recommendations') else 0,
+            user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else 'Never',
+            user.date_joined.strftime('%Y-%m-%d %H:%M'),
+        ]
+        writer.writerow(row_data)
+
+    export_users_csv.short_description = _("Export selected users to CSV")
+
+
+class BaseInlineAdmin(admin.TabularInline):
+    """Base class for inline admin configurations."""
+    
+    extra = 0
+    max_num = AdminConfig.MAX_INLINE_ITEMS
+    can_delete = False
+    show_change_link = True
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+class UserRecommendationsInline(BaseInlineAdmin):
+    """Inline admin for user recommendations."""
+    
+    model = UserRecommendations
+    fields = ['movie', 'algorithm', 'score', 'clicked', 'generated_at']
+    readonly_fields = fields
+    ordering = ['-score', '-generated_at']
+
+
+class UserInteractionsInline(BaseInlineAdmin):
+    """Inline admin for user movie interactions."""
+    
+    model = UserMovieInteraction
+    fields = ['movie', 'interaction_type', 'rating', 'feedback_type', 'timestamp']
+    readonly_fields = fields
+    ordering = ['-timestamp']
+
+
+@admin.register(User)
+class CustomUserAdmin(BaseUserAdmin, ExportMixin):
+    """Enhanced user admin with analytics and recommendation management."""
+
+    # List view configuration
     list_display = [
-        'username',           # Basic identifier
-        'email',             # Contact info
-        'display_name_admin', # Custom method for better display
-        'is_premium',        # Business status
-        'is_active',         # Account status
-        'device_type',       # Device info
-        'country',           # Location
-        'favorite_genres_count', # Custom method
-        'date_joined',       # When they joined
-        'last_login',        # Activity status
+        'username', 'email', 'full_name_display', 'premium_status',
+        'is_active', 'device_type', 'country', 'genres_summary',
+        'join_date_short', 'last_login_short'
     ]
-    
-    # Fields that are clickable links (go to edit page)
     list_display_links = ['username', 'email']
-    
-    # Fields that can be edited directly in the list view (without opening the detail page)
-    list_editable = ['is_premium', 'is_active']
-    
-    # Default ordering (newest users first)
+    list_editable = ['is_active']
+    list_per_page = AdminConfig.LIST_PER_PAGE
     ordering = ['-date_joined']
-    
-    # Number of users to show per page
-    list_per_page = 25
-    
-    # FILTERING AND SEARCHING
-    
-    # Right sidebar filters in the admin list
+
+    # Filtering and search
     list_filter = [
-        'is_active',          # Active/inactive users
-        'is_staff',           # Staff users
-        'is_superuser',       # Admin users
-        'is_premium',         # Premium subscribers
-        'device_type',        # iOS/Android/Web users
-        'preferred_language', # Language preferences
-        'country',            # Geographic distribution
-        'date_joined',        # Registration date
-        'last_login',         # Recent activity
+        'is_active', 'is_staff', 'is_superuser', 'is_premium',
+        'device_type', 'preferred_language', 'country',
+        ('date_joined', admin.DateFieldListFilter),
+        ('last_login', admin.DateFieldListFilter),
     ]
-    
-    # Search functionality - which fields to search in
-    search_fields = [
-        'username',     # Username search
-        'email',        # Email search
-        'first_name',   # First name search
-        'last_name',    # Last name search
-        'bio',          # Bio text search
-    ]
-    
-    # Help text for search box
-    search_help_text = "Search by username, email, first name, last name, or bio content"
- 
-    # FORM FIELD ORGANIZATION
-    
-    # Fields to display in the user detail/edit form
-    # We organize them into logical sections using fieldsets
+    search_fields = ['username', 'email', 'first_name', 'last_name']
+    search_help_text = _("Search by username, email, first name, or last name")
+
+    # Form configuration
     fieldsets = (
-        # Basic Information Section
-        ('Basic Information', {
-            'fields': ('username', 'email', 'password'),
-            'description': 'Core authentication credentials'
+        (_('Authentication'), {
+            'fields': ('username', 'email', 'password')
         }),
-        
-        # Personal Information Section
-        ('Personal Information', {
+        (_('Personal Information'), {
             'fields': ('first_name', 'last_name', 'date_of_birth', 'bio', 'avatar'),
-            'description': 'Personal details and profile information',
-            'classes': ['collapse'],  # This section starts collapsed
+            'classes': ['collapse']
         }),
-        
-        # Contact & Location Section  
-        ('Contact & Location', {
+        (_('Contact & Location'), {
             'fields': ('phone_number', 'country', 'preferred_timezone'),
-            'description': 'Contact information and geographic details',
-            'classes': ['collapse'],
+            'classes': ['collapse']
         }),
-        
-        # Preferences Section
-        ('Preferences', {
-            'fields': ('preferred_language', 'favorite_genres'),
-            'description': 'User preferences for personalization',
-            'classes': ['collapse'],
+        (_('Preferences'), {
+            'fields': ('preferred_language', 'favorite_genres', 'genres_display'),
+            'classes': ['collapse']
         }),
-        
-        # Device Information Section
-        ('Device Information', {
+        (_('Device Information'), {
             'fields': ('device_token', 'device_type'),
-            'description': 'Device details for push notifications',
-            'classes': ['collapse'],
+            'classes': ['collapse']
         }),
-        
-        # Account Status Section
-        ('Account Status', {
-            'fields': ('is_active', 'is_premium', 'is_staff', 'is_superuser'),
-            'description': 'Account permissions and status flags'
+        (_('Permissions & Status'), {
+            'fields': ('is_active', 'is_premium', 'is_staff', 'is_superuser')
         }),
-        
-        # Timestamps Section (read-only)
-        ('Important Dates', {
+        (_('Important Dates'), {
             'fields': ('last_login', 'date_joined', 'created_at', 'updated_at'),
-            'description': 'System-generated timestamps',
-            'classes': ['collapse'],
+            'classes': ['collapse']
         }),
     )
-    
-    # Fields for the "Add User" form (when creating new users)
+
     add_fieldsets = (
-        ('Required Information', {
+        (_('Required Information'), {
             'fields': ('username', 'email', 'password1', 'password2'),
-            'description': 'Basic information required to create a new user'
         }),
-        ('Optional Information', {
+        (_('Optional Information'), {
             'fields': ('first_name', 'last_name', 'is_premium'),
-            'classes': ['collapse'],
+            'classes': ['collapse']
         }),
     )
-    # READ ONLY FIELD
-    # This are fields that should not be editable in the admin interface
+
     readonly_fields = [
-        'last_login',  # Last login timestamp
-        'date_joined', # When the user registered
-        'created_at',  # Record creation timestamp
-        'updated_at',  # Last update timestamp
-        'display_avatar', # Custom method for avatar display
-        'favorite_genres_display', # Custom method for genre count
+        'last_login', 'date_joined', 'created_at', 'updated_at',
+        'avatar_display', 'genres_display'
     ]
-    actions = ['export_users_csv']  # Custom action to export users to CSV
 
-    # CUSTOM ADMIN METHODS
-    # These methods provide additional functionality in the admin interface
-
-    def display_name_admin(self, obj):
-        """
-        Custom method to display user's name in the admin list.
-        Direct implementation without using the property.
-        """
-        # Direct calculation instead of using the property
-        if obj.first_name and obj.last_name:
-            return f"{obj.first_name} {obj.last_name}".strip()
-        elif obj.first_name:
-            return obj.first_name
-        elif obj.last_name:
-            return obj.last_name
-        return obj.username
-    display_name_admin.short_description = 'Display Name'
-    display_name_admin.admin_order_field = 'first_name'
-
-    def favorite_genres_count(self, obj):
-        """
-        Display the number of favorite genres that the user has a string.
-        Makes it easy than showing the JSON list preview.
-
-        """
-        try:
-            genres = json.loads(obj.favorite_genres)
-            count = len(genres)
-            if count == 0:
-                return format_html('<span class="text-muted">No genres</span>')
-            elif count <= 3:
-                return format_html('<span class="text-success">{} genre(s)</span>', count)
-            else:
-                return format_html('<span class="text-info">{} genres</span>', count)
-        except (json.JSONDecodeError, TypeError):
-            return format_html('<span class="text-muted">Invalid genres</span>')
-        
-    favorite_genres_count.short_description = 'Favorite Genres Count'
-
-    def display_avatar(self, obj):
-        """
-        Custom method to display the user's avatar in the admin list.
-        """
-        if obj.avatar:
-            return format_html('<img src="{}" alt="Avatar" style="width: 50px; height: 50px; border-radius: 50%;">', obj.avatar.url)
-        return format_html('<div style="width: 100px; height: 100px; background: #ddd; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #666;">No Image</div>')
-    
-    display_avatar.short_description = 'Avatar'
-
-    def favorite_genres_display(self, obj):
-        """
-        Custom method to display the user's favorite genres in the admin list.
-        """
-        try:
-            genre_ids = json.loads(obj.favorite_genres)
-            if not genre_ids:
-                return "No favorite genres selected"
-            
-            #Display the IDS
-            if len(genre_ids) <= 3:
-                return f"Genre IDS: {', '.join(map(str, genre_ids))}"
-            else:
-                first_five = genre_ids[:5]
-                return f"Genre IDS: {', '.join(map(str, first_five))}, ... ({len(genre_ids)} total)"
-        except (json.JSONDecodeError, TypeError):
-            return format_html('<span class="text-muted">Invalid genres</span>')
-        
-    favorite_genres_display.short_description = 'Favorite Genres'
-
-
-    # CUSTOM ACTION METHODS
-    def make_premium(self, request, queryset):
-        """ Custom action to make select users premium members"""
-        updated = queryset.update(is_premium=True)
-        self.message_user(request,
-                          f'{updated} users were successfully marked as premium.')
-    
-    make_premium.short_description = 'Make selected users premium'
-
-    def remove_premium(self, request, queryset):
-        """ Custom action to remove premium status from select users"""
-        updated = queryset.update(is_premium=False)
-        self.message_user(request,
-                          f'{updated} users were successfully marked as non-premium.')
-        
-    def clear_device_tokens(self, request, queryset):
-        """ Custom action to clear device tokens for selected users"""
-        updated = queryset.update(device_token='')
-        self.message_user(request,
-                          f'{updated} users had their device tokens cleared.')
-    clear_device_tokens.short_description = 'Clear device tokens for selected users'
-
-    # Register custom actions
+    # Actions
     actions = [
-        'make_premium',
-        'remove_premium',
-        'clear_device_tokens',
+        'toggle_premium_status', 'activate_users', 'deactivate_users',
+        'clear_device_tokens', 'export_users_csv'
     ]
 
-    #ADVANCED ADMIN FEATURES
-    # This section can include advanced features like custom filters, inlines, etc.
+    # Inlines
+    inlines = [UserRecommendationsInline, UserInteractionsInline]
+
+    # Display methods
+    def full_name_display(self, obj):
+        """Display user's full name or username as fallback."""
+        full_name = f"{obj.first_name} {obj.last_name}".strip()
+        return full_name or obj.username
+    full_name_display.short_description = _('Full Name')
+
+    def premium_status(self, obj):
+        """Display premium status with visual indicator."""
+        if obj.is_premium:
+            return format_html('<span style="color: gold;">⭐ Premium</span>')
+        return format_html('<span style="color: gray;">Regular</span>')
+    premium_status.short_description = _('Status')
+    premium_status.admin_order_field = 'is_premium'
+
+    def genres_summary(self, obj):
+        """Display favorite genres count with color coding."""
+        genres = UserUtils.safe_json_parse(obj.favorite_genres)
+        count = len(genres)
+        
+        if count == 0:
+            return format_html(f'<span style="{AdminConfig.STYLES["no_genres"]}">No genres</span>')
+        elif count <= 3:
+            return format_html(f'<span style="{AdminConfig.STYLES["few_genres"]}">{count} genre(s)</span>')
+        return format_html(f'<span style="{AdminConfig.STYLES["many_genres"]}">{count} genres</span>')
+    genres_summary.short_description = _("Favorite Genres")
+
+    def join_date_short(self, obj):
+        """Display shortened join date."""
+        return obj.date_joined.strftime('%Y-%m-%d') if obj.date_joined else '-'
+    join_date_short.short_description = _('Joined')
+    join_date_short.admin_order_field = 'date_joined'
+
+    def last_login_short(self, obj):
+        """Display shortened last login date."""
+        return obj.last_login.strftime('%Y-%m-%d') if obj.last_login else 'Never'
+    last_login_short.short_description = _('Last Login')
+    last_login_short.admin_order_field = 'last_login'
+
+    def avatar_display(self, obj):
+        """Display user avatar or placeholder."""
+        if obj.avatar:
+            return format_html(
+                f'<img src="{obj.avatar.url}" style="{AdminConfig.STYLES["avatar"]}" alt="Avatar" />'
+            )
+        return format_html(f'<div style="{AdminConfig.STYLES["no_avatar"]}">No Avatar</div>')
+    avatar_display.short_description = _("Avatar Preview")
+
+    def genres_display(self, obj):
+        """Display detailed favorite genres information."""
+        genres = UserUtils.safe_json_parse(obj.favorite_genres)
+        if not genres:
+            return _("No favorite genres selected")
+        
+        displayed_genres = ', '.join(map(str, genres[:AdminConfig.GENRES_DISPLAY_LIMIT]))
+        total_count = len(genres)
+        
+        if total_count > AdminConfig.GENRES_DISPLAY_LIMIT:
+            return f"{displayed_genres}... ({total_count} total)"
+        return displayed_genres
+    genres_display.short_description = _("Favorite Genres Detail")
+
+    # Action methods
+    def toggle_premium_status(self, request, queryset):
+        """Toggle premium status for selected users."""
+        premium_count = 0
+        regular_count = 0
+        
+        for user in queryset:
+            if user.is_premium:
+                user.is_premium = False
+                regular_count += 1
+            else:
+                user.is_premium = True
+                premium_count += 1
+            user.save(update_fields=['is_premium'])
+        
+        message = f"Updated {premium_count} to premium, {regular_count} to regular."
+        self.message_user(request, message)
+    toggle_premium_status.short_description = _("Toggle premium status")
+
+    def activate_users(self, request, queryset):
+        """Activate selected users."""
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f"{updated} user(s) activated.")
+    activate_users.short_description = _("Activate selected users")
+
+    def deactivate_users(self, request, queryset):
+        """Deactivate selected users."""
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f"{updated} user(s) deactivated.")
+    deactivate_users.short_description = _("Deactivate selected users")
+
+    def clear_device_tokens(self, request, queryset):
+        """Clear device tokens for selected users."""
+        updated = queryset.update(device_token='')
+        self.message_user(request, f"Device tokens cleared for {updated} user(s).")
+    clear_device_tokens.short_description = _("Clear device tokens")
+
     def get_queryset(self, request):
-        """
-        Customizing the queryset for better performance and reduce database queries.
-        """
-        qs = super().get_queryset(request)
-        # Apply any optimizations or prefetch_related here
-        return qs
+        """Optimize queryset with select_related and prefetch_related."""
+        return super().get_queryset(request).select_related().prefetch_related(
+            'recommendations', 'interactions'
+        )
+
+
+# Admin site configuration
+class AdminSiteConfig:
+    """Configuration for the admin site."""
     
-    def has_delete_permissions(self, request, obj=None):
-        """
-        Override to control delete permissions.
-        For example, prevent deletion of superusers or premium users.
-        """
-        if obj and (obj.is_superuser or obj.is_premium):
-            return False
-        return super().has_delete_permissions(request, obj)
-    
-    def save_model(self, request, obj, form, change):
-        """
-        Custom logic when saving a user through admin, it is called when admin saves a user.
-        """
-        if change:
-            print(f"Updating user: {obj.username}")
-        else:
-            print(f"Creating new user: {obj.username}")
-
-        # call the parent save method to handle the actual saving
-        super().save_model(request, obj, form, change)
+    @staticmethod
+    def configure_admin_site():
+        admin.site.site_header = _("Movie Recommendation System")
+        admin.site.site_title = _("Admin Portal")
+        admin.site.index_title = _("Welcome to the Movie Recommendation Admin")
 
 
-class UserStatisticsAdmin(admin.ModelAdmin):
-    """
-    Admin interface for user statistics.
-    This can include custom reports, analytics, etc.
-    """
-    list_display = ['user', 'total_movies_watched', 'total_recommendations_received']
-    search_fields = ['user__username', 'user__email']
-
-    def total_movies_watched(self, obj):
-        return obj.movies_watched.count()
-    
-    total_movies_watched.short_description = 'Total Movies Watched'
-
-    def total_recommendations_received(self, obj):
-        return obj.recommendations_received.count()
-    
-    total_recommendations_received.short_description = 'Total Recommendations Received'
-
-# REGISTER MODELS WITH ADMIN SITE
-admin.site.register(User, CustomUserAdmin)
-
-# Customize the admin site headers and title...
-admin.site.site_header = "Movie Recommendation Admin"
-admin.site.site_title = "Movie Recommendation Admin Portal"
-admin.site.index_title = "Welcome to the Movie Recommendation Admin Portal"
-
-#ADMIN UTILITIES
-def export_users_csv(modeladmin, request, queryset):
-    """
-    Export selected users to a CSV file.
-    This is a custom admin action that allows bulk export of user data.
-    """
-
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="users.csv"'
-
-    writer = csv.writer(response)
-    writer.writerow([
-        'Username', 'Email', 'First Name', 'Last Name', 'Date Joined', 'Last Login', 'Is Premium', 'Device Type', 'Country', 'Preferred Language', 'favorite_genres', 
-        ])
-
-    for user in queryset:
-        writer.writerow([
-            user.username, user.email, user.first_name, user.last_name, user.date_joined, user.last_login, user.is_premium, user.device_type, user.country, user.preferred_language, user.favorite_genres
-        ])
-
-    return response
+# Apply admin site configuration
+AdminSiteConfig.configure_admin_site()
