@@ -1,8 +1,15 @@
 #!/bin/sh
 
+# Clear all existing data from database
+echo "Clearing database..."
+python3 manage.py flush --noinput
+
 # Always run database migrations
 echo "Running migrations..."
 python3 manage.py migrate --noinput
+
+# Remove seeding flag since we cleared the database
+rm -f /app/.db_seeded
 
 # Seed only if not already seeded
 if [ ! -f /app/.db_seeded ]; then
