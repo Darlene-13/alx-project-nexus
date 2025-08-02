@@ -286,7 +286,7 @@ class MovieAdmin(admin.ModelAdmin):
     
     # PERFORMANCE OPTIMIZATION
     list_per_page = 25
-    list_select_related = ['genres']  # Prevent N+1 queries
+    prefetch_related = ['genres'] 
     
     # ORDERING
     ordering = ['-created_at']  # Newest first

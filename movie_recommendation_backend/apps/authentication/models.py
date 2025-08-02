@@ -226,6 +226,15 @@ def cold_start_strategy(self):
         return 'content_based'
     else:
         return 'popular'
+    
+def get_interactions(self):
+        """Get user's movie interactions"""
+        from apps.recommendations.models import UserMovieInteraction
+        return UserMovieInteraction.objects.filter(user=self)
+    
+def get_interactions_count(self):
+    """Get count of user's movie interactions"""
+    return self.get_interactions().count()
 
 def clean(self):
     """ Custom clean method to validate the user model fields"""
@@ -275,6 +284,7 @@ def save(self, *args, **kwargs):
 
     # Call the parent save method
     super().save(*args, **kwargs)
+
 
 def __str__(self):
     """ Returns the string representation of the user."""
