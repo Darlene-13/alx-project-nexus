@@ -23,25 +23,6 @@ class NotificationsPreferences(models.Model):
         (6, 'Sunday'),
     ]
 
-User = get_user_model()
-
-class NotificationsPreferences(models.Model):
-    """
-    This is the user preference model for email or push notifications.
-    It stores comprehensive notification settings for each user.
-    """
-
-    # Weekday choices for notification preferences
-    WEEKDAY_CHOICES = [
-        (0, 'Monday'),
-        (1, 'Tuesday'),
-        (2, 'Wednesday'),
-        (3, 'Thursday'),
-        (4, 'Friday'),
-        (5, 'Saturday'),
-        (6, 'Sunday'),
-    ]
-
     # Core field
     id = models.BigAutoField(primary_key=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notification_preferences', unique=True)

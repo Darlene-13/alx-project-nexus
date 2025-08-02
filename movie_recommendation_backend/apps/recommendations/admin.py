@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.utils.html import format_html
 from django.utils import timezone
 from django.urls import reverse
+from rangefilter.filters import NumericRangeFilter
 from django.http import HttpResponse
 from django.db.models import Count, Avg, Q, F
 from datetime import timedelta
@@ -94,7 +95,7 @@ class UserMovieInteractionAdmin(BaseRecommendationAdmin, ExportCsvMixin):
     list_filter = [
         'interaction_type', 'feedback_type', 'source',
         ('timestamp', admin.DateFieldListFilter),
-        ('rating', admin.RangeNumericFilter),
+        ('rating', NumericRangeFilter),
     ]
     
     search_fields = [
@@ -241,7 +242,7 @@ class UserRecommendationsAdmin(BaseRecommendationAdmin, ExportCsvMixin):
     list_filter = [
         'algorithm', 'clicked',
         ('generated_at', admin.DateFieldListFilter),
-        ('score', admin.RangeNumericFilter),
+        ('score', NumericRangeFilter),
     ]
     
     search_fields = [

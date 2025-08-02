@@ -9,6 +9,7 @@ click-repl==0.3.0
 cron-descriptor==1.4.5
 dj-database-url==3.0.1
 Django==5.2.4
+django-admin-rangefilter==0.13.3
 django-celery-beat==2.8.1
 django-cors-headers==4.7.0
 django-filter==25.1
