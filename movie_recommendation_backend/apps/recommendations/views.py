@@ -46,6 +46,7 @@ from .serializers import (
     RecommendationContextSerializer,
     BulkRecommendationCreateSerializer
 )
+
 from .permissions import IsOwnerOrReadOnly, IsAdminOrReadOnly
 from .filters import UserInteractionFilter, RecommendationFilter, UserPreferencesFilter
 
@@ -680,10 +681,7 @@ class RecommendationExperimentViewSet(viewsets.ModelViewSet):
         
         return Response({'message': 'No active experiment'}, status=status.HTTP_404_NOT_FOUND)
 
-
-# =============================================================================
 # USER PROFILE VIEWS (Working with User Model)
-# =============================================================================
 
 class UserProfileViewSet(viewsets.ViewSet):
     """

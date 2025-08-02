@@ -25,10 +25,10 @@ This simplified database design prioritizes **rapid development** and **core fun
 |-----|--------|--------------|
 | **Authentication** | 1 | User management (merged profile) |
 | **Movies** | 3 | Movie catalog with genres |
-| **Recommendations** | 2 | AI-powered recommendation engine |
+| **Recommendations** | 4 | AI-powered recommendation engine |
 | **Notifications** | 2 | Multi-channel communication |
 | **Analytics** | 2 | User behavior & performance tracking |
-| **Total** | **10** | Complete system functionality |
+| **Total** | **12** | Complete system functionality |
 
 ---
 
@@ -276,67 +276,6 @@ CREATE INDEX idx_experiments_date_range ON recommendation_experiments(start_date
 CREATE INDEX idx_experiments_target_metric ON recommendation_experiments(target_metric);
 CREATE INDEX idx_experiments_algorithms ON recommendation_experiments(algorithm_a, algorithm_b);
 
-```
-
-#### **3.4 User Profile**
-User preferences and demographics specifically for recommendation algorithms.
-```sql
-user_profiles {
-    id: bigint PRIMARY KEY
-    
-    -- Relationship (One-to-One with User)
-    user_id: bigint UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE
-    
-    -- Demographics for Cold Start & Segmentation
-    age: integer NULL CHECK (age BETWEEN 13 AND 120)
-    gender: varchar(20) NULL -- 'male', 'female', 'other', 'prefer_not_to_say'
-    location_country: varchar(100) NULL
-    location_city: varchar(100) NULL
-    language_preference: varchar(10) DEFAULT 'en'
-    
-    -- Advanced Preferences
-    preferred_genres: jsonb DEFAULT '[]' -- Array of genre IDs with weights
-    content_rating_preference: varchar(10) NULL -- 'G', 'PG', 'PG-13', 'R', 'NC-17'
-    preferred_decade: varchar(10) NULL   -- '1990s', '2000s', '2010s', '2020s'
-    
-    -- Onboarding & Cold Start Tracking
-    onboarding_completed: boolean DEFAULT false
-    onboarding_completed_at: timestamp NULL
-    cold_start_preferences_collected: boolean DEFAULT false
-    initial_genre_survey_completed: boolean DEFAULT false
-    
-    -- Algorithm & Personalization Preferences
-    algorithm_preference: varchar(50) NULL -- User's preferred recommendation algorithm
-    enable_demographic_recommendations: boolean DEFAULT true
-    diversity_preference: float DEFAULT 0.5 CHECK (diversity_preference BETWEEN 0.0 AND 1.0) -- 0=focused, 1=diverse
-    novelty_preference: float DEFAULT 0.5 CHECK (novelty_preference BETWEEN 0.0 AND 1.0) -- 0=popular, 1=obscure
-    
-    -- Notification Preferences (Recommendation-specific)
-    email_recommendations: boolean DEFAULT true
-    push_recommendations: boolean DEFAULT true
-    recommendation_frequency: varchar(20) DEFAULT 'daily' -- 'daily', 'weekly', 'monthly'
-    digest_day_of_week: integer DEFAULT 1 CHECK (digest_day_of_week BETWEEN 1 AND 7) -- 1=Monday
-    digest_time: time DEFAULT '09:00:00'
-    
-    -- Privacy & Data Usage
-    allow_demographic_targeting: boolean DEFAULT true
-    data_usage_consent: boolean DEFAULT false
-    
-    -- Timestamps
-    created_at: timestamp DEFAULT CURRENT_TIMESTAMP
-    updated_at: timestamp DEFAULT CURRENT_TIMESTAMP
-}
-
--- Cold Start & Demographics Indexes
-CREATE INDEX idx_user_profiles_demographics ON user_profiles(age, gender, location_country) 
-    WHERE age IS NOT NULL AND gender IS NOT NULL;
-CREATE INDEX idx_user_profiles_onboarding ON user_profiles(onboarding_completed, cold_start_preferences_collected);
-CREATE INDEX idx_user_profiles_preferences ON user_profiles USING GIN (preferred_genres) 
-    WHERE preferred_genres != '[]';
-CREATE INDEX idx_user_profiles_algorithm ON user_profiles(algorithm_preference) 
-    WHERE algorithm_preference IS NOT NULL;
-CREATE INDEX idx_user_profiles_location ON user_profiles(location_country, location_city) 
-    WHERE location_country IS NOT NULL;
 ```
 ---
 
