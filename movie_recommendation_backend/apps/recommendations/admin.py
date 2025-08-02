@@ -1,4 +1,4 @@
-# recommendations/admin.py
+
 
 from django.contrib import admin
 from django.contrib.auth import get_user_model
@@ -642,7 +642,7 @@ class EnhancedUserAdmin(BaseUserAdmin):
     )
     
     # Add inlines for recommendations and interactions
-    inlines = BaseUserAdmin.inlines + [UserRecommendationsInline, UserInteractionsInline]
+    inlines = BaseUserAdmin.inlines + (UserRecommendationsInline, UserInteractionsInline)
     
     # Add recommendation-related list display
     list_display = BaseUserAdmin.list_display + ('onboarding_completed', 'has_preferences')
