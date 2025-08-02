@@ -1,10 +1,18 @@
-# recommendations/models.py
+"""
+This module defines our recommendations app models including user interactions, recommendations, experiments and their profiles for better recommendations.
+
+
+"""
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
-from django.db.models import Avg, Count, Q, F
+from django.db.models import Avg, Count, Q, F, Count
 from datetime import timedelta
+from django.core.exceptions import ValidationError
+import hashlib
+from apps.movies.models import Movie  
+        
 
 User = get_user_model()
 
@@ -136,8 +144,6 @@ class UserMovieInteraction(models.Model):
     @classmethod
     def get_user_preferred_genres(cls, user, limit=5):
         """Get user's most interacted genres for recommendations"""
-        from django.db.models import Count
-        
         # Get genres from movies user interacted with positively
         interactions = cls.objects.filter(
             user=user,
@@ -450,8 +456,6 @@ class UserRecommendations(models.Model):
     @classmethod
     def _recommend_popular_movies(cls, user, algorithm, limit):
         """Fallback recommendations for new users"""
-        from movies.models import Movie
-        
         # Get popular movies from recent interactions
         popular_movie_ids = UserMovieInteraction.get_trending_movies(days=30)[:limit]
         
@@ -513,31 +517,241 @@ class UserRecommendations(models.Model):
             print(f"Notification failed: {e}")
             return False
         
-class UserProfile(models.Model):
+class RecommendationExperiment(models.Model):
     """
-    User preferences and data specific to recommendations only
+    A/B testing framework for comparing recommendation algorithms.
+    This model allows us to run controlled experiments to determine which
+    recommendation algorithms perform better for our users.
     """
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='recommendation_profile')
     
-    # Cold start solution fields
-    age = models.PositiveIntegerField(null=True, blank=True)
-    preferred_genres = models.ManyToManyField('movies.Genre', blank=True)
+    # Target metrics for measuring experiment success
+    TARGET_METRIC_CHOICES = [
+        ('ctr', 'Click-Through Rate'),
+        ('engagement', 'User Engagement'),
+        ('retention', 'User Retention'),
+        ('conversion', 'Conversion Rate'),
+        ('rating', 'Average Rating'),
+        ('time_spent', 'Time Spent on Platform'),
+    ]
     
-    # Onboarding tracking
-    onboarding_completed = models.BooleanField(default=False)
-    onboarding_completed_at = models.DateTimeField(null=True, blank=True)
+    # Algorithm choices - should match UserRecommendations.ALGORITHM_CHOICES
+    ALGORITHM_CHOICES = [
+        ('collaborative', 'Collaborative Filtering'),
+        ('content_based', 'Content-Based Filtering'),
+        ('hybrid', 'Hybrid Algorithm'),
+        ('trending', 'Trending Movies'),
+        ('demographic', 'Demographic-Based'),
+        ('matrix_factorization', 'Matrix Factorization'),
+    ]
     
-    created_at = models.DateTimeField(auto_now_add=True)
+    id = models.BigAutoField(primary_key=True)
+    
+    # Experiment configuration
+    name = models.CharField(max_length=100, unique=True, help_text="Unique name for this experiment")
+    description = models.TextField(null=True, blank=True)
+    # Algorithm variants to test
+    algorithm_a = models.CharField(max_length=50, choices=ALGORITHM_CHOICES, help_text="Control algorithm (usually current production algorithm)")
+    algorithm_b = models.CharField(max_length=50, choices=ALGORITHM_CHOICES, help_text="Test algorithm (new algorithm to test)")
+    # Test configuration
+    traffic_split = models.FloatField( default=0.5, validators=[MinValueValidator(0.1), MaxValueValidator(0.9)],help_text="Percentage of traffic to algorithm_b (0.5 = 50/50 split)")
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
+    # Success metrics configuration
+    target_metric = models.CharField(max_length=50, choices=TARGET_METRIC_CHOICES, help_text="Primary metric to measure experiment success")
+    minimum_sample_size = models.IntegerField(default=1000, help_text="Minimum number of users needed for statistical significance")
+    confidence_level = models.FloatField(default=0.95, validators=[MinValueValidator(0.8), MaxValueValidator(0.99)],help_text="Statistical confidence level (0.95 = 95%)")
+    # Results (updated by analytics jobs)
+    statistical_significance = models.FloatField(null=True, blank=True, help_text="Current statistical significance level")
+    winner_algorithm = models.CharField(max_length=50, choices=ALGORITHM_CHOICES, null=True, blank=True, help_text="Winning algorithm (if any)")
+    p_value = models.FloatField(null=True, blank=True, help_text="P-value of the statistical test")
+    effect_size = models.FloatField(null=True, blank=True, help_text="Effect size of the difference between algorithms")
+    # Metadata
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_experiments')
+    created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
-
     class Meta:
-        db_table = 'recommendation_user_profiles'
-        
+        db_table = 'recommendation_experiments'
+        verbose_name = 'Recommendation Experiment'
+        verbose_name_plural = 'Recommendation Experiments'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(
+                fields=['is_active', 'start_date', 'end_date'], 
+                name='idx_experiments_active'
+            ),
+            models.Index(fields=['start_date', 'end_date'], name='idx_experiments_date_range'),
+            models.Index(fields=['target_metric'], name='idx_experiments_target_metric'),
+            models.Index(fields=['algorithm_a', 'algorithm_b'], name='idx_experiments_algorithms'),
+        ]
+
     def __str__(self):
-        return f"RecommendationProfile for {self.user.username}"
+        status = "Active" if self.is_active else "Inactive"
+        return f"Experiment: {self.name} ({self.algorithm_a} vs {self.algorithm_b}) - {status}"
+    
+    def clean(self):
+        """Validate experiment configuration"""
+        # Ensure end date is after start date
+        if self.end_date <= self.start_date:
+            raise ValidationError("End date must be after start date")
+        
+        # Ensure algorithms are different
+        if self.algorithm_a == self.algorithm_b:
+            raise ValidationError("Algorithm A and Algorithm B must be different")
+        
+        # Check for overlapping experiments
+        overlapping = RecommendationExperiment.objects.filter(
+            is_active=True,
+            start_date__lt=self.end_date,
+            end_date__gt=self.start_date
+        ).exclude(id=self.id)
+        
+        if overlapping.exists():
+            raise ValidationError(
+                f"Experiment overlaps with existing active experiment: {overlapping.first().name}"
+            )
+    
+    def save(self, *args, **kwargs):
+        """Override save to run validation"""
+        self.clean()
+        super().save(*args, **kwargs)
+    
+    @property
+    def is_running(self):
+        """Check if experiment is currently running"""
+        now = timezone.now()
+        return self.is_active and self.start_date <= now <= self.end_date
+    
+    @property
+    def is_completed(self):
+        """Check if experiment has completed"""
+        return timezone.now() > self.end_date
+    
+    @property
+    def duration_days(self):
+        """Get experiment duration in days"""
+        return (self.end_date - self.start_date).days
+    
+    @property
+    def progress_percentage(self):
+        """Get current progress of experiment as percentage"""
+        if not self.is_running:
+            return 100 if self.is_completed else 0
+        
+        total_duration = self.end_date - self.start_date
+        elapsed = timezone.now() - self.start_date
+        return min(100, (elapsed.total_seconds() / total_duration.total_seconds()) * 100)
+    
+    @property
+    def has_significant_result(self):
+        """Check if experiment has statistically significant results"""
+        return (self.p_value is not None and 
+                self.p_value < (1 - self.confidence_level) and
+                self.winner_algorithm is not None)
+    
+    def get_algorithm_for_user(self, user):
+        """Determine which algorithm a user should see based on traffic split"""
+        if not self.is_running:
+            return self.algorithm_a  # Default to control if not running
+        
+        # Use user ID for consistent assignment
+        # This ensures same user always gets same algorithm during experiment
+        hash_input = f"{self.id}_{user.id}".encode()
+        hash_value = int(hashlib.md5(hash_input).hexdigest(), 16)
+        user_percentage = (hash_value % 100) / 100.0
+        
+        return self.algorithm_b if user_percentage < self.traffic_split else self.algorithm_a
+    
+    def calculate_metrics(self):
+        """Calculate current experiment metrics"""
+        if not self.is_running and not self.is_completed:
+            return None
+        
+        # Get recommendations generated during experiment period
+        recs_a = UserRecommendations.objects.filter(
+            algorithm=self.algorithm_a,
+            generated_at__gte=self.start_date,
+            generated_at__lte=min(timezone.now(), self.end_date)
+        )
+        
+        recs_b = UserRecommendations.objects.filter(
+            algorithm=self.algorithm_b,
+            generated_at__gte=self.start_date,
+            generated_at__lte=min(timezone.now(), self.end_date)
+        )
+        
+        metrics_a = self._calculate_algorithm_metrics(recs_a)
+        metrics_b = self._calculate_algorithm_metrics(recs_b)
+        
+        return {
+            'algorithm_a': {
+                'name': self.algorithm_a,
+                'metrics': metrics_a
+            },
+            'algorithm_b': {
+                'name': self.algorithm_b,
+                'metrics': metrics_b
+            },
+            'sample_sizes': {
+                'algorithm_a': recs_a.values('user').distinct().count(),
+                'algorithm_b': recs_b.values('user').distinct().count()
+            }
+        }
+    
+    def _calculate_algorithm_metrics(self, recommendations):
+        """Calculate metrics for a specific algorithm's recommendations"""
+        total_recs = recommendations.count()
+        if total_recs == 0:
+            return {'total': 0, 'ctr': 0, 'avg_score': 0}
+        
+        clicked_recs = recommendations.filter(clicked=True).count()
+        avg_score = recommendations.aggregate(avg=Avg('score'))['avg'] or 0
+        
+        return {
+            'total_recommendations': total_recs,
+            'clicked_recommendations': clicked_recs,
+            'ctr': round((clicked_recs / total_recs) * 100, 2),
+            'avg_score': round(avg_score, 3),
+        }
+    
+    def update_statistical_results(self, p_value, effect_size, winner=None):
+        """Update experiment results with statistical analysis"""
+        self.p_value = p_value
+        self.effect_size = effect_size
+        self.statistical_significance = 1 - p_value if p_value else None
+        self.winner_algorithm = winner
+        self.save(update_fields=[
+            'p_value', 'effect_size', 'statistical_significance', 'winner_algorithm'
+        ])
+    
+    def stop_experiment(self, reason=None):
+        """Stop the experiment early"""
+        self.is_active = False
+        self.end_date = timezone.now()
+        self.save(update_fields=['is_active', 'end_date'])
     
     @classmethod
-    def get_or_create_for_user(cls, user):
-        """Ensure every user has a recommendation profile"""
-        profile, created = cls.objects.get_or_create(user=user)
-        return profile
+    def get_active_experiment(cls):
+        """Get the currently active experiment (if any)"""
+        now = timezone.now()
+        return cls.objects.filter(
+            is_active=True,
+            start_date__lte=now,
+            end_date__gte=now
+        ).first()
+    
+    @classmethod
+    def create_experiment(cls, name, algorithm_a, algorithm_b, start_date, end_date, 
+                         created_by=None, **kwargs):
+        """Create a new experiment with validation"""
+        experiment = cls(
+            name=name,
+            algorithm_a=algorithm_a,
+            algorithm_b=algorithm_b,
+            start_date=start_date,
+            end_date=end_date,
+            created_by=created_by,
+            **kwargs
+        )
+        experiment.save()  # This will run validation
+        return experiment

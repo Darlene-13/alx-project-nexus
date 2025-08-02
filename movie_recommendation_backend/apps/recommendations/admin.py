@@ -1,560 +1,738 @@
 # recommendations/admin.py
-from django.contrib import admin
-from django.utils.html import format_html
-from django.urls import reverse
-from django.utils.safestring import mark_safe
-from django.db.models import Count, Avg
-from .models import UserMovieInteraction, UserRecommendations
-from django.db.models import Q, F
-from django.db import models
-from django.utils import timezone
 
-@admin.register(UserMovieInteraction)
-class UserMovieInteractionAdmin(admin.ModelAdmin):
-    """
-    Admin interface for UserMovieInteraction model.
-    Provides comprehensive management and analytics for user interactions.
-    """
+from django.contrib import admin
+from django.contrib.auth import get_user_model
+from django.utils.html import format_html
+from django.utils import timezone
+from django.urls import reverse
+from django.http import HttpResponse
+from django.db.models import Count, Avg, Q, F
+from datetime import timedelta
+import csv
+import json
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+
+
+from .models import (
+    UserMovieInteraction,
+    UserRecommendations, 
+    RecommendationExperiment
+)
+
+User = get_user_model()
+
+
+# BASE ADMIN CLASSES & MIXINS
+
+class BaseRecommendationAdmin(admin.ModelAdmin):
+    """Base admin class with common functionality"""
     
-    # === LIST VIEW CONFIGURATION ===
-    
-    list_display = [
-        'id',
-        'user_link',           # Custom method to show clickable user
-        'movie_link',          # Custom method to show clickable movie
-        'interaction_type',
-        'rating_display',      # Custom method for better rating display
-        'feedback_badge',      # Custom method with colored badges
-        'source',
-        'timestamp',
-        'engagement_indicator', # Visual engagement indicator
-    ]
-    
-    list_filter = [
-        'interaction_type',
-        'feedback_type',
-        'source',
-        'timestamp',
-        ('rating', admin.EmptyFieldListFilter),  # Filter by has/no rating
-    ]
-    
-    search_fields = [
-        'user__username',
-        'user__email',
-        'movie__title',
-        'feedback_comment',
-    ]
-    
-    date_hierarchy = 'timestamp'  # Adds date navigation
-    
-    # How many items per page
-    list_per_page = 50
-    
-    # Default ordering
-    ordering = ['-timestamp']
-    
-    # === DETAIL VIEW CONFIGURATION ===
-    
-    fields = [
-        ('user', 'movie'),                    # Side by side
-        ('interaction_type', 'source'),       # Side by side
-        ('rating', 'feedback_type'),          # Side by side
-        'feedback_comment',
-        'metadata',
-        'timestamp',
-    ]
-    
-    readonly_fields = [
-        'timestamp',
-        'engagement_weight_display',  # Custom read-only field
-    ]
-    
-    # === CUSTOM METHODS FOR LIST DISPLAY ===
+    def get_queryset(self, request):
+        """Optimize queries with select_related"""
+        qs = super().get_queryset(request)
+        if hasattr(self.model, 'user'):
+            qs = qs.select_related('user')
+        if hasattr(self.model, 'movie'):
+            qs = qs.select_related('movie')
+        return qs
     
     def user_link(self, obj):
-        """Create clickable link to user's admin page"""
+        """Create clickable link to user admin"""
         if obj.user:
             url = reverse('admin:auth_user_change', args=[obj.user.id])
             return format_html('<a href="{}">{}</a>', url, obj.user.username)
-        return 'Anonymous'
+        return '-'
     user_link.short_description = 'User'
-    user_link.admin_order_field = 'user__username'  # Makes column sortable
+    user_link.admin_order_field = 'user__username'
     
     def movie_link(self, obj):
-        """Create clickable link to movie's admin page"""
-        if obj.movie:
-            # Adjust this URL pattern based on your movies app
+        """Create clickable link to movie admin"""
+        if hasattr(obj, 'movie') and obj.movie:
             url = reverse('admin:movies_movie_change', args=[obj.movie.id])
             return format_html('<a href="{}">{}</a>', url, obj.movie.title)
-        return 'N/A'
+        return '-'
     movie_link.short_description = 'Movie'
     movie_link.admin_order_field = 'movie__title'
+
+
+class ExportCsvMixin:
+    """Mixin to add CSV export functionality"""
     
+    def export_as_csv(self, request, queryset):
+        """Export selected items as CSV"""
+        meta = self.model._meta
+        field_names = [field.name for field in meta.fields]
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename={meta}.csv'
+        writer = csv.writer(response)
+        
+        writer.writerow(field_names)
+        for obj in queryset:
+            row = writer.writerow([getattr(obj, field) for field in field_names])
+        
+        return response
+    
+    export_as_csv.short_description = "Export Selected as CSV"
+
+
+# USER MOVIE INTERACTION ADMIN
+
+@admin.register(UserMovieInteraction)
+class UserMovieInteractionAdmin(BaseRecommendationAdmin, ExportCsvMixin):
+    """
+    Admin interface for user-movie interactions.
+    Provides comprehensive filtering, search, and analytics.
+    """
+    
+    list_display = [
+        'id', 'user_link', 'movie_link', 'interaction_type', 
+        'rating_display', 'feedback_badge', 'engagement_weight_display',
+        'source', 'is_recent_badge', 'timestamp'
+    ]
+    
+    list_filter = [
+        'interaction_type', 'feedback_type', 'source',
+        ('timestamp', admin.DateFieldListFilter),
+        ('rating', admin.RangeNumericFilter),
+    ]
+    
+    search_fields = [
+        'user__username', 'user__email', 'movie__title', 
+        'movie__original_title', 'feedback_comment'
+    ]
+    
+    readonly_fields = [
+        'id', 'timestamp', 'is_recent', 'is_positive_feedback', 
+        'engagement_weight', 'recommendation_data'
+    ]
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('user', 'movie', 'interaction_type', 'timestamp')
+        }),
+        ('Interaction Details', {
+            'fields': ('rating', 'feedback_type', 'feedback_comment', 'source', 'metadata')
+        }),
+        ('Computed Fields', {
+            'fields': ('is_recent', 'is_positive_feedback', 'engagement_weight'),
+            'classes': ('collapse',)
+        }),
+        ('Analytics Data', {
+            'fields': ('recommendation_data',),
+            'classes': ('collapse',)
+        })
+    )
+    
+    raw_id_fields = ['user', 'movie']
+    date_hierarchy = 'timestamp'
+    list_per_page = 50
+    
+    actions = ['export_as_csv', 'mark_as_positive', 'mark_as_negative', 'bulk_delete_old']
+    
+    def get_queryset(self, request):
+        """Optimize queries and add computed annotations"""
+        qs = super().get_queryset(request)
+        return qs.select_related('user', 'movie').annotate(
+            computed_is_positive=self._positive_feedback_annotation()
+        )
+    
+    def _positive_feedback_annotation(self):
+        """SQL annotation for positive feedback detection"""
+        return Q(
+            Q(interaction_type__in=['like', 'favorite', 'watchlist']) |
+            Q(feedback_type='positive') |
+            Q(rating__gte=4.0)
+        )
+    
+    # Custom display methods
     def rating_display(self, obj):
         """Display rating with stars"""
         if obj.rating:
-            stars = '★' * int(obj.rating) + '☆' * (5 - int(obj.rating))
-            return format_html(
-                '<span title="{}/5">{}</span>',
-                obj.rating,
-                stars
-            )
+            stars = '⭐' * int(obj.rating)
+            return f"{obj.rating} {stars}"
         return '-'
     rating_display.short_description = 'Rating'
     rating_display.admin_order_field = 'rating'
     
     def feedback_badge(self, obj):
-        """Display feedback type with colored badges"""
-        if not obj.feedback_type:
-            return '-'
-        
-        colors = {
-            'positive': '#28a745',  # Green
-            'negative': '#dc3545',  # Red
-            'neutral': '#6c757d',   # Gray
-        }
-        
-        color = colors.get(obj.feedback_type, '#6c757d')
-        return format_html(
-            '<span style="background-color: {}; color: white; padding: 2px 6px; '
-            'border-radius: 3px; font-size: 11px;">{}</span>',
-            color,
-            obj.feedback_type.upper()
-        )
+        """Display feedback type with color coding"""
+        if obj.feedback_type == 'positive':
+            return format_html('<span style="color: green;">✓ Positive</span>')
+        elif obj.feedback_type == 'negative':
+            return format_html('<span style="color: red;">✗ Negative</span>')
+        elif obj.feedback_type == 'neutral':
+            return format_html('<span style="color: orange;">− Neutral</span>')
+        return '-'
     feedback_badge.short_description = 'Feedback'
-    feedback_badge.admin_order_field = 'feedback_type'
     
-    def engagement_indicator(self, obj):
-        """Visual indicator of engagement level"""
+    def engagement_weight_display(self, obj):
+        """Display engagement weight with visual indicator"""
         weight = obj.engagement_weight
-        
-        if weight >= 4.0:
-            color = '#28a745'  # High engagement - Green
+        if weight >= 4:
+            color = 'green'
             icon = '🔥'
-        elif weight >= 2.0:
-            color = '#ffc107'  # Medium engagement - Yellow
+        elif weight >= 2:
+            color = 'orange'
             icon = '👍'
         elif weight > 0:
-            color = '#17a2b8'  # Low engagement - Blue
+            color = 'blue'
             icon = '👀'
         else:
-            color = '#dc3545'  # Negative engagement - Red
+            color = 'red'
             icon = '👎'
         
         return format_html(
-            '<span style="color: {}; font-weight: bold;" title="Weight: {}">{}</span>',
-            color,
-            weight,
-            icon
+            '<span style="color: {};">{} {}</span>', 
+            color, icon, weight
         )
-    engagement_indicator.short_description = 'Engagement'
+    engagement_weight_display.short_description = 'Engagement'
+    engagement_weight_display.admin_order_field = 'engagement_weight'
     
-    def engagement_weight_display(self, obj):
-        """Read-only field showing engagement weight"""
-        return f"{obj.engagement_weight} points"
-    engagement_weight_display.short_description = 'Engagement Weight'
+    def is_recent_badge(self, obj):
+        """Display recent status with badge"""
+        if obj.is_recent:
+            return format_html('<span style="color: green;">🕐 Recent</span>')
+        return format_html('<span style="color: gray;">📅 Old</span>')
+    is_recent_badge.short_description = 'Recency'
     
-    # === ACTIONS ===
+    def recommendation_data(self, obj):
+        """Display formatted recommendation data"""
+        data = obj.to_recommendation_data()
+        return format_html('<pre>{}</pre>', json.dumps(data, indent=2, default=str))
+    recommendation_data.short_description = 'ML Data'
     
-    @admin.action(description='Mark selected as positive feedback')
-    def mark_positive_feedback(self, request, queryset):
-        """Bulk action to mark interactions as positive"""
+    # Custom admin actions
+    def mark_as_positive(self, request, queryset):
+        """Mark selected interactions as positive feedback"""
         updated = queryset.update(feedback_type='positive')
         self.message_user(request, f'{updated} interactions marked as positive.')
+    mark_as_positive.short_description = "Mark as positive feedback"
     
-    @admin.action(description='Generate recommendations for these users')
-    def generate_recommendations_for_users(self, request, queryset):
-        """Generate recommendations for users in selected interactions"""
-        users = set(queryset.values_list('user', flat=True))
-        total_generated = 0
-        
-        for user_id in users:
-            if user_id:  # Skip anonymous users
-                from django.contrib.auth import get_user_model
-                User = get_user_model()
-                user = User.objects.get(id=user_id)
-                recs = UserRecommendations.generate_for_user(user)
-                total_generated += len(recs)
-        
-        self.message_user(request, f'Generated {total_generated} recommendations for {len(users)} users.')
+    def mark_as_negative(self, request, queryset):
+        """Mark selected interactions as negative feedback"""
+        updated = queryset.update(feedback_type='negative')
+        self.message_user(request, f'{updated} interactions marked as negative.')
+    mark_as_negative.short_description = "Mark as negative feedback"
     
-    actions = [mark_positive_feedback, generate_recommendations_for_users]
+    def bulk_delete_old(self, request, queryset):
+        """Delete interactions older than 90 days"""
+        cutoff_date = timezone.now() - timedelta(days=90)
+        old_interactions = queryset.filter(timestamp__lt=cutoff_date)
+        count = old_interactions.count()
+        old_interactions.delete()
+        self.message_user(request, f'{count} old interactions deleted.')
+    bulk_delete_old.short_description = "Delete interactions older than 90 days"
 
 
+# USER RECOMMENDATIONS ADMIN
 @admin.register(UserRecommendations)
-class UserRecommendationsAdmin(admin.ModelAdmin):
+class UserRecommendationsAdmin(BaseRecommendationAdmin, ExportCsvMixin):
     """
-    Admin interface for UserRecommendations model.
-    Focuses on recommendation management and performance tracking.
+    Admin interface for user recommendations.
+    Focuses on performance analytics and recommendation quality.
     """
-    
-    # === LIST VIEW CONFIGURATION ===
     
     list_display = [
-        'id',
-        'user_link',
-        'movie_link',
-        'score_bar',           # Visual score representation
-        'algorithm_badge',     # Styled algorithm display
-        'status_indicator',    # Clicked/unclicked status
-        'generated_at',
-        'freshness_indicator', # Age indicator
+        'id', 'user_link', 'movie_link', 'score_display', 'algorithm_badge',
+        'freshness_indicator', 'click_status', 'generated_at'
     ]
     
     list_filter = [
-        'algorithm',
-        'clicked',
-        'generated_at',
-        ('clicked_at', admin.EmptyFieldListFilter),
+        'algorithm', 'clicked',
+        ('generated_at', admin.DateFieldListFilter),
+        ('score', admin.RangeNumericFilter),
     ]
     
     search_fields = [
-        'user__username',
-        'user__email',
-        'movie__title',
-        'algorithm',
-    ]
-    
-    date_hierarchy = 'generated_at'
-    
-    list_per_page = 50
-    ordering = ['-score', '-generated_at']
-    
-    # === DETAIL VIEW CONFIGURATION ===
-    
-    fields = [
-        ('user', 'movie'),
-        ('score', 'algorithm'),
-        ('generated_at', 'clicked'),
-        'clicked_at',
-        'recommendation_details',  # Custom read-only field
+        'user__username', 'user__email', 'movie__title',
+        'movie__original_title', 'algorithm'
     ]
     
     readonly_fields = [
-        'generated_at',
-        'recommendation_details',
+        'id', 'generated_at', 'is_fresh', 'relevance_score', 
+        'click_through_time', 'api_format'
     ]
     
-    # === CUSTOM METHODS FOR LIST DISPLAY ===
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('user', 'movie', 'algorithm', 'score', 'generated_at')
+        }),
+        ('Performance Tracking', {
+            'fields': ('clicked', 'clicked_at')
+        }),
+        ('Computed Metrics', {
+            'fields': ('is_fresh', 'relevance_score', 'click_through_time'),
+            'classes': ('collapse',)
+        }),
+        ('API Data', {
+            'fields': ('api_format',),
+            'classes': ('collapse',)
+        })
+    )
     
-    def user_link(self, obj):
-        """Clickable user link"""
-        url = reverse('admin:auth_user_change', args=[obj.user.id])
-        return format_html('<a href="{}">{}</a>', url, obj.user.username)
-    user_link.short_description = 'User'
-    user_link.admin_order_field = 'user__username'
+    raw_id_fields = ['user', 'movie']
+    date_hierarchy = 'generated_at'
+    list_per_page = 50
     
-    def movie_link(self, obj):
-        """Clickable movie link"""
-        url = reverse('admin:movies_movie_change', args=[obj.movie.id])
-        return format_html('<a href="{}">{}</a>', url, obj.movie.title)
-    movie_link.short_description = 'Movie'
-    movie_link.admin_order_field = 'movie__title'
+    actions = [
+        'export_as_csv', 'mark_as_clicked', 'refresh_scores', 
+        'cleanup_old_recommendations', 'generate_performance_report'
+    ]
     
-    def score_bar(self, obj):
-        """Visual representation of recommendation score"""
-        # Score is 0-10, convert to percentage
-        percentage = (obj.score / 10.0) * 100
-        
-        # Color based on score
-        if obj.score >= 8.0:
-            color = '#28a745'  # Green
-        elif obj.score >= 6.0:
-            color = '#ffc107'  # Yellow
-        elif obj.score >= 4.0:
-            color = '#fd7e14'  # Orange
-        else:
-            color = '#dc3545'  # Red
+    def get_queryset(self, request):
+        """Optimize queries with select_related"""
+        return super().get_queryset(request).select_related('user', 'movie')
+    
+    # Custom display methods
+    def score_display(self, obj):
+        """Display score with visual bar"""
+        width = min(obj.score * 10, 100)  # Scale to percentage
+        color = 'green' if obj.score >= 7 else 'orange' if obj.score >= 5 else 'red'
         
         return format_html(
-            '<div style="width: 100px; background-color: #e9ecef; border-radius: 3px;">'
-            '<div style="width: {}%; background-color: {}; height: 20px; border-radius: 3px; '
-            'text-align: center; line-height: 20px; color: white; font-size: 11px;">{}</div></div>',
-            percentage,
-            color,
-            obj.score
+            '<div style="width: 100px; background-color: #f0f0f0;">'
+            '<div style="width: {}px; height: 20px; background-color: {}; text-align: center; color: white;">'
+            '{:.1f}</div></div>',
+            width, color, obj.score
         )
-    score_bar.short_description = 'Score'
-    score_bar.admin_order_field = 'score'
+    score_display.short_description = 'Score'
+    score_display.admin_order_field = 'score'
     
     def algorithm_badge(self, obj):
-        """Styled algorithm display"""
+        """Display algorithm with color coding"""
         colors = {
-            'collaborative_filtering': '#007bff',  # Blue
-            'content_based': '#28a745',            # Green
-            'hybrid': '#6f42c1',                   # Purple
-            'popular': '#fd7e14',                  # Orange
+            'collaborative_filtering': 'blue',
+            'content_based': 'green', 
+            'hybrid': 'purple',
+            'trending': 'orange',
+            'demographic': 'teal'
         }
-        
-        color = colors.get(obj.algorithm, '#6c757d')
+        color = colors.get(obj.algorithm, 'gray')
         return format_html(
-            '<span style="background-color: {}; color: white; padding: 2px 8px; '
-            'border-radius: 10px; font-size: 11px;">{}</span>',
-            color,
-            obj.algorithm.replace('_', ' ').title()
+            '<span style="background-color: {}; color: white; padding: 2px 6px; border-radius: 3px;">{}</span>',
+            color, obj.algorithm
         )
     algorithm_badge.short_description = 'Algorithm'
-    algorithm_badge.admin_order_field = 'algorithm'
-    
-    def status_indicator(self, obj):
-        """Show clicked status with icons"""
-        if obj.clicked:
-            return format_html(
-                '<span style="color: #28a745; font-size: 16px;" title="Clicked at {}">✅</span>',
-                obj.clicked_at.strftime('%Y-%m-%d %H:%M') if obj.clicked_at else 'Unknown'
-            )
-        else:
-            return format_html(
-                '<span style="color: #6c757d; font-size: 16px;" title="Not clicked">⏳</span>'
-            )
-    status_indicator.short_description = 'Status'
-    status_indicator.admin_order_field = 'clicked'
     
     def freshness_indicator(self, obj):
-        """Show recommendation age with visual indicators"""
+        """Display freshness with visual indicator"""
         if obj.is_fresh:
-            return format_html(
-                '<span style="color: #28a745;" title="Fresh recommendation">🟢 Fresh</span>'
-            )
+            return format_html('<span style="color: green;">🟢 Fresh</span>')
         else:
             days_old = (timezone.now() - obj.generated_at).days
-            return format_html(
-                '<span style="color: #dc3545;" title="{} days old">🔴 {} days</span>',
-                days_old,
-                days_old
-            )
+            return format_html('<span style="color: red;">🔴 Stale ({}d)</span>', days_old)
     freshness_indicator.short_description = 'Freshness'
     
-    def recommendation_details(self, obj):
-        """Detailed info in edit view"""
-        details = [
-            f"Relevance Score: {obj.relevance_score}",
-            f"Is Fresh: {'Yes' if obj.is_fresh else 'No'}",
-            f"Click Through Time: {obj.click_through_time or 'Not clicked'}",
-        ]
-        return format_html('<br>'.join(details))
-    recommendation_details.short_description = 'Recommendation Details'
+    def click_status(self, obj):
+        """Display click status with metrics"""
+        if obj.clicked:
+            ctt = obj.click_through_time
+            if ctt:
+                return format_html('<span style="color: green;">✓ Clicked ({})</span>', str(ctt))
+            return format_html('<span style="color: green;">✓ Clicked</span>')
+        return format_html('<span style="color: gray;">○ Not Clicked</span>')
+    click_status.short_description = 'Click Status'
     
-    # === ACTIONS ===
+    def api_format(self, obj):
+        """Display API formatted data"""
+        data = obj.to_api_format()
+        return format_html('<pre>{}</pre>', json.dumps(data, indent=2, default=str))
+    api_format.short_description = 'API Format'
     
-    @admin.action(description='Mark selected as clicked')
+    # Custom admin actions
     def mark_as_clicked(self, request, queryset):
-        """Bulk action to mark recommendations as clicked"""
-        updated = 0
-        for rec in queryset.filter(clicked=False):
-            rec.mark_as_clicked()
-            updated += 1
-        
-        self.message_user(request, f'{updated} recommendations marked as clicked.')
-    
-    @admin.action(description='Refresh recommendation scores')
-    def refresh_scores(self, request, queryset):
-        """Recalculate recommendation scores"""
+        """Mark selected recommendations as clicked"""
         updated = 0
         for rec in queryset:
-            # This would call your score calculation logic
-            new_score = UserRecommendations._calculate_recommendation_score(
-                rec.user, rec.movie, rec.algorithm
-            )
-            rec.update_score(new_score)
-            updated += 1
-        
-        self.message_user(request, f'Refreshed scores for {updated} recommendations.')
+            if not rec.clicked:
+                rec.mark_as_clicked()
+                updated += 1
+        self.message_user(request, f'{updated} recommendations marked as clicked.')
+    mark_as_clicked.short_description = "Mark as clicked"
     
-    @admin.action(description='Send notifications for selected recommendations')
-    def send_notifications(self, request, queryset):
-        """Send notifications for selected recommendations"""
-        # Group by user
-        users_recs = {}
-        for rec in queryset.filter(clicked=False):
-            if rec.user.id not in users_recs:
-                users_recs[rec.user.id] = []
-            users_recs[rec.user.id].append(rec)
-        
-        notifications_sent = 0
-        for user_id, recs in users_recs.items():
-            try:
-                success = UserRecommendations._send_user_notification(user_id, recs)
-                if success:
-                    notifications_sent += 1
-            except Exception as e:
-                continue
-        
-        self.message_user(request, f'Sent notifications to {notifications_sent} users.')
+    def refresh_scores(self, request, queryset):
+        """Refresh recommendation scores (placeholder)"""
+        # This would integrate with your ML pipeline
+        count = queryset.count()
+        self.message_user(request, f'Score refresh initiated for {count} recommendations.')
+    refresh_scores.short_description = "Refresh recommendation scores"
     
-    actions = [mark_as_clicked, refresh_scores, send_notifications]
+    def cleanup_old_recommendations(self, request, queryset):
+        """Remove old unclicked recommendations"""
+        old_count = UserRecommendations.cleanup_old_recommendations(days=30)
+        self.message_user(request, f'{old_count} old recommendations cleaned up.')
+    cleanup_old_recommendations.short_description = "Cleanup old recommendations"
     
-    # === QUERYSET OPTIMIZATION ===
-    
-    def get_queryset(self, request):
-        """Optimize database queries"""
-        return super().get_queryset(request).select_related(
-            'user', 'movie'  # Avoid N+1 queries
-        )
-
-
-# === INLINE ADMINS ===
-
-class UserInteractionInline(admin.TabularInline):
-    """
-    Inline admin to show user interactions within User admin.
-    Useful for seeing user activity at a glance.
-    """
-    model = UserMovieInteraction
-    extra = 0  # Don't show empty forms
-    max_num = 10  # Limit displayed interactions
-    
-    fields = [
-        'movie',
-        'interaction_type',
-        'rating',
-        'feedback_type',
-        'timestamp',
-    ]
-    
-    readonly_fields = ['timestamp']
-    
-    def get_queryset(self, request):
-        """Show only recent interactions"""
-        from django.utils import timezone
-        from datetime import timedelta
-        
-        recent_cutoff = timezone.now() - timedelta(days=30)
-        return super().get_queryset(request).filter(
-            timestamp__gte=recent_cutoff
-        ).select_related('movie')
-
-
-class UserRecommendationInline(admin.TabularInline):
-    """
-    Inline admin to show recommendations within User admin.
-    """
-    model = UserRecommendations
-    extra = 0
-    max_num = 5
-    
-    fields = [
-        'movie',
-        'score',
-        'algorithm',
-        'clicked',
-        'generated_at',
-    ]
-    
-    readonly_fields = ['generated_at']
-    
-    def get_queryset(self, request):
-        """Show only fresh recommendations"""
-        return super().get_queryset(request).filter(
-            is_fresh=True  # This might need adjustment based on your model
-        ).select_related('movie').order_by('-score')
-
-
-# === CUSTOM ADMIN VIEWS ===
-
-class RecommendationAnalyticsAdmin(admin.ModelAdmin):
-    """
-    Custom admin for analytics and reporting.
-    This creates a separate admin section for analytics.
-    """
-    
-    def has_add_permission(self, request):
-        """Disable adding - this is view-only"""
-        return False
-    
-    def has_delete_permission(self, request, obj=None):
-        """Disable deleting"""
-        return False
-    
-    def has_change_permission(self, request, obj=None):
-        """Disable editing"""
-        return False
-    
-    def changelist_view(self, request, extra_context=None):
-        """Custom changelist view with analytics"""
-        from django.template.response import TemplateResponse
-        
-        # Calculate analytics data
-        context = {
-            'title': 'Recommendation Analytics',
-            'analytics_data': self.get_analytics_data(),
-        }
-        
-        if extra_context:
-            context.update(extra_context)
-        
-        return TemplateResponse(request, 'admin/recommendations_analytics.html', context)
-    
-    def get_analytics_data(self):
-        """Calculate analytics data for dashboard"""
-        from django.utils import timezone
-        from datetime import timedelta
-        
-        # Last 30 days data
-        cutoff = timezone.now() - timedelta(days=30)
-        
-        total_interactions = UserMovieInteraction.objects.filter(timestamp__gte=cutoff).count()
-        total_recommendations = UserRecommendations.objects.filter(generated_at__gte=cutoff).count()
-        clicked_recommendations = UserRecommendations.objects.filter(
-            generated_at__gte=cutoff, clicked=True
-        ).count()
-        
-        # Algorithm performance
-        algorithms = UserRecommendations.objects.values_list('algorithm', flat=True).distinct()
-        algorithm_performance = []
+    def generate_performance_report(self, request, queryset):
+        """Generate performance report for selected algorithms"""
+        algorithms = queryset.values_list('algorithm', flat=True).distinct()
+        report_data = []
         
         for algorithm in algorithms:
-            performance = UserRecommendations.get_algorithm_performance(algorithm, days=30)
-            algorithm_performance.append(performance)
+            performance = UserRecommendations.get_algorithm_performance(algorithm)
+            report_data.append(performance)
         
-        return {
-            'total_interactions': total_interactions,
-            'total_recommendations': total_recommendations,
-            'overall_ctr': round(clicked_recommendations / total_recommendations * 100, 2) if total_recommendations > 0 else 0,
-            'algorithm_performance': algorithm_performance,
+        # Create CSV response
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename=recommendation_performance.csv'
+        
+        writer = csv.writer(response)
+        writer.writerow(['Algorithm', 'Total Recs', 'Clicked', 'CTR', 'Avg Score'])
+        
+        for data in report_data:
+            writer.writerow([
+                data['algorithm'], data['total_recommendations'],
+                data['clicked_recommendations'], data['click_through_rate'],
+                data['average_score']
+            ])
+        
+        return response
+    generate_performance_report.short_description = "Generate performance report"
+
+# RECOMMENDATION EXPERIMENT ADMIN
+@admin.register(RecommendationExperiment)
+class RecommendationExperimentAdmin(admin.ModelAdmin, ExportCsvMixin):
+    """
+    Admin interface for A/B testing experiments.
+    Provides experiment management and statistical analysis.
+    """
+    
+    list_display = [
+        'name', 'algorithm_comparison', 'status_badge', 'progress_bar',
+        'traffic_split_display', 'target_metric', 'significance_indicator',
+        'start_date', 'end_date'
+    ]
+    
+    list_filter = [
+        'is_active', 'target_metric', 'algorithm_a', 'algorithm_b',
+        ('start_date', admin.DateFieldListFilter),
+    ]
+    
+    search_fields = ['name', 'description', 'algorithm_a', 'algorithm_b']
+    
+    readonly_fields = [
+        'id', 'created_at', 'updated_at', 'is_running', 'is_completed',
+        'duration_days', 'progress_percentage', 'has_significant_result',
+        'experiment_metrics', 'statistical_summary'
+    ]
+    
+    fieldsets = (
+        ('Experiment Configuration', {
+            'fields': ('name', 'description', 'algorithm_a', 'algorithm_b', 'traffic_split')
+        }),
+        ('Schedule & Metrics', {
+            'fields': ('start_date', 'end_date', 'target_metric', 'minimum_sample_size', 'confidence_level')
+        }),
+        ('Status & Control', {
+            'fields': ('is_active', 'created_by')
+        }),
+        ('Statistical Results', {
+            'fields': ('statistical_significance', 'winner_algorithm', 'p_value', 'effect_size'),
+            'classes': ('collapse',)
+        }),
+        ('Computed Fields', {
+            'fields': ('is_running', 'is_completed', 'duration_days', 'progress_percentage', 'has_significant_result'),
+            'classes': ('collapse',)
+        }),
+        ('Analytics', {
+            'fields': ('experiment_metrics', 'statistical_summary'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    raw_id_fields = ['created_by']
+    date_hierarchy = 'created_at'
+    list_per_page = 25
+    
+    actions = [
+        'export_as_csv', 'stop_experiments', 'calculate_results',
+        'extend_experiments', 'clone_experiments'
+    ]
+    
+    def get_queryset(self, request):
+        """Optimize queries"""
+        return super().get_queryset(request).select_related('created_by')
+    
+    # Custom display methods
+    def algorithm_comparison(self, obj):
+        """Display algorithm comparison"""
+        return format_html(
+            '<strong>{}</strong> vs <strong>{}</strong>',
+            obj.algorithm_a, obj.algorithm_b
+        )
+    algorithm_comparison.short_description = 'A vs B'
+    
+    def status_badge(self, obj):
+        """Display experiment status with color coding"""
+        if obj.is_running:
+            return format_html('<span style="color: green;">🟢 Running</span>')
+        elif obj.is_completed:
+            return format_html('<span style="color: blue;">🔵 Completed</span>')
+        elif obj.is_active:
+            return format_html('<span style="color: orange;">🟡 Scheduled</span>')
+        else:
+            return format_html('<span style="color: red;">🔴 Stopped</span>')
+    status_badge.short_description = 'Status'
+    
+    def progress_bar(self, obj):
+        """Display progress bar"""
+        progress = obj.progress_percentage
+        width = min(progress, 100)
+        color = 'green' if progress >= 100 else 'blue'
+        
+        return format_html(
+            '<div style="width: 100px; background-color: #f0f0f0;">'
+            '<div style="width: {}px; height: 20px; background-color: {}; text-align: center; color: white;">'
+            '{:.0f}%</div></div>',
+            width, color, progress
+        )
+    progress_bar.short_description = 'Progress'
+    
+    def traffic_split_display(self, obj):
+        """Display traffic split with visual representation"""
+        split_a = int((1 - obj.traffic_split) * 100)
+        split_b = int(obj.traffic_split * 100)
+        
+        return format_html(
+            'A: {}% | B: {}%',
+            split_a, split_b
+        )
+    traffic_split_display.short_description = 'Split'
+    
+    def significance_indicator(self, obj):
+        """Display statistical significance"""
+        if obj.has_significant_result:
+            return format_html('<span style="color: green;">✓ Significant</span>')
+        elif obj.p_value is not None:
+            return format_html('<span style="color: orange;">~ Trending</span>')
+        else:
+            return format_html('<span style="color: gray;">○ No Data</span>')
+    significance_indicator.short_description = 'Significance'
+    
+    def experiment_metrics(self, obj):
+        """Display current experiment metrics"""
+        try:
+            metrics = obj.calculate_metrics()
+            if metrics:
+                return format_html('<pre>{}</pre>', json.dumps(metrics, indent=2, default=str))
+            return 'No data available'
+        except Exception as e:
+            return f'Error calculating metrics: {e}'
+    experiment_metrics.short_description = 'Current Metrics'
+    
+    def statistical_summary(self, obj):
+        """Display statistical analysis summary"""
+        summary = {
+            'p_value': obj.p_value,
+            'effect_size': obj.effect_size,
+            'statistical_significance': obj.statistical_significance,
+            'winner': obj.winner_algorithm,
+            'confidence_level': obj.confidence_level
         }
+        return format_html('<pre>{}</pre>', json.dumps(summary, indent=2, default=str))
+    statistical_summary.short_description = 'Statistical Summary'
+    
+    # Custom admin actions
+    def stop_experiments(self, request, queryset):
+        """Stop selected experiments"""
+        stopped = 0
+        for experiment in queryset.filter(is_active=True):
+            experiment.stop_experiment()
+            stopped += 1
+        self.message_user(request, f'{stopped} experiments stopped.')
+    stop_experiments.short_description = "Stop selected experiments"
+    
+    def calculate_results(self, request, queryset):
+        """Calculate statistical results for experiments"""
+        # This would integrate with your statistical analysis pipeline
+        count = queryset.count()
+        self.message_user(request, f'Results calculation initiated for {count} experiments.')
+    calculate_results.short_description = "Calculate statistical results"
+    
+    def extend_experiments(self, request, queryset):
+        """Extend experiment end dates by 7 days"""
+        extended = 0
+        for experiment in queryset.filter(is_active=True):
+            experiment.end_date += timedelta(days=7)
+            experiment.save()
+            extended += 1
+        self.message_user(request, f'{extended} experiments extended by 7 days.')
+    extend_experiments.short_description = "Extend by 7 days"
+    
+    def clone_experiments(self, request, queryset):
+        """Clone selected experiments"""
+        cloned = 0
+        for experiment in queryset:
+            new_experiment = RecommendationExperiment.objects.create(
+                name=f"{experiment.name} (Clone)",
+                description=experiment.description,
+                algorithm_a=experiment.algorithm_a,
+                algorithm_b=experiment.algorithm_b,
+                traffic_split=experiment.traffic_split,
+                start_date=timezone.now() + timedelta(days=1),
+                end_date=timezone.now() + timedelta(days=experiment.duration_days + 1),
+                target_metric=experiment.target_metric,
+                minimum_sample_size=experiment.minimum_sample_size,
+                confidence_level=experiment.confidence_level,
+                created_by=request.user,
+                is_active=False
+            )
+            cloned += 1
+        self.message_user(request, f'{cloned} experiments cloned.')
+    clone_experiments.short_description = "Clone selected experiments"
 
 
-# Register the analytics admin
-admin.site.register(RecommendationAnalyticsAdmin)
+# USER ADMIN ENHANCEMENT
 
-# === ADMIN SITE CUSTOMIZATION ===
+class UserRecommendationsInline(admin.TabularInline):
+    """Inline admin for viewing user recommendations in User admin"""
+    model = UserRecommendations
+    extra = 0
+    max_num = 10
+    fields = ['movie', 'algorithm', 'score', 'clicked', 'generated_at']
+    readonly_fields = ['movie', 'algorithm', 'score', 'clicked', 'generated_at']
+    can_delete = False
+    
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+class UserInteractionsInline(admin.TabularInline):
+    """Inline admin for viewing user interactions in User admin"""
+    model = UserMovieInteraction
+    extra = 0
+    max_num = 10
+    fields = ['movie', 'interaction_type', 'rating', 'feedback_type', 'timestamp']
+    readonly_fields = ['movie', 'interaction_type', 'rating', 'feedback_type', 'timestamp']
+    can_delete = False
+    
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+# CUSTOM USER ADMIN (if you want to extend User admin)
+
+class EnhancedUserAdmin(BaseUserAdmin):
+    """
+    Enhanced User admin that shows recommendation preferences and statistics.
+    """
+    
+    # Add recommendation fields to User admin
+    fieldsets = BaseUserAdmin.fieldsets + (
+        ('Recommendation Preferences', {
+            'fields': (
+                'favorite_genres', 'algorithm_preference', 'diversity_preference',
+                'novelty_preference', 'content_rating_preference', 'preferred_decade'
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Onboarding Status', {
+            'fields': (
+                'onboarding_completed', 'onboarding_completed_at',
+                'cold_start_preferences_collected'
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Privacy Settings', {
+            'fields': ('allow_demographic_targeting', 'data_usage_consent'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    # Add inlines for recommendations and interactions
+    inlines = BaseUserAdmin.inlines + [UserRecommendationsInline, UserInteractionsInline]
+    
+    # Add recommendation-related list display
+    list_display = BaseUserAdmin.list_display + ('onboarding_completed', 'has_preferences')
+    
+    def has_preferences(self, obj):
+        """Check if user has set recommendation preferences"""
+        favorite_genres = getattr(obj, 'favorite_genres', [])
+        return bool(favorite_genres)
+    has_preferences.boolean = True
+    has_preferences.short_description = 'Has Preferences'
+    
+    # Add recommendation-related filters
+    list_filter = BaseUserAdmin.list_filter + (
+        'onboarding_completed', 'allow_demographic_targeting'
+    )
+
+
+# Only register enhanced User admin if you want to replace the default
+# Uncomment the lines below if you want to use the enhanced User admin
+# admin.site.unregister(User)
+# admin.site.register(User, EnhancedUserAdmin)
+
+# ADMIN SITE CUSTOMIZATION
 
 # Customize admin site headers
-admin.site.site_header = 'Movie Recommendation Admin'
-admin.site.site_title = 'Movie Rec Admin'
-admin.site.index_title = 'Movie Recommendation Management'
+admin.site.site_header = "Movie Recommendation System Admin"
+admin.site.site_title = "Recommendations Admin"
+admin.site.index_title = "Welcome to Recommendations Administration"
 
 
-# === ADMIN FILTERS ===
-
-class HighEngagementFilter(admin.SimpleListFilter):
-    """Custom filter for high engagement interactions"""
-    title = 'engagement level'
-    parameter_name = 'engagement'
+# Custom admin site with dashboard statistics
+class RecommendationAdminSite(admin.AdminSite):
+    """Custom admin site with additional functionality"""
     
-    def lookups(self, request, model_admin):
-        return [
-            ('high', 'High Engagement (4+)'),
-            ('medium', 'Medium Engagement (2-4)'),
-            ('low', 'Low Engagement (0-2)'),
-            ('negative', 'Negative Engagement (<0)'),
-        ]
-    
-    def queryset(self, request, queryset):
-        if self.value() == 'high':
-            return queryset.filter(
-                models.Q(interaction_type__in=['favorite', 'watchlist']) |
-                models.Q(rating__gte=4.0)
-            )
-        elif self.value() == 'medium':
-            return queryset.filter(
-                models.Q(interaction_type__in=['like', 'rating']) &
-                models.Q(rating__gte=2.0, rating__lt=4.0)
-            )
-        # Add other conditions as needed
-        return queryset
+    def get_app_list(self, request):
+        """Customize the admin index page with quick stats"""
+        app_list = super().get_app_list(request)
+        
+        # Add quick stats to the recommendations app
+        for app in app_list:
+            if app['name'] == 'Recommendations':
+                # Calculate quick stats
+                today = timezone.now().date()
+                stats = {
+                    'interactions_today': UserMovieInteraction.objects.filter(
+                        timestamp__date=today
+                    ).count(),
+                    'recommendations_generated_today': UserRecommendations.objects.filter(
+                        generated_at__date=today
+                    ).count(),
+                    'active_experiments': RecommendationExperiment.objects.filter(
+                        is_active=True
+                    ).count(),
+                    'onboarded_users': User.objects.filter(
+                        onboarding_completed=True
+                    ).count()
+                }
+                
+                app['description'] = (
+                    f"Today: {stats['interactions_today']} interactions, "
+                    f"{stats['recommendations_generated_today']} recommendations generated. "
+                    f"Active: {stats['active_experiments']} experiments, "
+                    f"{stats['onboarded_users']} onboarded users."
+                )
+        
+        return app_list
+
+    def index(self, request, extra_context=None):
+        """Add dashboard data to admin index"""
+        extra_context = extra_context or {}
+        
+        # Add system health indicators
+        now = timezone.now()
+        extra_context.update({
+            'system_health': {
+                'total_users': User.objects.filter(is_active=True).count(),
+                'total_interactions': UserMovieInteraction.objects.count(),
+                'total_recommendations': UserRecommendations.objects.count(),
+                'fresh_recommendations': UserRecommendations.objects.filter(
+                    generated_at__gte=now - timedelta(days=7)
+                ).count(),
+                'running_experiments': RecommendationExperiment.objects.filter(
+                    is_active=True,
+                    start_date__lte=now,
+                    end_date__gte=now
+                ).count(),
+            }
+        })
+        
+        return super().index(request, extra_context)
 
 
-# Add custom filter to UserMovieInteractionAdmin
-UserMovieInteractionAdmin.list_filter.append(HighEngagementFilter)
+# Uncomment to use custom admin site
+# recommendation_admin_site = RecommendationAdminSite(name='recommendation_admin')

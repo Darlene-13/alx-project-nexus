@@ -1,785 +1,1103 @@
 # recommendations/views.py
-from rest_framework import generics, status, permissions
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from django.contrib.auth import get_user_model
-from django.shortcuts import get_object_or_404
-from django.db.models import Q, Count, Avg
-from django.utils import timezone
-from datetime import timedelta
 
-from .models import UserMovieInteraction, UserRecommendations
-from .serializers import (
-    UserMovieInteractionSerializer,
-    UserMovieInteractionCreateSerializer,
-    UserRecommendationSerializer,
-    UserRecommendationCreateSerializer,
-    UserPreferencesSerializer,
-    RecommendationPerformanceSerializer,
-    InteractionWithMovieSerializer,
-    RecommendationWithMovieSerializer,
+from rest_framework import viewsets, status, permissions
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.filters import SearchFilter, OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from django.db.models import Count, Avg, Q, F, Prefetch
+from django.core.cache import cache
+from django.conf import settings
+from datetime import timedelta
+import logging
+
+from .models import (
+    UserMovieInteraction,
+    UserRecommendations, 
+    RecommendationExperiment
 )
+from .serializers import (
+    # User Movie Interactions
+    UserMovieInteractionListSerializer,
+    UserMovieInteractionDetailSerializer,
+    UserMovieInteractionCreateSerializer,
+    
+    # User Recommendations
+    UserRecommendationListSerializer,
+    UserRecommendationDetailSerializer,
+    RecommendationClickSerializer,
+    
+    # Experiments
+    RecommendationExperimentListSerializer,
+    RecommendationExperimentDetailSerializer,
+    ExperimentResultsSerializer,
+    
+    # User Profiles (now working with User model)
+    UserProfileSerializer,
+    UserOnboardingSerializer,
+    GenrePreferenceSerializer,
+    
+    # Analytics
+    RecommendationPerformanceSerializer,
+    UserInteractionSummarySerializer,
+    RecommendationContextSerializer,
+    BulkRecommendationCreateSerializer
+)
+from .permissions import IsOwnerOrReadOnly, IsAdminOrReadOnly
+from .filters import UserInteractionFilter, RecommendationFilter, UserPreferencesFilter
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
+
+# BASE CLASSES & MIXINS
+
+class StandardResultsSetPagination(PageNumberPagination):
+    """Standard pagination configuration"""
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 
-# === USER INTERACTION VIEWS ===
-
-class UserInteractionListCreateView(generics.ListCreateAPIView):
-    """
-    List all interactions or create a new interaction.
-    GET: Returns paginated list of user interactions
-    POST: Creates new interaction (like, rating, etc.)
-    """
-    
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_queryset(self):
-        """Filter interactions by current user"""
-        return UserMovieInteraction.objects.filter(
-            user=self.request.user
-        ).select_related('movie', 'user')
-    
-    def get_serializer_class(self):
-        """Use different serializers for different actions"""
-        if self.request.method == 'POST':
-            return UserMovieInteractionCreateSerializer
-        return UserMovieInteractionSerializer
-    
-    def perform_create(self, serializer):
-        """Set user automatically when creating interaction"""
-        serializer.save(user=self.request.user)
+class LargeResultsSetPagination(PageNumberPagination):
+    """Pagination for analytics and reporting"""
+    page_size = 100
+    page_size_query_param = 'page_size'
+    max_page_size = 1000
 
 
-class UserInteractionDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """
-    Retrieve, update or delete a specific interaction.
-    GET: Get interaction details
-    PUT/PATCH: Update interaction (like change rating)
-    DELETE: Remove interaction
-    """
+class CacheableViewMixin:
+    """Mixin for views that can use caching"""
+    cache_timeout = getattr(settings, 'RECOMMENDATION_CACHE_TIMEOUT', 300)  # 5 minutes
     
-    serializer_class = UserMovieInteractionSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    def get_cache_key(self, prefix, *args):
+        """Generate cache key"""
+        key_parts = [prefix] + [str(arg) for arg in args]
+        return ':'.join(key_parts)
     
-    def get_queryset(self):
-        """User can only access their own interactions"""
-        return UserMovieInteraction.objects.filter(user=self.request.user)
+    def get_cached_data(self, cache_key):
+        """Get data from cache"""
+        return cache.get(cache_key)
+    
+    def set_cached_data(self, cache_key, data, timeout=None):
+        """Set data in cache"""
+        if timeout is None:
+            timeout = self.cache_timeout
+        cache.set(cache_key, data, timeout)
 
 
-class MovieInteractionsView(generics.ListAPIView):
-    """
-    Get all interactions for a specific movie.
-    Useful for seeing how popular a movie is.
-    """
-    
-    serializer_class = UserMovieInteractionSerializer
-    permission_classes = [permissions.IsAuthenticated]
+class UserContextMixin:
+    """Mixin to filter queries by current user"""
     
     def get_queryset(self):
-        movie_id = self.kwargs['movie_id']
-        return UserMovieInteraction.objects.filter(
-            movie_id=movie_id
-        ).select_related('user', 'movie')
+        """Filter queryset to current user's data"""
+        queryset = super().get_queryset()
+        if hasattr(self.model, 'user'):
+            return queryset.filter(user=self.request.user)
+        return queryset
 
 
-# === RECOMMENDATION VIEWS ===
-
-class UserRecommendationCreateView(generics.CreateAPIView):
-    """
-    Create individual recommendations manually.
-    Used by algorithms or admins to create specific recommendations.
-    POST: Create a new recommendation for a user-movie-algorithm combination
-    """
+class PerformanceOptimizedMixin:
+    """Mixin for query optimization"""
     
-    serializer_class = UserRecommendationCreateSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def perform_create(self, serializer):
-        """Add any additional logic when creating recommendation"""
-        recommendation = serializer.save()
+    def get_queryset(self):
+        """Optimize queries with select_related and prefetch_related"""
+        queryset = super().get_queryset()
         
-        # Optional: Log that a recommendation was manually created
-        UserMovieInteraction.create_interaction(
-            user=recommendation.user,
-            movie=recommendation.movie,
-            interaction_type='recommendation_created',
-            source='api',
-            metadata={
-                'recommendation_id': recommendation.id,
-                'algorithm': recommendation.algorithm,
-                'score': float(recommendation.score),
-                'created_via': 'manual_api'
-            }
+        # Add select_related for foreign keys
+        if hasattr(self, 'select_related_fields'):
+            queryset = queryset.select_related(*self.select_related_fields)
+        
+        # Add prefetch_related for many-to-many relationships
+        if hasattr(self, 'prefetch_related_fields'):
+            queryset = queryset.prefetch_related(*self.prefetch_related_fields)
+        
+        return queryset
+
+
+# USER MOVIE INTERACTION VIEWS
+
+class UserMovieInteractionViewSet(
+    UserContextMixin, 
+    PerformanceOptimizedMixin,
+    CacheableViewMixin,
+    viewsets.ModelViewSet
+):
+    """
+    ViewSet for managing user-movie interactions.
+    
+    Provides CRUD operations, analytics, and bulk operations for user interactions.
+    Users can only access their own interactions.
+    """
+    queryset = UserMovieInteraction.objects.all()
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = UserInteractionFilter
+    search_fields = ['movie__title', 'movie__original_title', 'feedback_comment']
+    ordering_fields = ['timestamp', 'rating', 'engagement_weight']
+    ordering = ['-timestamp']
+    
+    # Performance optimization
+    select_related_fields = ['user', 'movie']
+    prefetch_related_fields = ['movie__genres']
+
+    def get_serializer_class(self):
+        """Return appropriate serializer based on action"""
+        if self.action == 'list':
+            return UserMovieInteractionListSerializer
+        elif self.action == 'create':
+            return UserMovieInteractionCreateSerializer
+        else:
+            return UserMovieInteractionDetailSerializer
+
+    def get_queryset(self):
+        """Optimize queryset with annotations"""
+        queryset = super().get_queryset()
+        
+        # Add computed annotations for better performance
+        queryset = queryset.annotate(
+            is_positive_computed=Q(
+                Q(interaction_type__in=['like', 'favorite', 'watchlist']) |
+                Q(feedback_type='positive') |
+                Q(rating__gte=4.0)
+            )
         )
         
-        return recommendation
-    
-    def create(self, request, *args, **kwargs):
-        """Override to provide detailed response"""
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
-        recommendation = self.perform_create(serializer)
-        
-        # Return recommendation with full details
-        response_serializer = UserRecommendationSerializer(recommendation)
-        
-        return Response({
-            'message': 'Recommendation created successfully',
-            'recommendation': response_serializer.data,
-            'created_at': recommendation.generated_at
-        }, status=status.HTTP_201_CREATED)
+        return queryset
 
+    def perform_create(self, serializer):
+        """Set user when creating interaction"""
+        # Check if user already has this interaction type for this movie
+        existing = UserMovieInteraction.objects.filter(
+            user=self.request.user,
+            movie=serializer.validated_data['movie'],
+            interaction_type=serializer.validated_data['interaction_type']
+        ).first()
+        
+        if existing:
+            # Update existing interaction instead of creating duplicate
+            for attr, value in serializer.validated_data.items():
+                setattr(existing, attr, value)
+            existing.save()
+            serializer.instance = existing
+        else:
+            serializer.save(user=self.request.user)
+        
+        # Clear user's recommendation cache
+        self._clear_user_cache()
 
-class UserRecommendationsView(generics.ListAPIView):
-    """
-    Get personalized recommendations for current user.
-    Supports filtering by algorithm and freshness.
-    """
-    
-    serializer_class = RecommendationWithMovieSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_queryset(self):
-        """Get fresh recommendations for current user"""
-        queryset = UserRecommendations.objects.filter(
-            user=self.request.user
-        ).select_related('movie')
+    def _clear_user_cache(self):
+        """Clear cached data for the current user"""
+        user_id = self.request.user.id
+        cache_keys = [
+            f'user_recommendations:{user_id}',
+            f'user_preferences:{user_id}',
+            f'user_interactions_summary:{user_id}'
+        ]
+        cache.delete_many(cache_keys)
+
+    @action(detail=False, methods=['get'])
+    def my_interactions(self, request):
+        """Get current user's interactions with summary stats"""
+        cache_key = self.get_cache_key('user_interactions_summary', request.user.id)
+        cached_data = self.get_cached_data(cache_key)
         
-        # Filter by algorithm if specified
-        algorithm = self.request.query_params.get('algorithm')
-        if algorithm:
-            queryset = queryset.filter(algorithm=algorithm)
+        if cached_data:
+            return Response(cached_data)
         
-        # Filter by freshness
-        fresh_only = self.request.query_params.get('fresh_only', 'true')
-        if fresh_only.lower() == 'true':
-            cutoff = timezone.now() - timedelta(days=7)
-            queryset = queryset.filter(generated_at__gte=cutoff)
-        
-        return queryset.order_by('-relevance_score', '-generated_at')
-    
-    def list(self, request, *args, **kwargs):
-        """Override to add extra context"""
         queryset = self.get_queryset()
         
-        # If no recommendations exist, generate them
-        if not queryset.exists():
-            try:
-                UserRecommendations.generate_for_user(request.user)
-                queryset = self.get_queryset()  # Refresh queryset
-            except Exception as e:
-                return Response({
-                    'error': 'Failed to generate recommendations',
-                    'message': str(e)
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # Calculate summary statistics
+        stats = queryset.aggregate(
+            total_interactions=Count('id'),
+            positive_interactions=Count('id', filter=Q(is_positive_computed=True)),
+            average_rating=Avg('rating'),
+            total_engagement=Count('id', filter=Q(engagement_weight__gt=0))
+        )
         
-        # Standard list response with pagination
+        # Get recent interactions
+        recent_interactions = UserMovieInteractionListSerializer(
+            queryset[:10], many=True, context={'request': request}
+        ).data
+        
+        # Get preferred genres
+        preferred_genres = UserMovieInteraction.get_user_preferred_genres(request.user)
+        
+        response_data = {
+            'statistics': stats,
+            'recent_interactions': recent_interactions,
+            'preferred_genres': [{'id': genre.id, 'name': genre.name} for genre in preferred_genres],
+            'last_updated': timezone.now()
+        }
+        
+        self.set_cached_data(cache_key, response_data)
+        return Response(response_data)
+
+    @action(detail=False, methods=['post'])
+    def bulk_create(self, request):
+        """Create multiple interactions at once"""
+        if not isinstance(request.data, list):
+            return Response(
+                {'error': 'Expected a list of interactions'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        created_interactions = []
+        errors = []
+        
+        for i, interaction_data in enumerate(request.data):
+            serializer = UserMovieInteractionCreateSerializer(
+                data=interaction_data, 
+                context={'request': request}
+            )
+            
+            if serializer.is_valid():
+                self.perform_create(serializer)
+                created_interactions.append(serializer.data)
+            else:
+                errors.append({'index': i, 'errors': serializer.errors})
+        
+        return Response({
+            'created': len(created_interactions),
+            'errors': errors,
+            'interactions': created_interactions
+        }, status=status.HTTP_201_CREATED if created_interactions else status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['patch'])
+    def update_feedback(self, request, pk=None):
+        """Update feedback for an interaction"""
+        interaction = self.get_object()
+        
+        feedback_type = request.data.get('feedback_type')
+        feedback_comment = request.data.get('feedback_comment')
+        
+        if feedback_type not in ['positive', 'negative', 'neutral']:
+            return Response(
+                {'error': 'Invalid feedback_type'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        interaction.update_feedback(feedback_type, feedback_comment)
+        self._clear_user_cache()
+        
+        serializer = UserMovieInteractionDetailSerializer(
+            interaction, context={'request': request}
+        )
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def analytics(self, request):
+        """Get interaction analytics for the current user"""
+        cache_key = self.get_cache_key('user_interaction_analytics', request.user.id)
+        cached_data = self.get_cached_data(cache_key)
+        
+        if cached_data:
+            return Response(cached_data)
+        
+        queryset = self.get_queryset()
+        
+        # Time-based analytics
+        now = timezone.now()
+        time_ranges = {
+            'last_7_days': now - timedelta(days=7),
+            'last_30_days': now - timedelta(days=30),
+            'last_90_days': now - timedelta(days=90)
+        }
+        
+        analytics_data = {}
+        
+        for period, start_date in time_ranges.items():
+            period_interactions = queryset.filter(timestamp__gte=start_date)
+            
+            analytics_data[period] = {
+                'total_interactions': period_interactions.count(),
+                'by_type': dict(period_interactions.values_list('interaction_type').annotate(Count('id'))),
+                'average_rating': period_interactions.aggregate(avg=Avg('rating'))['avg'],
+                'positive_feedback_rate': period_interactions.filter(
+                    is_positive_computed=True
+                ).count() / max(period_interactions.count(), 1) * 100
+            }
+        
+        # Genre preferences over time
+        genre_analytics = {}
+        for genre in UserMovieInteraction.get_user_preferred_genres(request.user):
+            genre_interactions = queryset.filter(movie__genres=genre)
+            genre_analytics[genre.name] = {
+                'total_interactions': genre_interactions.count(),
+                'average_rating': genre_interactions.aggregate(avg=Avg('rating'))['avg']
+            }
+        
+        response_data = {
+            'time_based': analytics_data,
+            'genre_preferences': genre_analytics,
+            'generated_at': timezone.now()
+        }
+        
+        self.set_cached_data(cache_key, response_data, timeout=3600)  # Cache for 1 hour
+        return Response(response_data)
+
+# USER RECOMMENDATIONS VIEWS
+class UserRecommendationViewSet(
+    UserContextMixin,
+    PerformanceOptimizedMixin,
+    CacheableViewMixin,
+    viewsets.ReadOnlyModelViewSet
+):
+    """
+    ViewSet for serving user recommendations.
+    
+    Read-only viewset that provides personalized movie recommendations.
+    Includes A/B testing integration and click tracking.
+    """
+    queryset = UserRecommendations.objects.all()
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_class = RecommendationFilter
+    ordering_fields = ['score', 'generated_at', 'relevance_score']
+    ordering = ['-score', '-generated_at']
+    
+    # Performance optimization
+    select_related_fields = ['user', 'movie']
+    prefetch_related_fields = ['movie__genres']
+
+    def get_serializer_class(self):
+        """Return appropriate serializer based on action"""
+        if self.action == 'list':
+            return UserRecommendationListSerializer
+        else:
+            return UserRecommendationDetailSerializer
+
+    def get_queryset(self):
+        """Get fresh recommendations for the current user"""
+        queryset = super().get_queryset()
+        
+        # Only show fresh recommendations (within 7 days)
+        fresh_cutoff = timezone.now() - timedelta(days=7)
+        queryset = queryset.filter(generated_at__gte=fresh_cutoff)
+        
+        # Exclude clicked recommendations unless specifically requested
+        if not self.request.query_params.get('include_clicked'):
+            queryset = queryset.filter(clicked=False)
+        
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        """Get recommendations with A/B testing integration"""
+        # Check if user is in an active experiment
+        active_experiment = RecommendationExperiment.get_active_experiment()
+        algorithm_filter = None
+        
+        if active_experiment:
+            assigned_algorithm = active_experiment.get_algorithm_for_user(request.user)
+            algorithm_filter = assigned_algorithm
+            
+            # Log experiment assignment
+            logger.info(f"User {request.user.id} assigned to algorithm {assigned_algorithm} "
+                       f"in experiment {active_experiment.name}")
+        
+        # Apply algorithm filter if in experiment
+        queryset = self.filter_queryset(self.get_queryset())
+        if algorithm_filter:
+            queryset = queryset.filter(algorithm=algorithm_filter)
+        
+        # Apply pagination
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+            response = self.get_paginated_response(serializer.data)
+            
+            # Add experiment context to response
+            if active_experiment:
+                response.data['experiment_context'] = {
+                    'experiment_id': active_experiment.id,
+                    'experiment_name': active_experiment.name,
+                    'assigned_algorithm': algorithm_filter
+                }
+            
+            return response
         
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-
-class RecommendationClickView(APIView):
-    """
-    Track when user clicks on a recommendation.
-    POST: Mark recommendation as clicked and log interaction.
-    """
-    
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def post(self, request, recommendation_id):
-        """Mark recommendation as clicked"""
-        try:
-            recommendation = get_object_or_404(
-                UserRecommendations,
-                id=recommendation_id,
-                user=request.user
+    @action(detail=True, methods=['post'])
+    def click(self, request, pk=None):
+        """Mark a recommendation as clicked"""
+        recommendation = self.get_object()
+        
+        if recommendation.clicked:
+            return Response(
+                {'message': 'Recommendation already marked as clicked'},
+                status=status.HTTP_200_OK
             )
+        
+        recommendation.mark_as_clicked()
+        
+        # Clear user's recommendation cache
+        self._clear_user_cache()
+        
+        serializer = self.get_serializer(recommendation)
+        return Response({
+            'message': 'Recommendation marked as clicked',
+            'recommendation': serializer.data
+        })
+
+    @action(detail=False, methods=['post'])
+    def bulk_click(self, request):
+        """Mark multiple recommendations as clicked"""
+        recommendation_ids = request.data.get('recommendation_ids', [])
+        
+        if not recommendation_ids:
+            return Response(
+                {'error': 'No recommendation IDs provided'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        recommendations = self.get_queryset().filter(id__in=recommendation_ids)
+        updated_count = 0
+        
+        for rec in recommendations:
+            if not rec.clicked:
+                rec.mark_as_clicked()
+                updated_count += 1
+        
+        self._clear_user_cache()
+        
+        return Response({
+            'message': f'{updated_count} recommendations marked as clicked',
+            'updated_count': updated_count
+        })
+
+    @action(detail=False, methods=['get'])
+    def personalized(self, request):
+        """Get personalized recommendations based on user preferences"""
+        user = request.user
+        
+        cache_key = self.get_cache_key('personalized_recommendations', user.id)
+        cached_data = self.get_cached_data(cache_key)
+        
+        if cached_data and not request.query_params.get('refresh'):
+            return Response(cached_data)
+        
+        queryset = self.get_queryset()
+        
+        # Apply personalization filters based on user preferences
+        favorite_genres = getattr(user, 'favorite_genres', [])
+        
+        if favorite_genres:
+            # Extract genre IDs from favorite_genres
+            genre_ids = []
+            for genre_item in favorite_genres:
+                if isinstance(genre_item, dict):
+                    genre_ids.append(genre_item.get('genre_id'))
+                elif isinstance(genre_item, int):
+                    genre_ids.append(genre_item)
             
-            # Mark as clicked (this also logs the interaction)
-            recommendation.mark_as_clicked()
+            if genre_ids:
+                queryset = queryset.filter(movie__genres__in=genre_ids).distinct()
+        
+        # Apply content rating filter
+        content_rating = getattr(user, 'content_rating_preference', None)
+        if content_rating:
+            queryset = queryset.filter(movie__content_rating=content_rating)
+        
+        # Apply diversity preference
+        diversity_pref = getattr(user, 'diversity_preference', 0.5)
+        if diversity_pref > 0.7:
+            # High diversity - mix different genres
+            queryset = queryset.order_by('movie__genres', '-score')
+        else:
+            # Low diversity - focus on user's preferred genres
+            queryset = queryset.order_by('-score')
+        
+        # Limit results
+        limit = int(request.query_params.get('limit', 20))
+        queryset = queryset[:limit]
+        
+        serializer = self.get_serializer(queryset, many=True)
+        response_data = {
+            'recommendations': serializer.data,
+            'personalization_context': {
+                'has_preferences': bool(favorite_genres),
+                'diversity_level': diversity_pref,
+                'total_recommendations': len(serializer.data)
+            },
+            'generated_at': timezone.now()
+        }
+        
+        self.set_cached_data(cache_key, response_data)
+        return Response(response_data)
+
+    def _clear_user_cache(self):
+        """Clear cached recommendations for the current user"""
+        user_id = self.request.user.id
+        cache_keys = [
+            f'user_recommendations:{user_id}',
+            f'personalized_recommendations:{user_id}'
+        ]
+        cache.delete_many(cache_keys)
+
+    @action(detail=False, methods=['get'])
+    def performance(self, request):
+        """Get recommendation performance metrics for the current user"""
+        cache_key = self.get_cache_key('user_recommendation_performance', request.user.id)
+        cached_data = self.get_cached_data(cache_key)
+        
+        if cached_data:
+            return Response(cached_data)
+        
+        queryset = self.get_queryset()
+        
+        # Calculate performance metrics by algorithm
+        algorithm_performance = {}
+        algorithms = queryset.values_list('algorithm', flat=True).distinct()
+        
+        for algorithm in algorithms:
+            algorithm_recs = queryset.filter(algorithm=algorithm)
+            total_recs = algorithm_recs.count()
+            clicked_recs = algorithm_recs.filter(clicked=True).count()
             
-            # Return updated recommendation data
-            serializer = UserRecommendationSerializer(recommendation)
+            if total_recs > 0:
+                algorithm_performance[algorithm] = {
+                    'total_recommendations': total_recs,
+                    'clicked_recommendations': clicked_recs,
+                    'click_through_rate': (clicked_recs / total_recs) * 100,
+                    'average_score': algorithm_recs.aggregate(avg=Avg('score'))['avg']
+                }
+        
+        response_data = {
+            'overall_stats': {
+                'total_recommendations': queryset.count(),
+                'total_clicks': queryset.filter(clicked=True).count(),
+                'overall_ctr': (queryset.filter(clicked=True).count() / max(queryset.count(), 1)) * 100
+            },
+            'by_algorithm': algorithm_performance,
+            'generated_at': timezone.now()
+        }
+        
+        self.set_cached_data(cache_key, response_data, timeout=1800)  # Cache for 30 minutes
+        return Response(response_data)
+
+
+# RECOMMENDATION EXPERIMENT VIEWS (ADMIN)
+
+class RecommendationExperimentViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing A/B testing experiments.
+    
+    Admin-only viewset for creating and managing recommendation experiments.
+    Provides experiment lifecycle management and statistical analysis.
+    """
+    queryset = RecommendationExperiment.objects.all()
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrReadOnly]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    search_fields = ['name', 'description', 'algorithm_a', 'algorithm_b']
+    ordering_fields = ['created_at', 'start_date', 'end_date']
+    ordering = ['-created_at']
+
+    def get_serializer_class(self):
+        """Return appropriate serializer based on action"""
+        if self.action == 'list':
+            return RecommendationExperimentListSerializer
+        else:
+            return RecommendationExperimentDetailSerializer
+
+    def perform_create(self, serializer):
+        """Set creator when creating experiment"""
+        serializer.save(created_by=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def stop(self, request, pk=None):
+        """Stop an active experiment"""
+        experiment = self.get_object()
+        
+        if not experiment.is_active:
+            return Response(
+                {'error': 'Experiment is not active'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        reason = request.data.get('reason', 'Manual stop by admin')
+        experiment.stop_experiment(reason)
+        
+        logger.info(f"Experiment {experiment.name} stopped by {request.user.username}: {reason}")
+        
+        serializer = self.get_serializer(experiment)
+        return Response({
+            'message': 'Experiment stopped successfully',
+            'experiment': serializer.data
+        })
+
+    @action(detail=True, methods=['post'])
+    def update_results(self, request, pk=None):
+        """Update experiment statistical results"""
+        experiment = self.get_object()
+        
+        serializer = ExperimentResultsSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(experiment)
+            
+            response_serializer = self.get_serializer(experiment)
+            return Response({
+                'message': 'Results updated successfully',
+                'experiment': response_serializer.data
+            })
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['get'])
+    def metrics(self, request, pk=None):
+        """Get detailed experiment metrics"""
+        experiment = self.get_object()
+        
+        try:
+            metrics = experiment.calculate_metrics()
+            return Response({
+                'experiment_id': experiment.id,
+                'experiment_name': experiment.name,
+                'metrics': metrics,
+                'calculated_at': timezone.now()
+            })
+        except Exception as e:
+            logger.error(f"Error calculating metrics for experiment {experiment.id}: {e}")
+            return Response(
+                {'error': 'Failed to calculate metrics'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=False, methods=['get'])
+    def active(self, request):
+        """Get currently active experiment"""
+        active_experiment = RecommendationExperiment.get_active_experiment()
+        
+        if active_experiment:
+            serializer = self.get_serializer(active_experiment)
+            return Response(serializer.data)
+        
+        return Response({'message': 'No active experiment'}, status=status.HTTP_404_NOT_FOUND)
+
+
+# =============================================================================
+# USER PROFILE VIEWS (Working with User Model)
+# =============================================================================
+
+class UserProfileViewSet(viewsets.ViewSet):
+    """
+    ViewSet for managing user preferences and onboarding.
+    
+    Works directly with User model fields - no separate UserProfile model.
+    Handles user onboarding, preference management, and cold start data collection.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        """Get current user's profile/preferences"""
+        user = request.user
+        serializer = UserProfileSerializer(user, context={'request': request})
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['patch'])
+    def update_preferences(self, request):
+        """Update current user's recommendation preferences"""
+        user = request.user
+        
+        serializer = UserProfileSerializer(
+            user, 
+            data=request.data, 
+            partial=True, 
+            context={'request': request}
+        )
+        
+        if serializer.is_valid():
+            serializer.save()
+            
+            # Clear user cache
+            self._clear_user_cache()
+            
+            return Response(serializer.data)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['post'])
+    def onboarding(self, request):
+        """Handle user onboarding process"""
+        user = request.user
+        
+        if getattr(user, 'onboarding_completed', False):
+            return Response(
+                {'message': 'Onboarding already completed'},
+                status=status.HTTP_200_OK
+            )
+        
+        serializer = UserOnboardingSerializer(
+            user,
+            data=request.data,
+            partial=True,
+            context={'request': request}
+        )
+        
+        if serializer.is_valid():
+            serializer.save()
+            
+            # Clear user cache
+            self._clear_user_cache()
+            
+            # Generate initial recommendations based on preferences
+            self._generate_initial_recommendations(user)
+            
+            logger.info(f"User {request.user.username} completed onboarding")
             
             return Response({
-                'message': 'Recommendation marked as clicked',
-                'recommendation': serializer.data
-            }, status=status.HTTP_200_OK)
+                'message': 'Onboarding completed successfully',
+                'profile': UserProfileSerializer(user, context={'request': request}).data
+            })
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['post'])
+    def add_genre_preference(self, request):
+        """Add or update a genre preference"""
+        user = request.user
+        
+        serializer = GenrePreferenceSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user)
+            
+            # Clear user cache
+            self._clear_user_cache()
+            
+            return Response({
+                'message': 'Genre preference updated',
+                'favorite_genres': getattr(user, 'favorite_genres', [])
+            })
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'])
+    def recommendation_context(self, request):
+        """Get user's recommendation context for ML algorithms"""
+        user = request.user
+        
+        # Build context from User model
+        age = None
+        if getattr(user, 'date_of_birth', None):
+            from datetime import date
+            today = date.today()
+            age = today.year - user.date_of_birth.year
+            if today.month < user.date_of_birth.month or (today.month == user.date_of_birth.month and today.day < user.date_of_birth.day):
+                age -= 1
+        
+        # Determine age group
+        age_group = None
+        if age:
+            if age < 18:
+                age_group = 'teen'
+            elif age < 30:
+                age_group = 'young_adult'
+            elif age < 50:
+                age_group = 'adult'
+            else:
+                age_group = 'senior'
+        
+        # Determine cold start strategy
+        favorite_genres = getattr(user, 'favorite_genres', [])
+        country = getattr(user, 'country', '')
+        
+        if age and country:
+            cold_start_strategy = 'demographic'
+        elif favorite_genres:
+            cold_start_strategy = 'content_based'
+        else:
+            cold_start_strategy = 'popular'
+        
+        context = {
+            'user_id': user.id,
+            'age': age,
+            'age_group': age_group,
+            'country': country,
+            'favorite_genres': favorite_genres,
+            'algorithm_preference': getattr(user, 'algorithm_preference', None),
+            'diversity_preference': getattr(user, 'diversity_preference', 0.5),
+            'novelty_preference': getattr(user, 'novelty_preference', 0.5),
+            'cold_start_strategy': cold_start_strategy,
+            'is_new_user': not getattr(user, 'onboarding_completed', False),
+            'allow_demographic_targeting': getattr(user, 'allow_demographic_targeting', True)
+        }
+        
+        # Add recent interactions context
+        recent_interactions = UserMovieInteraction.objects.filter(
+            user=request.user,
+            timestamp__gte=timezone.now() - timedelta(days=30)
+        ).values('interaction_type').annotate(count=Count('id'))
+        
+        context['recent_activity'] = {
+            item['interaction_type']: item['count'] 
+            for item in recent_interactions
+        }
+        
+        serializer = RecommendationContextSerializer(context)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'])
+    def reset_preferences(self, request):
+        """Reset user preferences and restart onboarding"""
+        user = request.user
+        
+        # Reset preference fields on User model
+        user.favorite_genres = []
+        user.content_rating_preference = None
+        user.preferred_decade = None
+        user.onboarding_completed = False
+        user.cold_start_preferences_collected = False
+        user.algorithm_preference = None
+        user.diversity_preference = 0.5
+        user.novelty_preference = 0.5
+        user.save()
+        
+        # Clear user cache
+        self._clear_user_cache()
+        
+        logger.info(f"User {request.user.username} reset their preferences")
+        
+        return Response({
+            'message': 'Preferences reset successfully',
+            'profile': UserProfileSerializer(user, context={'request': request}).data
+        })
+
+    def _clear_user_cache(self):
+        """Clear all cached data for the current user"""
+        user_id = self.request.user.id
+        cache_keys = [
+            f'user_recommendations:{user_id}',
+            f'personalized_recommendations:{user_id}',
+            f'user_preferences:{user_id}',
+            f'user_interactions_summary:{user_id}',
+            f'user_recommendation_performance:{user_id}'
+        ]
+        cache.delete_many(cache_keys)
+
+    def _generate_initial_recommendations(self, user):
+        """Generate initial recommendations for newly onboarded user"""
+        try:
+            # This would integrate with your recommendation generation pipeline
+            logger.info(f"Generating initial recommendations for user {user.username}")
+            
+            # You would call your recommendation generation service here
+            # recommendations_service.generate_for_user(user, strategy='cold_start')
             
         except Exception as e:
-            return Response({
-                'error': 'Failed to mark recommendation as clicked',
-                'message': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
+            logger.error(f"Failed to generate initial recommendations for user {user.id}: {e}")
 
-
-# === ANALYTICS AND PREFERENCES VIEWS ===
-
-class UserPreferencesView(APIView):
+# ANALYTICS & REPORTING VIEWs
+class AnalyticsViewSet(viewsets.ViewSet):
     """
-    Get user's preferences and behavior analytics.
-    Shows what genres they like, rating patterns, etc.
+    ViewSet for analytics and reporting endpoints.
+    
+    Provides dashboard data, performance metrics, and system insights.
+    Admin-only access for sensitive analytics data.
     """
-    
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get(self, request):
-        """Return user's preference analysis"""
-        user = request.user
-        serializer = UserPreferencesSerializer(user)
+    permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
+
+    @action(detail=False, methods=['get'])
+    def dashboard(self, request):
+        """Get dashboard analytics data"""
+        cache_key = 'analytics_dashboard'
+        cached_data = cache.get(cache_key)
         
-        return Response({
-            'preferences': serializer.data,
-            'metadata': {
-                'analysis_date': timezone.now(),
-                'total_users': User.objects.count(),
-                'user_rank': self.get_user_engagement_rank(user)
-            }
-        })
-    
-    def get_user_engagement_rank(self, user):
-        """Calculate user's engagement rank among all users"""
-        user_interaction_count = UserMovieInteraction.objects.filter(user=user).count()
+        if cached_data and not request.query_params.get('refresh'):
+            return Response(cached_data)
         
-        higher_engagement_users = User.objects.annotate(
-            interaction_count=Count('movie_interactions')
-        ).filter(interaction_count__gt=user_interaction_count).count()
+        # Calculate time ranges
+        now = timezone.now()
+        today = now.date()
+        week_ago = now - timedelta(days=7)
+        month_ago = now - timedelta(days=30)
         
-        total_users = User.objects.count()
-        percentile = ((total_users - higher_engagement_users) / total_users) * 100
-        
-        return {
-            'percentile': round(percentile, 1),
-            'total_interactions': user_interaction_count
+        # User activity metrics
+        user_metrics = {
+            'total_users': User.objects.filter(is_active=True).count(),
+            'new_users_today': User.objects.filter(date_joined__date=today).count(),
+            'new_users_week': User.objects.filter(date_joined__gte=week_ago).count(),
+            'onboarded_users': User.objects.filter(onboarding_completed=True).count()
         }
-
-
-class TrendingMoviesView(generics.ListAPIView):
-    """
-    Get trending movies based on recent user interactions.
-    Shows what's popular right now.
-    """
-    
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    
-    def get(self, request):
-        """Return trending movies with analytics"""
-        days = int(request.query_params.get('days', 7))
-        limit = int(request.query_params.get('limit', 20))
         
-        # Get trending data
-        trending_data = UserMovieInteraction.get_trending_movies(
-            days=days,
-            interaction_types=['view', 'like', 'favorite', 'rating']
-        )[:limit]
+        # Interaction metrics
+        interaction_metrics = {
+            'total_interactions': UserMovieInteraction.objects.count(),
+            'interactions_today': UserMovieInteraction.objects.filter(timestamp__date=today).count(),
+            'interactions_week': UserMovieInteraction.objects.filter(timestamp__gte=week_ago).count(),
+            'positive_interactions': UserMovieInteraction.objects.filter(
+                feedback_type='positive'
+            ).count()
+        }
         
-        # Enhance with additional movie data
-        enhanced_trending = []
-        for movie_data in trending_data:
-            try:
-                from movies.models import Movie  # Adjust import as needed
-                movie = Movie.objects.get(id=movie_data['movie'])
-                
-                enhanced_trending.append({
-                    'movie_id': movie.id,
-                    'movie_title': movie.title,
-                    'interaction_count': movie_data['interaction_count'],
-                    'unique_users': movie_data['unique_users'],
-                    'average_rating': UserMovieInteraction.get_movie_average_rating(movie),
-                    'poster_url': getattr(movie, 'poster_url', None),
-                })
-            except:
-                continue
+        # Recommendation metrics
+        recommendation_metrics = {
+            'total_recommendations': UserRecommendations.objects.count(),
+            'recommendations_today': UserRecommendations.objects.filter(generated_at__date=today).count(),
+            'clicked_recommendations': UserRecommendations.objects.filter(clicked=True).count(),
+            'overall_ctr': (UserRecommendations.objects.filter(clicked=True).count() / 
+                           max(UserRecommendations.objects.count(), 1)) * 100
+        }
         
-        return Response({
-            'trending_movies': enhanced_trending,
-            'period_days': days,
-            'last_updated': timezone.now()
-        })
+        # Experiment metrics
+        experiment_metrics = {
+            'total_experiments': RecommendationExperiment.objects.count(),
+            'active_experiments': RecommendationExperiment.objects.filter(is_active=True).count(),
+            'completed_experiments': RecommendationExperiment.objects.filter(
+                end_date__lt=now
+            ).count()
+        }
+        
+        dashboard_data = {
+            'user_metrics': user_metrics,
+            'interaction_metrics': interaction_metrics,
+            'recommendation_metrics': recommendation_metrics,
+            'experiment_metrics': experiment_metrics,
+            'generated_at': now
+        }
+        
+        cache.set(cache_key, dashboard_data, 300)  # Cache for 5 minutes
+        return Response(dashboard_data)
 
-
-class AlgorithmPerformanceView(APIView):
-    """
-    Analytics view for recommendation algorithm performance.
-    Used by admins and data scientists to monitor algorithm effectiveness.
-    """
-    
-    permission_classes = [permissions.IsAdminUser]
-    
-    def get(self, request):
-        """Return performance analytics for all algorithms"""
-        days = int(request.query_params.get('days', 30))
-        
-        # Get all algorithms
-        algorithms = UserRecommendations.objects.values_list(
-            'algorithm', flat=True
-        ).distinct()
+    @action(detail=False, methods=['get'])
+    def algorithm_performance(self, request):
+        """Get performance comparison of different algorithms"""
+        algorithms = UserRecommendations.objects.values_list('algorithm', flat=True).distinct()
         
         performance_data = []
         for algorithm in algorithms:
-            performance = UserRecommendations.get_algorithm_performance(algorithm, days)
+            performance = UserRecommendations.get_algorithm_performance(algorithm)
             performance_data.append(performance)
         
-        # Sort by click-through rate
-        performance_data.sort(key=lambda x: x['click_through_rate'], reverse=True)
-        
-        serializer = RecommendationPerformanceSerializer(performance_data, many=True)
-        
         return Response({
-            'algorithm_performance': serializer.data,
-            'analysis_period': f'{days} days',
-            'total_algorithms': len(algorithms),
-            'best_algorithm': performance_data[0]['algorithm'] if performance_data else None
+            'algorithm_performance': performance_data,
+            'generated_at': timezone.now()
         })
 
+    @action(detail=False, methods=['get'])
+    def user_segmentation(self, request):
+        """Get user segmentation analytics"""
+        # Age group distribution (from User.date_of_birth)
+        users_with_age = User.objects.exclude(date_of_birth__isnull=True)
+        age_groups = {'teen': 0, 'young_adult': 0, 'adult': 0, 'senior': 0}
+        
+        for user in users_with_age:
+            age = self._calculate_age(user.date_of_birth)
+            if age:
+                if age < 18:
+                    age_groups['teen'] += 1
+                elif age < 30:
+                    age_groups['young_adult'] += 1
+                elif age < 50:
+                    age_groups['adult'] += 1
+                else:
+                    age_groups['senior'] += 1
+        
+        # Country distribution
+        country_dist = User.objects.exclude(
+            country__isnull=True
+        ).exclude(country='').values('country').annotate(count=Count('id')).order_by('-count')[:10]
+        
+        # Onboarding status
+        onboarding_stats = {
+            'total_users': User.objects.count(),
+            'onboarded': User.objects.filter(onboarding_completed=True).count(),
+            'has_preferences': User.objects.exclude(favorite_genres=[]).count()
+        }
+        
+        return Response({
+            'age_groups': [{'age_group': k, 'count': v} for k, v in age_groups.items()],
+            'top_countries': list(country_dist),
+            'onboarding_stats': onboarding_stats,
+            'generated_at': timezone.now()
+        })
 
-# === RECOMMENDATION GENERATION VIEWS ===
+    def _calculate_age(self, birth_date):
+        """Calculate age from birth date"""
+        if not birth_date:
+            return None
+        from datetime import date
+        today = date.today()
+        age = today.year - birth_date.year
+        if today.month < birth_date.month or (today.month == birth_date.month and today.day < birth_date.day):
+            age -= 1
+        return age
 
-class GenerateRecommendationsView(APIView):
+# UTILITY VIEWS
+
+class RecommendationUtilityViewSet(viewsets.ViewSet):
     """
-    Manually trigger recommendation generation.
-    Useful for testing and on-demand generation.
-    """
+    Utility endpoints for recommendation system management.
     
+    Provides maintenance, health checks, and administrative utilities.
+    """
     permission_classes = [permissions.IsAuthenticated]
-    
-    def post(self, request):
-        """Generate recommendations for current user"""
+
+    @action(detail=False, methods=['post'])
+    def generate_recommendations(self, request):
+        """Trigger recommendation generation for current user"""
+        if not request.user.is_authenticated:
+            return Response(
+                {'error': 'Authentication required'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
         algorithm = request.data.get('algorithm', 'collaborative_filtering')
         limit = int(request.data.get('limit', 10))
-        force_regenerate = request.data.get('force_regenerate', False)
         
         try:
-            # Check if user already has fresh recommendations
-            if not force_regenerate:
-                existing_recs = UserRecommendations.get_user_recommendations(
-                    request.user, limit=limit, algorithm=algorithm
-                )
-                if existing_recs:
-                    serializer = UserRecommendationSerializer(existing_recs, many=True)
-                    return Response({
-                        'message': 'Using existing recommendations',
-                        'recommendations': serializer.data,
-                        'generated_new': False
-                    })
-            
-            # Generate new recommendations
+            # This would integrate with your ML pipeline
             recommendations = UserRecommendations.generate_for_user(
-                request.user, algorithm=algorithm, limit=limit
+                user=request.user,
+                algorithm=algorithm,
+                limit=limit
             )
             
-            serializer = UserRecommendationSerializer(recommendations, many=True)
+            logger.info(f"Generated {len(recommendations)} recommendations for user {request.user.username}")
             
             return Response({
                 'message': f'Generated {len(recommendations)} recommendations',
-                'recommendations': serializer.data,
                 'algorithm': algorithm,
-                'generated_new': True
-            }, status=status.HTTP_201_CREATED)
-            
-        except Exception as e:
-            return Response({
-                'error': 'Failed to generate recommendations',
-                'message': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-
-class SimilarUsersView(APIView):
-    """
-    Find users with similar movie preferences.
-    Useful for user discovery and social features.
-    """
-    
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get(self, request):
-        """Get users similar to current user"""
-        min_common = int(request.query_params.get('min_common_movies', 3))
-        limit = int(request.query_params.get('limit', 10))
-        
-        try:
-            similar_user_ids = UserMovieInteraction.get_similar_users(
-                request.user, min_common_movies=min_common
-            )[:limit]
-            
-            # Get user details
-            similar_users = User.objects.filter(id__in=similar_user_ids)
-            
-            user_data = []
-            for user in similar_users:
-                # Get common movies
-                user_movies = set(UserMovieInteraction.objects.filter(
-                    user=user
-                ).values_list('movie_id', flat=True))
-                
-                current_user_movies = set(UserMovieInteraction.objects.filter(
-                    user=request.user
-                ).values_list('movie_id', flat=True))
-                
-                common_movies = len(user_movies & current_user_movies)
-                
-                user_data.append({
-                    'user_id': user.id,
-                    'username': user.username,
-                    'common_movies_count': common_movies,
-                    'total_interactions': UserMovieInteraction.objects.filter(user=user).count()
-                })
-            
-            return Response({
-                'similar_users': user_data,
-                'criteria': {
-                    'min_common_movies': min_common,
-                    'limit': limit
-                }
+                'count': len(recommendations)
             })
-            
-        except Exception as e:
-            return Response({
-                'error': 'Failed to find similar users',
-                'message': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-
-# === MOVIE-SPECIFIC VIEWS ===
-
-class MovieRecommendationsView(APIView):
-    """
-    Get users who might be interested in a specific movie.
-    Useful for targeted marketing and notifications.
-    """
-    
-    permission_classes = [permissions.IsAdminUser]
-    
-    def get(self, request, movie_id):
-        """Find users who might like this movie"""
-        try:
-            from movies.models import Movie  # Adjust import
-            movie = get_object_or_404(Movie, id=movie_id)
-            
-            # Find users who like movies in same genres
-            movie_genres = movie.genres.all() if hasattr(movie, 'genres') else []
-            
-            if not movie_genres:
-                return Response({
-                    'message': 'Movie has no genres for recommendation targeting',
-                    'target_users': []
-                })
-            
-            # Find users who interacted positively with movies in same genres
-            target_users = User.objects.filter(
-                movie_interactions__movie__genres__in=movie_genres,
-                movie_interactions__interaction_type__in=['like', 'favorite', 'rating'],
-                movie_interactions__rating__gte=4.0
-            ).exclude(
-                movie_interactions__movie=movie  # Exclude users who already interacted
-            ).annotate(
-                genre_matches=Count('movie_interactions__movie__genres', distinct=True)
-            ).filter(
-                genre_matches__gte=2  # At least 2 genre matches
-            ).distinct()[:50]
-            
-            user_data = []
-            for user in target_users:
-                user_data.append({
-                    'user_id': user.id,
-                    'username': user.username,
-                    'email': user.email,
-                    'genre_affinity': UserMovieInteraction.get_user_preferred_genres(user)[:3]
-                })
-            
-            return Response({
-                'movie': {
-                    'id': movie.id,
-                    'title': movie.title,
-                    'genres': [genre.name for genre in movie_genres]
-                },
-                'target_users': user_data,
-                'targeting_criteria': 'Users with 2+ matching genre preferences'
-            })
-            
-        except Exception as e:
-            return Response({
-                'error': 'Failed to find target users',
-                'message': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-
-# === ANALYTICS VIEWS ===
-
-class UserActivityFeedView(generics.ListAPIView):
-    """
-    Get user's recent activity feed with movie details.
-    Perfect for "Your Activity" or "Recently Watched" sections.
-    """
-    
-    serializer_class = InteractionWithMovieSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_queryset(self):
-        """Get recent activity for current user"""
-        days = int(self.request.query_params.get('days', 30))
-        cutoff = timezone.now() - timedelta(days=days)
         
-        return UserMovieInteraction.objects.filter(
-            user=self.request.user,
-            timestamp__gte=cutoff
-        ).select_related('movie').order_by('-timestamp')
-
-
-class RecommendationFeedView(generics.ListAPIView):
-    """
-    Get user's recommendation feed with full movie details.
-    Perfect for homepage recommendation carousels.
-    """
-    
-    serializer_class = RecommendationWithMovieSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_queryset(self):
-        """Get top recommendations with full movie data"""
-        return UserRecommendations.get_user_recommendations(
-            self.request.user,
-            limit=20
-        ).select_related('movie')
-
-
-# === ADMIN/STAFF VIEWS ===
-
-class GenerateBatchRecommendationsView(APIView):
-    """
-    Generate recommendations for all users (admin only).
-    Used for batch processing and system maintenance.
-    """
-    
-    permission_classes = [permissions.IsAdminUser]
-    
-    def post(self, request):
-        """Trigger batch recommendation generation"""
-        algorithm = request.data.get('algorithm', 'collaborative_filtering')
-        batch_size = int(request.data.get('batch_size', 100))
-        
-        try:
-            total_generated = UserRecommendations.generate_for_all_users(
-                algorithm=algorithm,
-                batch_size=batch_size
+        except Exception as e:
+            logger.error(f"Failed to generate recommendations for user {request.user.id}: {e}")
+            return Response(
+                {'error': 'Failed to generate recommendations'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-            
-            return Response({
-                'message': 'Batch generation completed',
-                'total_recommendations_generated': total_generated,
-                'algorithm': algorithm
-            }, status=status.HTTP_201_CREATED)
-            
-        except Exception as e:
-            return Response({
-                'error': 'Batch generation failed',
-                'message': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
 
-
-class SendRecommendationNotificationsView(APIView):
-    """
-    Send recommendation notifications to users (admin only).
-    Triggers your notification system.
-    """
-    
-    permission_classes = [permissions.IsAdminUser]
-    
-    def post(self, request):
-        """Send notifications for fresh recommendations"""
-        algorithm = request.data.get('algorithm')
-        limit_per_user = int(request.data.get('limit_per_user', 5))
-        
+    @action(detail=False, methods=['get'])
+    def health(self, request):
+        """Health check endpoint"""
         try:
-            notifications_sent = UserRecommendations.send_batch_notifications(
-                algorithm=algorithm,
-                limit_per_user=limit_per_user
-            )
+            # Test database connectivity
+            user_count = User.objects.count()
+            
+            # Test cache connectivity
+            cache_key = 'health_check'
+            cache.set(cache_key, 'ok', 60)
+            cache_status = cache.get(cache_key) == 'ok'
             
             return Response({
-                'message': 'Notifications sent successfully',
-                'notifications_sent': notifications_sent,
-                'algorithm_filter': algorithm or 'all'
+                'status': 'healthy',
+                'database': 'connected',
+                'cache': 'connected' if cache_status else 'disconnected',
+                'user_count': user_count,
+                'timestamp': timezone.now()
             })
-            
+        
         except Exception as e:
+            logger.error(f"Health check failed: {e}")
             return Response({
-                'error': 'Failed to send notifications',
-                'message': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-
-class SystemCleanupView(APIView):
-    """
-    Clean up old recommendations and optimize database.
-    Admin maintenance endpoint.
-    """
-    
-    permission_classes = [permissions.IsAdminUser]
-    
-    def post(self, request):
-        """Perform system cleanup"""
-        days = int(request.data.get('days', 30))
-        
-        try:
-            # Clean old recommendations
-            deleted_recs = UserRecommendations.cleanup_old_recommendations(days=days)
-            
-            # Could add more cleanup operations here:
-            # - Clean old interactions
-            # - Update popularity metrics
-            # - Refresh user preferences cache
-            
-            return Response({
-                'message': 'System cleanup completed',
-                'deleted_recommendations': deleted_recs,
-                'cleanup_criteria': f'Older than {days} days and unclicked'
-            })
-            
-        except Exception as e:
-            return Response({
-                'error': 'Cleanup failed',
-                'message': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-
-# === FUNCTION-BASED VIEWS ===
-
-@api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
-def quick_interaction(request):
-    """
-    Quick endpoint for simple interactions (like, dislike, etc.).
-    Optimized for mobile apps and quick actions.
-    """
-    
-    movie_id = request.data.get('movie_id')
-    interaction_type = request.data.get('interaction_type')
-    rating = request.data.get('rating')
-    
-    if not movie_id or not interaction_type:
-        return Response({
-            'error': 'movie_id and interaction_type are required'
-        }, status=status.HTTP_400_BAD_REQUEST)
-    
-    try:
-        # Create interaction using model method
-        interaction = UserMovieInteraction.create_interaction(
-            user=request.user,
-            movie_id=movie_id,
-            interaction_type=interaction_type,
-            rating=rating,
-            source=request.data.get('source', 'web')
-        )
-        
-        serializer = UserMovieInteractionSerializer(interaction)
-        
-        return Response({
-            'message': 'Interaction recorded',
-            'interaction': serializer.data
-        }, status=status.HTTP_201_CREATED)
-        
-    except Exception as e:
-        return Response({
-            'error': 'Failed to record interaction',
-            'message': str(e)
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
-def recommendation_stats(request):
-    """
-    Get user's personal recommendation statistics.
-    Shows how well the system is working for them.
-    """
-    
-    user = request.user
-    
-    # Calculate user's recommendation stats
-    total_recs = UserRecommendations.objects.filter(user=user).count()
-    clicked_recs = UserRecommendations.objects.filter(user=user, clicked=True).count()
-    
-    recent_recs = UserRecommendations.objects.filter(
-        user=user,
-        generated_at__gte=timezone.now() - timedelta(days=7)
-    ).count()
-    
-    # Algorithm breakdown
-    algorithm_stats = UserRecommendations.objects.filter(user=user).values(
-        'algorithm'
-    ).annotate(
-        count=Count('id'),
-        clicked_count=Count('id', filter=Q(clicked=True)),
-        avg_score=Avg('score')
-    )
-    
-    return Response({
-        'user_stats': {
-            'total_recommendations': total_recs,
-            'clicked_recommendations': clicked_recs,
-            'click_through_rate': round(clicked_recs / total_recs * 100, 2) if total_recs > 0 else 0,
-            'recent_recommendations': recent_recs,
-        },
-        'algorithm_breakdown': list(algorithm_stats),
-        'personalization_level': 'High' if total_recs > 50 else 'Medium' if total_recs > 10 else 'Low'
-    })
-
-
-# === SEARCH AND DISCOVERY VIEWS ===
-
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
-def discover_movies(request):
-    """
-    Discover new movies based on user preferences.
-    Different from recommendations - focuses on exploration.
-    """
-    
-    user = request.user
-    
-    # Get user's least explored genres
-    user_preferred = UserMovieInteraction.get_user_preferred_genres(user)
-    
-    # Find highly-rated movies in adjacent genres
-    from movies.models import Movie
-    
-    discovery_movies = Movie.objects.exclude(
-        interactions__user=user  # Movies user hasn't interacted with
-    ).filter(
-        genres__in=user_preferred  # But in genres they like
-    ).annotate(
-        avg_rating=Avg('interactions__rating'),
-        interaction_count=Count('interactions')
-    ).filter(
-        avg_rating__gte=4.0,  # Highly rated
-        interaction_count__gte=10  # Popular enough
-    ).order_by('-avg_rating')[:15]
-    
-    movie_data = []
-    for movie in discovery_movies:
-        movie_data.append({
-            'id': movie.id,
-            'title': movie.title,
-            'average_rating': float(movie.avg_rating) if movie.avg_rating else None,
-            'interaction_count': movie.interaction_count,
-            'genres': [genre.name for genre in movie.genres.all()] if hasattr(movie, 'genres') else [],
-            'discovery_reason': 'Highly rated in your preferred genres'
-        })
-    
-    return Response({
-        'discovery_movies': movie_data,
-        'discovery_criteria': {
-            'min_rating': 4.0,
-            'min_interactions': 10,
-            'based_on_genres': [genre.name for genre in user_preferred]
-        }
-    })
+                'status': 'unhealthy',
+                'error': str(e),
+                'timestamp': timezone.now()
+            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
