@@ -53,9 +53,9 @@ LAST_NAMES = [
 
 def create_superuser():
     """Create superuser from environment variables or defaults"""
-    username = os.environ.get('DJANGO_SUPERUSER_USERNAME', 'admin')
-    email = os.environ.get('DJANGO_SUPERUSER_EMAIL', 'admin@movierecommendation.com')
-    password = os.environ.get('DJANGO_SUPERUSER_PASSWORD', 'admin123')
+    username = 'admin'
+    email = 'admin@movierecommendation.com'
+    password = 'admin123'
     
     try:
         if not User.objects.filter(username=username).exists():
