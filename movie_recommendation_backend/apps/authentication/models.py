@@ -82,7 +82,7 @@ class User(AbstractUser):
     
     # Recommendation preferences (add these)
     favorite_genres = models.JSONField(default=list)  # Your original design
-    algorithm_preference = models.CharField(max_length=50, null=True, blank=True)
+    algorithm_preference = models.CharField(max_length=50, blank=True, null=True, help_text="Preferred recommendation algorithm.")
     diversity_preference = models.FloatField(default=0.5, validators=[MinValueValidator(0.0), MaxValueValidator(1.0)])
     novelty_preference = models.FloatField(default=0.5, validators=[MinValueValidator(0.0), MaxValueValidator(1.0)])
     content_rating_preference = models.CharField(max_length=10, null=True, blank=True)
