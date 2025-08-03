@@ -47,15 +47,43 @@ urlpatterns = [
     # Authentication endpoints
     path('authentication/api/v1/auth/', include('apps.authentication.urls')),
     # Future app URLs (we'll add these as we build more apps)
-    # path('api/v1/movies/', include('apps.movies.urls')),
-    # path('api/v1/recommendations/', include('apps.recommendations.urls')),
-    # path('api/v1/notifications/', include('apps.notifications.urls')),
-    # path('api/v1/analytics/', include('apps.analytics.urls')),
-    
+
+    path('movies/api/v1/', include('apps.movies.urls')),
+    path('recommendations/api/v1/', include('apps.recommendations.urls')),
+    path('notifications/api/v1/', include('apps.notifications.urls')),
+    path('analytics/api/v1/', include('apps.analytics.urls')),
+
     # API Documentation (fix the paths)
     path('authentication/api/docs/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('authentication/api/redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     path('authentication/api/schema/', schema_view.without_ui(cache_timeout=0), name='schema-json'),
+
+
+      # Movies API Docs
+    path('api/v1/movies/docs/', schema_view.with_ui('swagger', cache_timeout=0), name='movies-swagger-ui'),
+    path('api/v1/movies/redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='movies-redoc'),
+    path('api/v1/movies/schema/', schema_view.without_ui(cache_timeout=0), name='movies-schema-json'),
+    
+    # Recommendations API Docs
+    path('api/v1/recommendations/docs/', schema_view.with_ui('swagger', cache_timeout=0), name='recommendations-swagger-ui'),
+    path('api/v1/recommendations/redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='recommendations-redoc'),
+    path('api/v1/recommendations/schema/', schema_view.without_ui(cache_timeout=0), name='recommendations-schema-json'),
+    
+    # Notifications API Docs
+    path('api/v1/notifications/docs/', schema_view.with_ui('swagger', cache_timeout=0), name='notifications-swagger-ui'),
+    path('api/v1/notifications/redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='notifications-redoc'),
+    path('api/v1/notifications/schema/', schema_view.without_ui(cache_timeout=0), name='notifications-schema-json'),
+    
+    # Analytics API Docs
+    path('api/v1/analytics/docs/', schema_view.with_ui('swagger', cache_timeout=0), name='analytics-swagger-ui'),
+    path('api/v1/analytics/redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='analytics-redoc'),
+    path('api/v1/analytics/schema/', schema_view.without_ui(cache_timeout=0), name='analytics-schema-json'),
+    
+    # Main API Documentation (all apps combined)
+    path('api/docs/', schema_view.with_ui('swagger', cache_timeout=0), name='main-swagger-ui'),
+    path('api/redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='main-redoc'),
+    path('api/schema/', schema_view.without_ui(cache_timeout=0), name='main-schema-json'),
+
 ]
 
 # Serve media files in development
