@@ -215,6 +215,24 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20
 }
 
+# External API Settings
+TMDB_API_KEY = os.getenv('TMDB_API_KEY')
+OMDB_API_KEY = os.getenv('OMDB_API_KEY')
+TMDB_BASE_URL = os.getenv('TMDB_BASE_URL', 'https://api.themoviedb.org/3')  # Default fallback
+OMDB_BASE_URL = os.getenv('OMDB_BASE_URL', 'https://www.omdbapi.com')      # Default fallback
+
+# RATE LIMITS
+API_RATE_LIMIT = {
+    'tmdb': {
+        'requests_per_second': 40,  # 40 requests per second
+        'requests_per_day': 1000000,
+    },
+    'omdb': {
+        'requests_per_second': 1,
+        'requests_per_day': 1000,
+    }
+}
+
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
