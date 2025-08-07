@@ -6,7 +6,7 @@ from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Q, Avg
 from django.utils import timezone
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
 from datetime import timedelta
 
 from .models import NotificationsPreferences, NotificationLog, InAppNotifications
@@ -20,6 +20,52 @@ from .serializers import (
     InAppNotificationBulkActionSerializer,
     NotificationStatsSerializer
 )
+
+
+def notifications_hub(request):
+    """
+    Notifications app hub showing all available endpoints.
+    """
+
+    endpoints = {
+        "🔔 NOTIFICATION PREFERENCES": [
+            {"method": "GET", "url": "/notifications/api/v1/preferences/", "description": "Get current user's preferences"},
+            {"method": "PATCH", "url": "/notifications/api/v1/preferences/{id}/", "description": "Update preferences"},
+            {"method": "GET", "url": "/notifications/api/v1/preferences/my_preferences/", "description": "Get my preferences"},
+            {"method": "POST", "url": "/notifications/api/v1/preferences/reset_to_defaults/", "description": "Reset to defaults"},
+            {"method": "GET", "url": "/notifications/api/v1/preferences/summary/", "description": "Admin summary of all preferences"},
+        ],
+        "📝 NOTIFICATION LOGS": [
+            {"method": "GET", "url": "/notifications/api/v1/logs/", "description": "List notification logs"},
+            {"method": "POST", "url": "/notifications/api/v1/logs/", "description": "Create a log (admin only)"},
+            {"method": "POST", "url": "/notifications/api/v1/logs/{id}/mark_delivered/", "description": "Mark as delivered"},
+            {"method": "POST", "url": "/notifications/api/v1/logs/{id}/mark_opened/", "description": "Mark as opened"},
+            {"method": "POST", "url": "/notifications/api/v1/logs/{id}/mark_clicked/", "description": "Mark as clicked"},
+            {"method": "GET", "url": "/notifications/api/v1/logs/stats/", "description": "Log statistics"},
+            {"method": "GET", "url": "/notifications/api/v1/logs/my_logs/", "description": "Current user's logs"},
+        ],
+        "📬 IN-APP NOTIFICATIONS": [
+            {"method": "GET", "url": "/notifications/api/v1/inapp/", "description": "List in-app notifications"},
+            {"method": "POST", "url": "/notifications/api/v1/inapp/", "description": "Create in-app notification"},
+            {"method": "POST", "url": "/notifications/api/v1/inapp/{id}/mark_read/", "description": "Mark as read"},
+            {"method": "POST", "url": "/notifications/api/v1/inapp/{id}/archive/", "description": "Archive"},
+            {"method": "POST", "url": "/notifications/api/v1/inapp/bulk_action/", "description": "Bulk actions"},
+            {"method": "GET", "url": "/notifications/api/v1/inapp/unread_count/", "description": "Unread count"},
+            {"method": "GET", "url": "/notifications/api/v1/inapp/recent/", "description": "Recent unread"},
+            {"method": "POST", "url": "/notifications/api/v1/inapp/mark_all_read/", "description": "Mark all as read"},
+            {"method": "DELETE", "url": "/notifications/api/v1/inapp/clear_all/", "description": "Delete all archived"},
+            {"method": "GET", "url": "/notifications/api/v1/inapp/categories/", "description": "Get categories with counts"},
+        ],
+        "🛠 SYSTEM HEALTH": [
+            {"method": "GET", "url": "/notifications/api/v1/health/system_health/", "description": "Check system health"},
+        ],
+    }
+
+    return render(request, 'notifications/notifications_hub.html', {
+        'app_name': '🔔 Notifications API Hub',
+        'app_description': 'Explore and monitor all endpoints in the Notifications system',
+        'endpoints': endpoints,
+    })
 
 
 class IsOwnerOrAdmin(permissions.BasePermission):

@@ -29,55 +29,56 @@ from .serializers import (
 from .filters import MovieFilter
 
 def movie_hub(request):
-    """Movies app hub showing all available endpoints"""
-    
-    movie_endpoints = [
-        {
-            'url': '/movies/api/v1/api/',
-            'description': 'Base movies API router - List and retrieve movie endpoints',
-            'status': 'active'
-        },
-        {
-            'url': '/movies/api/v1/api/search/',
-            'description': 'Search movies - Query movies using advanced filters',
-            'status': 'active'
-        },
-        {
-            'url': '/movies/api/v1/api/recommendations/',
-            'description': 'Get movie recommendations based on user activity',
-            'status': 'active'
-        },
-        {
-            'url': '/movies/api/v1/api/analytics/',
-            'description': 'Movie analytics endpoint - Ratings and interaction trends',
-            'status': 'active'
-        },
-        {
-            'url': '/api/v1/movies/docs/',
-            'description': 'Swagger UI - Movies API documentation',
-            'status': 'active'
-        },
-        {
-            'url': '/api/v1/movies/redoc/',
-            'description': 'ReDoc UI - Movies API documentation',
-            'status': 'active'
-        },
-        {
-            'url': '/api/v1/movies/schema/',
-            'description': 'Movies API schema in JSON format',
-            'status': 'active'
-        },
-    ]
-    
-    context = {
-        'endpoints': movie_endpoints,
-        'app_name': '🎬 Movie API',
-        'app_description': 'Manage, search, and analyze movies in the system'
+    """Movies app hub showing all available endpoints, grouped by section."""
+
+    endpoints = {
+        "🎬 MOVIES": [
+            {"method": "GET", "url": "/movies/api/v1/movies/", "description": "List all movies"},
+            {"method": "POST", "url": "/movies/api/v1/movies/", "description": "Create a new movie"},
+            {"method": "GET", "url": "/movies/api/v1/movies/{id}/", "description": "Retrieve movie details"},
+            {"method": "PUT", "url": "/movies/api/v1/movies/{id}/", "description": "Update movie"},
+            {"method": "PATCH", "url": "/movies/api/v1/movies/{id}/", "description": "Partial update"},
+            {"method": "DELETE", "url": "/movies/api/v1/movies/{id}/", "description": "Delete movie"},
+        ],
+        "🎯 MOVIE CUSTOM ACTIONS": [
+            {"method": "GET", "url": "/movies/api/v1/movies/popular/", "description": "Popular movies"},
+            {"method": "GET", "url": "/movies/api/v1/movies/top_rated/", "description": "Top-rated movies"},
+            {"method": "GET", "url": "/movies/api/v1/movies/recent/", "description": "Recently released"},
+            {"method": "GET", "url": "/movies/api/v1/movies/by_genre/?genre=Action", "description": "Movies by genre"},
+            {"method": "GET", "url": "/movies/api/v1/movies/stats/", "description": "Movie stats"},
+            {"method": "POST", "url": "/movies/api/v1/movies/{id}/increment_views/", "description": "Increment views"},
+            {"method": "POST", "url": "/movies/api/v1/movies/{id}/increment_likes/", "description": "Increment likes"},
+            {"method": "GET", "url": "/movies/api/v1/movies/{id}/similar/", "description": "Similar movies"},
+        ],
+        "📚 GENRES": [
+            {"method": "GET", "url": "/movies/api/v1/genres/", "description": "List genres"},
+            {"method": "POST", "url": "/movies/api/v1/genres/", "description": "Create genre"},
+            {"method": "GET", "url": "/movies/api/v1/genres/{id}/", "description": "Genre details"},
+            {"method": "PUT", "url": "/movies/api/v1/genres/{id}/", "description": "Update genre"},
+            {"method": "PATCH", "url": "/movies/api/v1/genres/{id}/", "description": "Partial update"},
+            {"method": "DELETE", "url": "/movies/api/v1/genres/{id}/", "description": "Delete genre"},
+            {"method": "GET", "url": "/movies/api/v1/genres/{id}/movies/", "description": "Movies in genre"},
+        ],
+        "🔎 SEARCH & RECOMMENDATIONS": [
+            {"method": "GET", "url": "/movies/api/v1/search/?q=batman", "description": "Advanced search"},
+            {"method": "GET", "url": "/movies/api/v1/recommendations/?type=popular", "description": "Recommendations"},
+        ],
+        "📊 ANALYTICS": [
+            {"method": "GET", "url": "/movies/api/v1/analytics/", "description": "Analytics overview"},
+        ],
+        "📘 API DOCUMENTATION": [
+            {"method": "GET", "url": "/api/v1/movies/docs/", "description": "Swagger UI"},
+            {"method": "GET", "url": "/api/v1/movies/redoc/", "description": "ReDoc UI"},
+            {"method": "GET", "url": "/api/v1/movies/schema/", "description": "Schema (JSON)"},
+        ],
     }
 
-    return render(request, 'movies/movie_hub.html', context)
-
-
+    return render(request, 'movies/movie_hub.html', {
+        'app_name': '🎬 Movie API Hub',
+        'app_description': 'Explore all endpoints of the Movie Recommendation System',
+        'endpoints': endpoints,
+    })
+from rest_framework.pagination import PageNumberPagination
 
 class StandardResultsPagination(PageNumberPagination):
 
