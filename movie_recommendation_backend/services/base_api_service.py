@@ -52,6 +52,10 @@ class CircuitState(Enum):
     OPEN = "open" # Circuit is open
     HALF_OPEN = "half_open" # Circuit is half open
 
+
+
+
+
 class CircuitBreaker:
     """
     A simple circuit breaker implementation to prevent overwhelming the API with requests
@@ -62,49 +66,55 @@ class CircuitBreaker:
         self.recovery_timeout = recovery_timeout
         self.expected_exception = expected_exception
 
-
         self.failure_count = 0
         self.last_failure_time = None
-        self.state == CircuitState.CLOSED
+        self.state = CircuitState.CLOSED  # ✅ FIXED
 
-        def call(self, func, *args, **kwargs):
-            """
-            Execute the function with the circuit breaker logic.
-            """
-            if self.state == CircuitState.OPEN:
-                if self.last_failure_time and (timezone.now() - self.last_failure_time).total_seconds() < self.recovery_timeout:
-                    raise RateLimitExceededError("Circuit is open, requests are not allowed at this time.")
-                else:
-                    self.state = CircuitState.HALF_OPEN
+    def call(self, func, *args, **kwargs):
+        """
+        Execute the function with the circuit breaker logic.
+        """
+        if self.state == CircuitState.OPEN:
+            if self.last_failure_time and (timezone.now() - self.last_failure_time).total_seconds() < self.recovery_timeout:
+                raise RateLimitExceededError("Circuit is open, requests are not allowed at this time.")
+            else:
+                self.state = CircuitState.HALF_OPEN
 
-            try:
-                result = func(*args, **kwargs)
-                self.reset()
-                return result
-            except self.expected_exception as e:
-                self.record_failure(e)
-                raise e
-            
-        def _should_attempt_reset(self) -> bool:
-            """
-            Check if the circuit breaker should attempt to reset.
-            """
-            if self.state == CircuitState.HALF_OPEN:
-                if self.last_failure_time and (timezone.now() - self.last_failure_time).total_seconds() >= self.recovery_timeout:
-                    return True
-            return False
-        
-        def _on_sucess(self):
-            """
-            Reset the circuit breaker state on success.
-            """
-            self.failure_count = 0
-            self.state = CircuitState.CLOSED
-            self.last_failure_time = None
-        def on_failure(self):
-            if self.failure_count >= self.failure_threshold:
-                logging.warning("Circuit breaker reset after successful request.")
-                self.state = CircuitState.OPEN
+        try:
+            result = func(*args, **kwargs)
+            self._on_success()
+            return result
+        except self.expected_exception as e:
+            self._record_failure(e)
+            raise e
+
+    def _should_attempt_reset(self) -> bool:
+        """
+        Check if the circuit breaker should attempt to reset.
+        """
+        if self.state == CircuitState.HALF_OPEN:
+            if self.last_failure_time and (timezone.now() - self.last_failure_time).total_seconds() >= self.recovery_timeout:
+                return True
+        return False
+
+    def _on_success(self):
+        """
+        Reset the circuit breaker state on success.
+        """
+        self.failure_count = 0
+        self.state = CircuitState.CLOSED
+        self.last_failure_time = None
+
+    def _record_failure(self, exception):
+        """
+        Record a failure and update the circuit breaker state if threshold is reached.
+        """
+        self.failure_count += 1
+        self.last_failure_time = timezone.now()
+        if self.failure_count >= self.failure_threshold:
+            self.state = CircuitState.OPEN
+            logging.warning("Circuit breaker opened due to repeated failures.")
+
 # BASE API SERVICE CLASS
 class BaseAPIService(ABC):
     """
@@ -165,6 +175,11 @@ class BaseAPIService(ABC):
     @property
     def default_timeout(self) -> int:
         return 30
+    
+    @property
+    def recovery_timeout(self) -> int:
+        return 60  # or whatever number of seconds you want
+
     
     @property
     def max_retries(self) -> int:
@@ -237,7 +252,7 @@ class BaseAPIService(ABC):
         return params, headers
     
     # RATE LIMITING AND THROTTLING
-    def __enforce_rate_limit(self):
+    def _enforce_rate_limit(self):
         """
         Enforce rate limiting by checking the time since the last request.
         """
@@ -321,20 +336,20 @@ class BaseAPIService(ABC):
             raise last_exception or APIServiceError(" Request failed after all the retries.")
 
 
-        def _handle_response(self, response, endpoint: str, attempt: int) -> Dict[str, Any]:
-            """
-            Handle HTTP response and convert to appropriate exceptions.
+    def _handle_response(self, response, endpoint: str, attempt: int) -> Dict[str, Any]:
+        """
+        Handle HTTP response and convert to appropriate exceptions.
+        
+        Args:
+            response: requests.Response object
+            endpoint: API endpoint for logging
+            attempt: Current attempt number
             
-            Args:
-                response: requests.Response object
-                endpoint: API endpoint for logging
-                attempt: Current attempt number
-                
-            Returns:
-                Parsed JSON response
-                
-            Raises:
-                Various APIServiceError subclasses
+        Returns:
+            Parsed JSON response
+            
+        Raises:
+            Various APIServiceError subclasses
             """
         status_code = response.status_code
         
@@ -365,7 +380,7 @@ class BaseAPIService(ABC):
                 wait_time = int(retry_after)
             except ValueError:
                 wait_time = 10
-                
+            
             self.logger.warning(f"Rate limit exceeded. Waiting {wait_time}s...")
             time.sleep(wait_time)
             raise RateLimitExceededError(f"Rate limit exceeded, waited {wait_time}s")
@@ -419,7 +434,8 @@ class BaseAPIService(ABC):
             self.logger.debug(f"Cached data for {timeout}s: {cache_key}")
         
         return data
-    # UTILITY METHODS  
+    
+    # UTILITY METHODS
     def health_check(self) -> Dict[str, Any]:
         """
         Perform a health check on the API service.

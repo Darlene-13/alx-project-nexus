@@ -6,4 +6,4 @@ class NotificationsConfig(AppConfig):
     name = 'apps.notifications'
 
     def ready(self):
-        import apps.notifications.signals
+        import apps.notifications.signals  # Import signals to ensure they are registered

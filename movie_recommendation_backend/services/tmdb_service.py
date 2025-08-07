@@ -9,8 +9,8 @@ The TMDB API documentation can be found at https://developers.themoviedb.org/3/g
 
 import json
 import logging
+import time
 from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta, time
 
 from django.conf import settings
 from django.utils import timezone
