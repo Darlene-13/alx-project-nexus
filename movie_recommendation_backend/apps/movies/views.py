@@ -23,13 +23,12 @@ from .models import Movie, Genre, MovieGenre
 from.serializers import (
     MovieListSerializer, MovieDetailSerializer, MovieCreateUpdateSerializer,
     MovieStatsSerializer, MovieRecommendationSerializer,
-    GenreSerializer, GenreDetailSerializer
-
+    GenreSerializer, GenreDetailSerializer, MovieSearchSerializer
 )
 
 from .filters import MovieFilter
 
-class StandardResultsSetPagination(PageNumberPagination):
+class StandardResultsPagination(PageNumberPagination):
 
     """
     Standard pagination class for our API.
@@ -46,7 +45,7 @@ class MovieViewSet(viewsets.ModelViewSet):
     """
     queryset = Movie.objects.select_related().prefetch_related('genres')
     permission_classes = [IsAuthenticatedOrReadOnly]
-    pagination_class = StandardResultsSetPagination
+    pagination_class = StandardResultsPagination
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_class = MovieFilter # Custom filter class for movies
     ordering_fields = ['release_date', 'popularity_score', 'tmdb_rating', 'popularity_score', 'views', 'like_count']
@@ -203,11 +202,11 @@ class GenreViewSet(viewsets.ModelViewSet):
     permission_classes = [
         IsAuthenticatedOrReadOnly
     ]
-    pagination_class = StandardResultsSetPagination
+    pagination_class = StandardResultsPagination
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     search_fields = ['name']
     ordering_fields = ['name', 'created_at']
-    orderding = ['name']
+    ordering = ['name']
 
     def get_serializer_class(self):
         """
@@ -269,7 +268,7 @@ class GenreViewSet(viewsets.ModelViewSet):
                 '-tmdb_rating'
             ).distinct()
             # Paginate results
-            paginator = StandardResultsSetPagination()
+            paginator = StandardResultsPagination()
             page = paginator.paginate_queryset(movies, request)
             if page is not None:
                 serializer = MovieListSerializer(page, many=True)
@@ -277,7 +276,63 @@ class GenreViewSet(viewsets.ModelViewSet):
 
             serializer = MovieListSerializer(movies, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK) 
+
+class MovieSearchView(APIView):
+    """
+    Advanced search functionality for movies.
+    Supports complex queries and filters.
+    """
+    
+    def get(self, request):
+        """
+        Search movies with advanced filters.
+        GET /api/search/?q=batman&genre=Action&year=2020&rating_min=7.0
+        """
+        query = request.query_params.get('q', '')
+        genre = request.query_params.get('genre', '')
+        year = request.query_params.get('year', '')
+        rating_min = request.query_params.get('rating_min', '')
+        rating_max = request.query_params.get('rating_max', '')
         
+        # Start with all movies
+        movies = Movie.objects.select_related().prefetch_related('genres')
+        
+        # Apply search query
+        if query:
+            movies = movies.filter(
+                Q(title__icontains=query) | 
+                Q(overview__icontains=query) |
+                Q(director__icontains=query)
+            )
+        
+        # Apply filters
+        if genre:
+            movies = movies.filter(genres__name__iexact=genre)
+        
+        if year:
+            movies = movies.filter(release_date__year=year)
+        
+        if rating_min:
+            movies = movies.filter(tmdb_rating__gte=float(rating_min))
+        
+        if rating_max:
+            movies = movies.filter(tmdb_rating__lte=float(rating_max))
+        
+        # Order by relevance (popularity and rating)
+        movies = movies.order_by('-popularity_score', '-tmdb_rating').distinct()
+        
+        # Paginate results
+        paginator = StandardResultsPagination()
+        page = paginator.paginate_queryset(movies, request)
+        if page is not None:
+            serializer = MovieSearchSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+        
+        serializer = MovieSearchSerializer(movies, many=True)
+        return Response(serializer.data)
+
+
+
 class MovieRecommendationView(APIView):
     """
     Movie recommendation engine

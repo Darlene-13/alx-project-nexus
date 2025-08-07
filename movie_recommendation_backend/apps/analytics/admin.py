@@ -9,7 +9,6 @@ import json
 from .models import UserActivityLog, PopularityMetrics
 
 
-@admin.register(UserActivityLog)
 class UserActivityLogAdmin(admin.ModelAdmin):
     """
     Clean admin interface for UserActivityLog.
@@ -135,8 +134,6 @@ class UserActivityLogAdmin(admin.ModelAdmin):
         return response
     export_csv.short_description = "Export to CSV"
 
-
-@admin.register(PopularityMetrics)
 class PopularityMetricsAdmin(admin.ModelAdmin):
     """
     Admin interface for PopularityMetrics.

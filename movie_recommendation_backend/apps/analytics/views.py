@@ -123,7 +123,7 @@ class UserActivityLogAdmin(admin.ModelAdmin):
         ActivityDateFilter,    # Custom date ranges
         'action_type',         # Group by action type
         'source',              # Filter by platform
-        ('user', admin.RelatedOnlyFieldFilter),  # Only users who have activities
+        ('user', admin.RelatedOnlyFieldListFilter),  # Only users who have activities
         'ip_address',          # Fraud detection
     ]
     

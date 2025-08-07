@@ -7,6 +7,8 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from datetime import timedelta
 import json
 
+from apps.movies.models import Movie
+
 from .models import (
     UserMovieInteraction, 
     UserRecommendations, 
@@ -67,7 +69,8 @@ class UserMovieInteractionDetailSerializer(serializers.ModelSerializer):
     Includes full validation and nested data.
     """
     user = serializers.PrimaryKeyRelatedField(read_only=True)
-    movie = serializers.PrimaryKeyRelatedField(queryset=None)  # Set in view
+    movie = serializers.PrimaryKeyRelatedField(read_only=True)
+
     
     # Computed fields (read-only)
     is_recent = serializers.BooleanField(read_only=True)
@@ -281,8 +284,7 @@ class RecommendationExperimentListSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['__all__']
 
-
-class RecommendationExperimentDetailSerializer(serializers.ModelSerializer, TimestampMixin):
+class RecommendationExperimentDetailSerializer(TimestampMixin, serializers.ModelSerializer):
     """
     Admin serializer for managing experiments.
     Full access to all fields and statistical results.

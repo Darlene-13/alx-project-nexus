@@ -1,3 +1,11 @@
+"""
+This is the movies app models file for our Movie Recommendation Backend.
+It contains the models for Movie, Genre, and their relationships.
+It also includes custom validation, methods for handling movie data,
+and a custom manager for querying movies.
+
+"""
+
 import json
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
