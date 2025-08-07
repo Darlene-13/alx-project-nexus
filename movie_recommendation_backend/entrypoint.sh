@@ -14,6 +14,11 @@ python3 manage.py migrate --noinput
 # Remove seeding flag since we cleared the database
 rm -f /app/.db_seeded
 
+# Seed the database using the standalone script
+echo "Seeding database..."
+python3 movie_recommendation_backend/seed_users.py
+touch /app/.db_seeded
+
 # Seed genres (required before seeding movies)
 echo "🌱 Seeding genres..."
 python3 manage.py seed_genres
