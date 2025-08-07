@@ -7,7 +7,8 @@ from .views import (
     RecommendationExperimentViewSet,
     UserProfileViewSet,
     AnalyticsViewSet,
-    RecommendationUtilityViewSet
+    RecommendationUtilityViewSet,
+    recommendations_hub
 )
 
 app_name = 'recommendations'
@@ -22,6 +23,9 @@ user_reset_preferences = UserProfileViewSet.as_view({'post': 'reset_preferences'
 
 urlpatterns = [
     # User Movie Interactions
+    # Recommendation hub landing page
+    path('v1/', recommendations_hub, name='recommendations-hub'),
+
     path('v1/interactions/', include([
         path('', UserMovieInteractionViewSet.as_view({'get': 'list', 'post': 'create'}), name='interaction-list'),
         path('<int:pk>/', UserMovieInteractionViewSet.as_view({

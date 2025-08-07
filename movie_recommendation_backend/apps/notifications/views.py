@@ -67,7 +67,6 @@ def notifications_hub(request):
         'endpoints': endpoints,
     })
 
-
 class IsOwnerOrAdmin(permissions.BasePermission):
     """
     Custom permission to only allow owners or admins to access objects.

@@ -13,6 +13,7 @@ from django.core.cache import cache
 from django.conf import settings
 from datetime import timedelta
 import logging
+from django.shortcuts import render
 
 from .models import (
     UserMovieInteraction,
@@ -28,7 +29,6 @@ from .serializers import (
     # User Recommendations
     UserRecommendationListSerializer,
     UserRecommendationDetailSerializer,
-    RecommendationClickSerializer,
     
     # Experiments
     RecommendationExperimentListSerializer,
@@ -41,10 +41,7 @@ from .serializers import (
     GenrePreferenceSerializer,
     
     # Analytics
-    RecommendationPerformanceSerializer,
-    UserInteractionSummarySerializer,
     RecommendationContextSerializer,
-    BulkRecommendationCreateSerializer
 )
 
 from .permissions import IsOwnerOrReadOnly, IsAdminOrReadOnly
@@ -52,6 +49,65 @@ from .filters import UserInteractionFilter, RecommendationFilter, UserPreference
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+
+
+
+def recommendations_hub(request):
+    """
+    Recommendation system hub view.
+    Lists all major endpoints for personalization, experiments, analytics, and utilities.
+    """
+
+    endpoints = {
+        "👤 USER PROFILES & PREFERENCES": [
+            {"method": "GET", "url": "/recommendations/v1/users/me/", "description": "Get current user's profile"},
+            {"method": "PATCH", "url": "/recommendations/v1/users/update_preferences/", "description": "Update preferences"},
+            {"method": "POST", "url": "/recommendations/v1/users/onboarding/", "description": "Complete onboarding"},
+            {"method": "POST", "url": "/recommendations/v1/users/add_genre_preference/", "description": "Add genre preference"},
+            {"method": "GET", "url": "/recommendations/v1/users/recommendation_context/", "description": "Get recommendation context"},
+            {"method": "POST", "url": "/recommendations/v1/users/reset_preferences/", "description": "Reset all preferences"},
+        ],
+        "🎬 USER MOVIE INTERACTIONS": [
+            {"method": "GET", "url": "/recommendations/v1/interactions/", "description": "List all interactions"},
+            {"method": "POST", "url": "/recommendations/v1/interactions/", "description": "Create a new interaction"},
+            {"method": "GET", "url": "/recommendations/v1/interactions/my_interactions/", "description": "My interaction summary"},
+            {"method": "POST", "url": "/recommendations/v1/interactions/bulk_create/", "description": "Bulk create interactions"},
+            {"method": "GET", "url": "/recommendations/v1/interactions/analytics/", "description": "Interaction analytics"},
+            {"method": "PATCH", "url": "/recommendations/v1/interactions/<id>/update_feedback/", "description": "Update feedback for interaction"},
+        ],
+        "🔮 RECOMMENDATIONS": [
+            {"method": "GET", "url": "/recommendations/v1/recommendations/", "description": "List personalized recommendations"},
+            {"method": "GET", "url": "/recommendations/v1/recommendations/personalized/", "description": "Get personalized (filtered)"},
+            {"method": "GET", "url": "/recommendations/v1/recommendations/performance/", "description": "Get recommendation performance"},
+            {"method": "POST", "url": "/recommendations/v1/recommendations/<id>/click/", "description": "Mark recommendation as clicked"},
+            {"method": "POST", "url": "/recommendations/v1/recommendations/bulk_click/", "description": "Bulk click tracking"},
+        ],
+        "🧪 EXPERIMENTS (Admin)": [
+            {"method": "GET", "url": "/recommendations/v1/experiments/", "description": "List experiments"},
+            {"method": "POST", "url": "/recommendations/v1/experiments/", "description": "Create experiment"},
+            {"method": "POST", "url": "/recommendations/v1/experiments/<id>/stop/", "description": "Stop an experiment"},
+            {"method": "GET", "url": "/recommendations/v1/experiments/<id>/metrics/", "description": "Get experiment metrics"},
+            {"method": "POST", "url": "/recommendations/v1/experiments/<id>/update_results/", "description": "Update experiment results"},
+            {"method": "GET", "url": "/recommendations/v1/experiments/active/", "description": "Get active experiment"},
+        ],
+        "📊 ANALYTICS & SEGMENTATION (Admin)": [
+            {"method": "GET", "url": "/recommendations/v1/analytics/dashboard/", "description": "Dashboard metrics"},
+            {"method": "GET", "url": "/recommendations/v1/analytics/algorithm_performance/", "description": "Algorithm performance"},
+            {"method": "GET", "url": "/recommendations/v1/analytics/user_segmentation/", "description": "User segmentation"},
+        ],
+        "🛠 UTILITY & HEALTH": [
+            {"method": "POST", "url": "/recommendations/v1/utils/generate_recommendations/", "description": "Trigger generation"},
+            {"method": "GET", "url": "/recommendations/v1/utils/health/", "description": "System health check"},
+        ]
+    }
+
+    return render(request, 'recommendations/recommendations_hub.html', {
+        'app_name': '🎯 Recommendations API Hub',
+        'app_description': 'Explore and test all endpoints for movie recommendations, personalization, and A/B testing.',
+        'endpoints': endpoints,
+    })
+
+
 
 # BASE CLASSES & MIXINS
 
