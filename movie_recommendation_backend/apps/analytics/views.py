@@ -12,7 +12,6 @@ from .serializers import (
     BulkActivityLogSerializer,
     PopularityMetricsSerializer,
     TrendingMoviesSerializer,
-    ActivityAnalyticsSerializer,
     UserActivitySummarySerializer,
     SessionAnalyticsSerializer,
 )
