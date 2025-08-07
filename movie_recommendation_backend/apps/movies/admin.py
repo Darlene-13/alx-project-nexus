@@ -19,13 +19,14 @@ class JsonTextareaWidget(widgets.Textarea):
         """Format JSON data for display in textarea."""
         if value:
             try:
-                # If it's a string, parse it and format nicely
-                if isinstance(value, str):
+                # ✅ FIXED: Handle both already-parsed data and JSON strings
+                if isinstance(value, (list, dict)):
+                    # Already parsed - just format it nicely
+                    return json.dumps(value, indent=2, ensure_ascii=False)
+                elif isinstance(value, str):
+                    # String - try to parse it and format nicely
                     parsed = json.loads(value)
                     return json.dumps(parsed, indent=2, ensure_ascii=False)
-                # If it's already a list/dict, format it
-                elif isinstance(value, (list, dict)):
-                    return json.dumps(value, indent=2, ensure_ascii=False)
             except (json.JSONDecodeError, TypeError):
                 pass
         return value
@@ -65,8 +66,17 @@ class MovieAdminForm(forms.ModelForm):
         value = self.cleaned_data.get('main_cast_display')
         if value:
             try:
-                # Try to parse as JSON
-                parsed = json.loads(value)
+                # ✅ FIXED: Handle both already-parsed data and JSON strings
+                if isinstance(value, list):
+                    # Already parsed - validate it
+                    parsed = value
+                elif isinstance(value, str):
+                    # String - try to parse as JSON
+                    parsed = json.loads(value)
+                else:
+                    # Other types - handle gracefully
+                    raise forms.ValidationError("Invalid data type for main cast.")
+                
                 if not isinstance(parsed, list):
                     raise forms.ValidationError("Main cast must be a JSON array.")
                 
@@ -75,7 +85,9 @@ class MovieAdminForm(forms.ModelForm):
                     if not isinstance(item, str):
                         raise forms.ValidationError("Each cast member must be a string.")
                 
-                return json.dumps(parsed)  # Return as JSON string
+                # Return as list - JSONField will handle serialization
+                return parsed
+                
             except json.JSONDecodeError:
                 raise forms.ValidationError("Invalid JSON format.")
         return value
@@ -87,6 +99,7 @@ class MovieAdminForm(forms.ModelForm):
         # Set main_cast from our custom field
         main_cast_data = self.cleaned_data.get('main_cast_display')
         if main_cast_data:
+            # ✅ FIXED: Assign list directly - JSONField handles serialization
             instance.main_cast = main_cast_data
         
         if commit:
@@ -476,3 +489,4 @@ class AdminConfig:
     def customize_admin():
         """Add any additional admin customizations here."""
         pass
+    

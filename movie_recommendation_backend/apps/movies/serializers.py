@@ -76,14 +76,19 @@ class MovieDetailSerializer(serializers.ModelSerializer):
     
     def validate_main_cast(self, value):
         """Validate that main_cast is a proper list of strings"""
-        if isinstance(value, str):
+        # ✅ FIXED: Handle both already-parsed lists and JSON strings
+        if isinstance(value, list):
+            # Already parsed by JSONField
+            cast_list = value
+        elif isinstance(value, str):
             try:
                 import json
                 cast_list = json.loads(value)
             except json.JSONDecodeError:
                 raise serializers.ValidationError("main_cast must be valid JSON array")
         else:
-            cast_list = value
+            # Handle None or other types
+            cast_list = value if value is not None else []
             
         if not isinstance(cast_list, list):
             raise serializers.ValidationError("main_cast must be a list")
@@ -142,14 +147,19 @@ class MovieCreateUpdateSerializer(serializers.ModelSerializer):
     
     def validate_main_cast(self, value):
         """Validate main_cast field"""
-        if isinstance(value, str):
+        # ✅ FIXED: Handle both already-parsed lists and JSON strings
+        if isinstance(value, list):
+            # Already parsed by JSONField
+            cast_list = value
+        elif isinstance(value, str):
             try:
                 import json
                 cast_list = json.loads(value)
             except json.JSONDecodeError:
                 raise serializers.ValidationError("main_cast must be valid JSON")
         else:
-            cast_list = value
+            # Handle None or other types
+            cast_list = value if value is not None else []
             
         if not isinstance(cast_list, list):
             raise serializers.ValidationError("main_cast must be a list")

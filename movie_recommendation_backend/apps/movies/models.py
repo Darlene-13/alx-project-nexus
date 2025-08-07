@@ -22,8 +22,14 @@ def validate_json_array(value):
     Custom validator to ensure that the field value is a valid JSON array.
     """
     try:
-        data = json.loads(value) if isinstance(value, str) else value
-        if not isinstance(data, list):
+        # For JSONField, value is already parsed by Django
+        if isinstance(value, list):
+            return  # Valid list
+        elif isinstance(value, str):
+            data = json.loads(value)
+            if not isinstance(data, list):
+                raise ValidationError("This field must be a valid JSON array.")
+        else:
             raise ValidationError("This field must be a valid JSON array.")
     except (json.JSONDecodeError, TypeError):
         raise ValidationError("This field must be a valid JSON array.")
@@ -129,17 +135,27 @@ class Movie(models.Model):
     # Custom methods and properties
     @property
     def main_cast_list(self):
-        try:
-            return json.loads(self.main_cast)
-        except json.JSONDecodeError:
+        """
+        Get main cast as list - JSONField already handles parsing
+        """
+        if isinstance(self.main_cast, list):
+            return self.main_cast
+        elif self.main_cast is None:
             return []
+        else:
+            # Fallback for edge cases
+            try:
+                return json.loads(self.main_cast) if isinstance(self.main_cast, str) else []
+            except (json.JSONDecodeError, TypeError):
+                return []
         
     def set_main_cast(self, cast_list):
         """
         Set the main cast as a JSON array.
         """
         if isinstance(cast_list, list):
-            self.main_cast = json.dumps(cast_list)
+            # ✅ FIXED: Just assign directly - JSONField handles serialization
+            self.main_cast = cast_list
         else:
             raise ValueError("main_cast must be a list.")
         
@@ -218,14 +234,20 @@ class Movie(models.Model):
         Custom validation to ensure that the release date is not in the future.
         """
         try:
-            cast = json.loads(self.main_cast) if isinstance(self.main_cast, str) else self.main_cast
+            cast = self.main_cast if isinstance(self.main_cast, list) else []
+            
+            # Handle string case as fallback
+            if isinstance(self.main_cast, str):
+                cast = json.loads(self.main_cast)
+            
             if not isinstance(cast, list):
                 raise ValidationError("main_cast must be a valid JSON array.")
             
             for actor in cast:
                 if not isinstance(actor, str):
                     raise ValidationError("Each cast member must be a string.")
-        except json.JSONDecodeError:
+                    
+        except (json.JSONDecodeError, TypeError):
             raise ValidationError({
                 'main_cast': "main_cast must be a valid JSON array."
             })
