@@ -14,19 +14,70 @@ from rest_framework.pagination import PageNumberPagination
 
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, F, Count, Avg
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.core.cache import cache
 
 from .models import Movie, Genre, MovieGenre
-from.serializers import (
+from .serializers import (
     MovieListSerializer, MovieDetailSerializer, MovieCreateUpdateSerializer,
     MovieStatsSerializer, MovieRecommendationSerializer,
     GenreSerializer, GenreDetailSerializer, MovieSearchSerializer
 )
 
 from .filters import MovieFilter
+
+def movie_hub(request):
+    """Movies app hub showing all available endpoints"""
+    
+    movie_endpoints = [
+        {
+            'url': '/movies/api/v1/api/',
+            'description': 'Base movies API router - List and retrieve movie endpoints',
+            'status': 'active'
+        },
+        {
+            'url': '/movies/api/v1/api/search/',
+            'description': 'Search movies - Query movies using advanced filters',
+            'status': 'active'
+        },
+        {
+            'url': '/movies/api/v1/api/recommendations/',
+            'description': 'Get movie recommendations based on user activity',
+            'status': 'active'
+        },
+        {
+            'url': '/movies/api/v1/api/analytics/',
+            'description': 'Movie analytics endpoint - Ratings and interaction trends',
+            'status': 'active'
+        },
+        {
+            'url': '/api/v1/movies/docs/',
+            'description': 'Swagger UI - Movies API documentation',
+            'status': 'active'
+        },
+        {
+            'url': '/api/v1/movies/redoc/',
+            'description': 'ReDoc UI - Movies API documentation',
+            'status': 'active'
+        },
+        {
+            'url': '/api/v1/movies/schema/',
+            'description': 'Movies API schema in JSON format',
+            'status': 'active'
+        },
+    ]
+    
+    context = {
+        'endpoints': movie_endpoints,
+        'app_name': '🎬 Movie API',
+        'app_description': 'Manage, search, and analyze movies in the system'
+    }
+
+    return render(request, 'movies/movie_hub.html', context)
+
+
 
 class StandardResultsPagination(PageNumberPagination):
 

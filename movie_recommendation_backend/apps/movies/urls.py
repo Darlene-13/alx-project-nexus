@@ -11,6 +11,12 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView
 )
 from . import views
+from .views import (movie_hub,
+                    MovieSearchView,
+                    MovieRecommendationView,
+                    MovieAnalyticsView
+                    )
+
 
 # Create router for ViewSets
 router = DefaultRouter()
@@ -20,12 +26,14 @@ router.register(r'genres', views.GenreViewSet, basename='genre')
 # Custom URL patterns for specific endpoints
 urlpatterns = [
     # Include router URLs
-    path('api/', include(router.urls)),
-    
-    # Custom search and recommendation endpoints
-    path('api/search/', views.MovieSearchView.as_view(), name='movie-search'),
-    path('api/recommendations/', views.MovieRecommendationView.as_view(), name='movie-recommendations'),
-    path('api/analytics/', views.MovieAnalyticsView.as_view(), name='movie-analytics'),
+    path('movies/', include(router.urls)),
+
+    path('hub/', movie_hub, name='movie-hub'),
+
+    # Custom search and recommendsation endpoints
+    path('search/', views.MovieSearchView.as_view(), name='movie-search'),
+    path('recommendations/', views.MovieRecommendationView.as_view(), name='movie-recommendations'),
+    path('analytics/', views.MovieAnalyticsView.as_view(), name='movie-analytics'),
 ]
 
 """
