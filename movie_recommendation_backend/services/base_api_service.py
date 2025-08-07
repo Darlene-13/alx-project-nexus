@@ -64,9 +64,8 @@ class CircuitBreaker:
 
 
         self.failure_count = 0
-        self.last_failure-time = None
-        self.state - CircuitState.CLOSED
-
+        self.last_failure_time = None
+        self.state == CircuitState.CLOSED
 
         def call(self, func, *args, **kwargs):
             """
