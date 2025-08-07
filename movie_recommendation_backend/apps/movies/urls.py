@@ -26,11 +26,11 @@ router.register(r'genres', views.GenreViewSet, basename='genre')
 # Custom URL patterns for specific endpoints
 urlpatterns = [
     # Include router URLs
-    path('movies/', include(router.urls)),
-
-    path('hub/', movie_hub, name='movie-hub'),
+    path('', movie_hub, name='movie-hub'),
+   
 
     # Custom search and recommendsation endpoints
+    path('movies/', include(router.urls)),
     path('search/', views.MovieSearchView.as_view(), name='movie-search'),
     path('recommendations/', views.MovieRecommendationView.as_view(), name='movie-recommendations'),
     path('analytics/', views.MovieAnalyticsView.as_view(), name='movie-analytics'),
