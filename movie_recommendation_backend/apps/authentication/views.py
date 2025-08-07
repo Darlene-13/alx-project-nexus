@@ -127,6 +127,18 @@ def auth_hub(request):
     
     return render(request, 'authentication/auth_hub.html', context)
 
+def safe_json_loads(value, default=None):
+    """Safely parse JSON data that might already be parsed"""
+    if value is None:
+        return default or []
+    if isinstance(value, (list, dict)):
+        return value
+    if isinstance(value, str) and value.strip():
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, ValueError):
+            return default or []
+    return default or []
 
 def log_user_action(user, action, details=None, request=None):
     """
@@ -206,7 +218,7 @@ class UserRegistrationView(APIView):
                             'username': user.username,
                             'email': user.email,
                             'ip_address': get_client_ip(request),
-                            'favorite_genres_count': len(json.loads(user.favorite_genres or '[]')),
+                            'favorite_genres_count': len(safe_json_loads(user.favorite_genres, [])),
                             'created_at': user.date_joined.isoformat(),
                         }
                     )

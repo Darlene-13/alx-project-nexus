@@ -15,6 +15,18 @@ from apps.recommendations.models import UserRecommendations, UserMovieInteractio
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
+def safe_json_loads(value, default=None):
+    """Safely parse JSON data that might already be parsed"""
+    if value is None:
+        return default or []
+    if isinstance(value, (list, dict)):
+        return value
+    if isinstance(value, str) and value.strip():
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, ValueError):
+            return default or []
+    return default or []
 
 class AdminConfig:
     """Configuration constants for admin interface."""
@@ -51,11 +63,7 @@ class UserUtils:
     @staticmethod
     def safe_json_parse(json_string, default=None):
         """Safely parse JSON string with fallback."""
-        try:
-            return json.loads(json_string) if json_string else (default or [])
-        except (json.JSONDecodeError, TypeError) as e:
-            logger.warning(f"Failed to parse JSON: {json_string}, Error: {e}")
-            return default or []
+        return safe_json_loads(json_string, default or [])
 
     @staticmethod
     def get_user_attribute(user, attr_name, default=''):

@@ -8,6 +8,20 @@ from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
 from django.core.validators import MinValueValidator, MaxValueValidator
 
+def safe_json_loads(value, default=None):
+    """Safely parse JSON data that might already be parsed"""
+    if value is None:
+        return default or []
+    if isinstance(value, (list, dict)):
+        return value  # Already parsed
+    if isinstance(value, str) and value.strip():
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, ValueError):
+            return default or []
+    return default or []
+
+
 # To ensure that the phone number is in a valid format
 def validate_phone_number(value):
     if not value and re.match(r'^\+?1?\d{9,15}$', value):
@@ -19,7 +33,7 @@ def validate_json_array(value):
     """ Custom validator to ensure that the value is a JSON array.
     This is commonly used for storing lists in a text field eg: Favorite genres field."""
     try:
-        data = json.loads(value)
+        data = safe_json_loads(value, [])
         if not isinstance(data, list):
             raise ValidationError(f'{value} is not a valid JSON array.')
     except (json.JSONDecodeError, TypeError):
@@ -160,10 +174,7 @@ def age(self):
 @property
 def favorite_genres_list(self):
     """ Returns the favorite genres as a list."""
-    try:
-        return json.loads(self.favorite_genres)
-    except (json.JSONDecodeError, TypeError):
-        return []
+    return safe_json_loads(self.favorite_genres, [])
 
 def set_favorite_genres(self, genre_ids):
     """ Sets the favorite genres as a JSON array."""
@@ -251,13 +262,10 @@ def clean(self):
         if self.date_of_birth > today:
             raise ValidationError("Date of birth cannot be in the future.")
         
-    # Vlidate all items are integrers (genre IDS)
-    try:
-        genre_ids = json.loads(self.favorite_genres)
-        if not all(isinstance(genre_id, int) for genre_id in genre_ids):
-            raise ValidationError("All genre IDs must be integers.")
-    except (json.JSONDecodeError, TypeError):
-        raise ValidationError("Favorite genres must be a valid JSON array of integers.")
+    # Validate all items are integers (genre IDs)
+    genre_ids = safe_json_loads(self.favorite_genres, [])
+    if not all(isinstance(genre_id, int) for genre_id in genre_ids):
+        raise ValidationError("All genre IDs must be integers.")
     
     # Validate phone number format
     if self.phone_number:
