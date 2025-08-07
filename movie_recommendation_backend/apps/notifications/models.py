@@ -208,6 +208,9 @@ class InAppNotifications(models.Model):
     id = models.BigAutoField(primary_key=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='in_app_notifications')
     category = models.CharField(choices=NOTIFICATION_PREFERENCES, default='system', max_length=50)
+    title = models.CharField(max_length=255, null=True, blank=True)
+    message = models.TextField(null=True, blank=True)
+
     #Metadata
     action_url = models.URLField(null=True, blank=True, help_text="URL to redirect when notification is clicked")
     action_data = models.JSONField(null=True, blank=True, help_text="Additional data for notification actions")
