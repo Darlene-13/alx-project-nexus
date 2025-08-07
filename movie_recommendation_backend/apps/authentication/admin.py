@@ -83,7 +83,7 @@ class ExportMixin:
         writer.writerow(headers)
 
         # Write user data
-        for user in queryset.select_related().prefetch_related('recommendations', 'interactions'):
+        for user in queryset.select_related().prefetch_related('recommendations', 'movie_interactions'):
             self._write_user_row(writer, user)
 
         count = queryset.count()
@@ -106,8 +106,8 @@ class ExportMixin:
             'Yes' if UserUtils.get_user_attribute(user, 'is_premium') else 'No',
             UserUtils.get_user_attribute(user, 'device_type'),
             len(genres),
-            getattr(user, 'interactions', {}).count() if hasattr(user, 'interactions') else 0,
-            getattr(user, 'recommendations', {}).count() if hasattr(user, 'recommendations') else 0,
+            user.movie_interactions.count(), 
+            user.recommendations.count(),
             user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else 'Never',
             user.date_joined.strftime('%Y-%m-%d %H:%M'),
         ]
@@ -327,7 +327,7 @@ class CustomUserAdmin(BaseUserAdmin, ExportMixin):
     def get_queryset(self, request):
         """Optimize queryset with select_related and prefetch_related."""
         return super().get_queryset(request).select_related().prefetch_related(
-            'recommendations', 'interactions'
+            'recommendations', 'movie_interactions'
         )
 
 

@@ -1,6 +1,6 @@
 """
 Management command to seed movies from TMDB and OMDB APIs.
-Usage: python manage.py seed_movies --popular --pages 10
+Usage: python manage.py seed_movies --popular --target-count 500
 """
 
 from django.core.management.base import BaseCommand, CommandError
@@ -16,7 +16,6 @@ class Command(BaseCommand):
     help = 'Seed movies from TMDB and OMDB APIs with enriched data'
     
     def add_arguments(self, parser):
-        # Movie source options
         parser.add_argument(
             '--popular',
             action='store_true',
@@ -32,8 +31,6 @@ class Command(BaseCommand):
             action='store_true',
             help='Sync trending movies',
         )
-        
-        # Quantity options
         parser.add_argument(
             '--pages',
             type=int,
@@ -45,8 +42,6 @@ class Command(BaseCommand):
             type=int,
             help='Target number of movies to seed (overrides --pages)',
         )
-        
-        # Control options
         parser.add_argument(
             '--force',
             action='store_true',
@@ -65,17 +60,17 @@ class Command(BaseCommand):
         parser.add_argument(
             '--verbose',
             action='store_true',
-            help='Show detailed progress output',
+            help='Show detailed output',
         )
         parser.add_argument(
-            '--fast-mode',
+            '--omdb-enrichment',
             action='store_true',
-            help='Skip OMDB enrichment for faster seeding',
+            help='Enable OMDB enrichment for additional ratings (slower but richer data)',
         )
     
     def handle(self, *args, **options):
         self.stdout.write(
-            self.style.SUCCESS('🎬 Starting movie synchronization...')
+            self.style.SUCCESS('🎬 Starting movie synchronization from TMDB + OMDB...')
         )
         
         try:
@@ -88,7 +83,7 @@ class Command(BaseCommand):
             
             # Health check
             if options['verbose']:
-                self.stdout.write('🔍 Checking API connectivity...')
+                self.stdout.write('🏥 Checking API connectivity...')
             
             health = movie_service.health_check()
             if health['status'] != 'healthy':
@@ -96,16 +91,34 @@ class Command(BaseCommand):
                     self.style.WARNING(f'⚠️  Service health: {health["status"]}')
                 )
                 if health['status'] == 'unhealthy':
-                    raise CommandError('Movie service is unhealthy')
+                    raise CommandError('🚨 Movie service is unhealthy - check your API keys')
             
             if options['verbose']:
                 self.stdout.write(self.style.SUCCESS('✅ API connectivity confirmed'))
+                # Show service health details
+                for service_name, service_health in health.get('services', {}).items():
+                    status_icon = '✅' if service_health['status'] == 'healthy' else '❌'
+                    self.stdout.write(f'  {status_icon} {service_name.upper()}: {service_health["status"]}')
             
-            # Check prerequisites
-            self._check_prerequisites(options)
+            # Check prerequisites - genres should exist first
+            genre_count = Genre.objects.count()
+            if genre_count == 0 and not options['skip_genres']:
+                self.stdout.write(
+                    self.style.WARNING(
+                        '⚠️  No genres found! Running genre sync first...'
+                    )
+                )
+                
+                try:
+                    genres_synced = movie_service.sync_genres_to_database()
+                    self.stdout.write(
+                        self.style.SUCCESS(f'✅ Synced {genres_synced} genres as prerequisite')
+                    )
+                except Exception as e:
+                    raise CommandError(f'Failed to sync genres: {e}')
             
-            # Calculate pages and validate options
-            pages, movie_types = self._calculate_pages_and_types(options)
+            elif genre_count > 0 and options['verbose']:
+                self.stdout.write(self.style.SUCCESS(f'✅ Found {genre_count} existing genres'))
             
             # Check existing movies
             existing_count = Movie.objects.count()
@@ -118,17 +131,92 @@ class Command(BaseCommand):
                 )
                 
                 if options['verbose']:
-                    self._show_existing_stats()
+                    # Show sample existing movies
+                    sample_movies = Movie.objects.order_by('-popularity_score')[:5]
+                    self.stdout.write('\n📊 Top existing movies:')
+                    for movie in sample_movies:
+                        rating = f"⭐ {movie.tmdb_rating}" if movie.tmdb_rating else "No rating"
+                        self.stdout.write(f'  • {movie.title} ({movie.year}) - {rating}')
                 
+                self.stdout.write(
+                    f'\n💡 To add more movies: python manage.py seed_movies --force --popular --target-count {existing_count + 500}'
+                )
                 return
+            
+            # Calculate pages based on target count
+            if options['target_count']:
+                # Approximate 20 movies per page
+                calculated_pages = max(1, options['target_count'] // 20)
+                pages = calculated_pages
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f'🎯 Targeting {options["target_count"]} movies (~{pages} pages)'
+                    )
+                )
+            else:
+                pages = options['pages']
+            
+            # Determine what to sync
+            sync_popular = options['popular']
+            sync_top_rated = options['top_rated']
+            sync_trending = options['trending']
+            
+            # Default to popular if nothing specified
+            if not any([sync_popular, sync_top_rated, sync_trending]):
+                sync_popular = True
+                self.stdout.write(
+                    self.style.WARNING(
+                        '📝 No specific type selected, defaulting to popular movies'
+                    )
+                )
             
             # Dry run mode
             if options['dry_run']:
-                self._perform_dry_run(movie_service, pages, movie_types, options)
+                self.stdout.write(
+                    self.style.WARNING('🔍 DRY RUN: Showing what would be synced...')
+                )
+                
+                self._show_dry_run_preview(
+                    movie_service, sync_popular, sync_top_rated, sync_trending, pages, options
+                )
                 return
             
-            # Actual seeding
-            self._perform_seeding(movie_service, pages, movie_types, options)
+            # Start actual seeding
+            start_time = timezone.now()
+            
+            self.stdout.write('🚀 Starting movie seeding process...')
+            
+            if options['verbose']:
+                sync_types = []
+                if sync_popular: sync_types.append(f'Popular ({pages} pages)')
+                if sync_top_rated: sync_types.append(f'Top-rated ({pages} pages)')
+                if sync_trending: sync_types.append('Trending')
+                
+                self.stdout.write(f'📋 Sync plan: {", ".join(sync_types)}')
+                self.stdout.write(f'🔗 OMDB enrichment: {"✅ Enabled" if options["omdb_enrichment"] else "❌ Disabled"}')
+            
+            # Use the service's seeding method
+            stats = movie_service.seed_database(
+                popular_pages=pages if sync_popular else 0,
+                top_rated_pages=pages if sync_top_rated else 0,
+                sync_genres=not options['skip_genres']
+            )
+            
+            end_time = timezone.now()
+            duration = (end_time - start_time).total_seconds()
+            
+            # Display results
+            self._display_seeding_results(stats, duration, options)
+            
+            # Show sample of seeded movies
+            if options['verbose'] and stats.get('movies_created', 0) > 0:
+                self._show_sample_movies()
+            
+            # Next steps guidance
+            self._display_next_steps(stats)
+            
+            if stats.get('fatal_error'):
+                raise CommandError(f'❌ Fatal error occurred: {stats["fatal_error"]}')
             
         except ImportError as e:
             raise CommandError(
@@ -138,252 +226,140 @@ class Command(BaseCommand):
             logger.error(f'Movie seeding failed: {e}')
             raise CommandError(f'Movie seeding failed: {e}')
     
-    def _check_prerequisites(self, options):
-        """Check if prerequisites are met."""
-        from apps.movies.models import Genre
-        
-        # Check if genres exist (unless skipping)
-        if not options['skip_genres']:
-            genre_count = Genre.objects.count()
-            if genre_count == 0:
-                self.stdout.write(
-                    self.style.WARNING('⚠️  No genres found. Syncing genres first...')
-                )
-                
-                # Auto-sync genres
-                from services.movie_data_service import get_movie_data_service
-                movie_service = get_movie_data_service()
-                genres_synced = movie_service.sync_genres_to_database()
-                
-                self.stdout.write(
-                    self.style.SUCCESS(f'✅ Synced {genres_synced} genres')
-                )
-            else:
-                if options['verbose']:
-                    self.stdout.write(f'✅ Found {genre_count} genres in database')
-    
-    def _calculate_pages_and_types(self, options):
-        """Calculate pages and determine movie types to sync."""
-        # Determine what to sync
-        sync_popular = options['popular']
-        sync_top_rated = options['top_rated']
-        sync_trending = options['trending']
-        
-        # If nothing specified, default to popular
-        if not any([sync_popular, sync_top_rated, sync_trending]):
-            sync_popular = True
-            self.stdout.write('ℹ️  No specific type selected, defaulting to popular movies')
-        
-        movie_types = []
-        if sync_popular:
-            movie_types.append('popular')
-        if sync_top_rated:
-            movie_types.append('top_rated')
-        if sync_trending:
-            movie_types.append('trending')
-        
-        # Calculate pages
-        if options['target_count']:
-            # Approximate 20 movies per page
-            calculated_pages = max(1, options['target_count'] // (20 * len(movie_types)))
-            pages = calculated_pages
-            self.stdout.write(
-                f'🎯 Targeting {options["target_count"]} movies '
-                f'(~{pages} pages per type: {", ".join(movie_types)})'
-            )
-        else:
-            pages = options['pages']
-        
-        return pages, movie_types
-    
-    def _show_existing_stats(self):
-        """Show statistics about existing movies."""
-        from apps.movies.models import Movie, Genre
-        
-        movie_count = Movie.objects.count()
-        movies_with_ratings = Movie.objects.filter(tmdb_rating__isnull=False).count()
-        movies_with_posters = Movie.objects.exclude(poster_path='').count()
-        
-        self.stdout.write(f'\n📊 Current Database Stats:')
-        self.stdout.write(f'  • Total movies: {movie_count}')
-        self.stdout.write(f'  • Movies with ratings: {movies_with_ratings}')
-        self.stdout.write(f'  • Movies with posters: {movies_with_posters}')
-        
-        # Show genre distribution
-        genres_with_movies = Genre.objects.annotate(
-            movie_count=models.Count('movies')
-        ).filter(movie_count__gt=0).order_by('-movie_count')[:5]
-        
-        if genres_with_movies:
-            self.stdout.write(f'  • Top genres:')
-            for genre in genres_with_movies:
-                self.stdout.write(f'    - {genre.name}: {genre.movie_count} movies')
-    
-    def _perform_dry_run(self, movie_service, pages, movie_types, options):
-        """Perform dry run to show what would be synced."""
-        self.stdout.write(
-            self.style.WARNING('🔍 DRY RUN: Fetching sample data to show what would be synced...')
-        )
-        
-        total_estimated = 0
-        
-        for movie_type in movie_types:
-            self.stdout.write(f'\n--- {movie_type.upper()} MOVIES ---')
-            
-            try:
-                if movie_type == 'popular':
-                    sample_data = movie_service.tmdb.get_popular_movies(page=1)
-                elif movie_type == 'top_rated':
-                    sample_data = movie_service.tmdb.get_top_rated_movies(page=1)
-                elif movie_type == 'trending':
-                    sample_data = movie_service.tmdb.get_trending_movies()
-                
-                sample_movies = sample_data.get('results', [])
-                estimated_total = min(sample_data.get('total_results', 0), pages * 20)
-                total_estimated += estimated_total
-                
-                self.stdout.write(f'📊 Would fetch ~{estimated_total} {movie_type} movies ({pages} pages)')
-                
-                # Show sample movies
-                if options['verbose'] and sample_movies:
-                    self.stdout.write('Sample movies:')
-                    for movie in sample_movies[:5]:
-                        title = movie.get('title', 'Unknown')
-                        year = movie.get('release_date', '')[:4] if movie.get('release_date') else 'Unknown'
-                        rating = movie.get('vote_average', 'N/A')
-                        self.stdout.write(f'  • {title} ({year}) - Rating: {rating}')
-                    
-                    if len(sample_movies) > 5:
-                        self.stdout.write(f'  ... and {len(sample_movies) - 5} more in this page')
-            
-            except Exception as e:
-                self.stdout.write(
-                    self.style.ERROR(f'❌ Error fetching {movie_type} movies: {e}')
-                )
-        
-        self.stdout.write(
-            self.style.SUCCESS(
-                f'\n✅ DRY RUN SUMMARY:\n'
-                f'  • Would sync approximately {total_estimated} movies\n'
-                f'  • From {len(movie_types)} source(s): {", ".join(movie_types)}\n'
-                f'  • OMDB enrichment: {"Disabled (fast mode)" if options["fast_mode"] else "Enabled"}\n'
-                f'  • Estimated time: {self._estimate_sync_time(total_estimated, options["fast_mode"])} minutes'
-            )
-        )
-    
-    def _perform_seeding(self, movie_service, pages, movie_types, options):
-        """Perform the actual movie seeding."""
-        start_time = timezone.now()
-        total_stats = {
-            'movies_created': 0,
-            'movies_updated': 0,
-            'errors': 0,
-            'genres_synced': 0 if options['skip_genres'] else 0
-        }
+    def _show_dry_run_preview(self, movie_service, sync_popular, sync_top_rated, sync_trending, pages, options):
+        """Show what would be synced in dry run mode."""
         
         try:
-            # Use the service's seeding method
-            if 'popular' in movie_types and 'top_rated' in movie_types:
-                # Both types
-                stats = movie_service.seed_database(
-                    popular_pages=pages,
-                    top_rated_pages=pages,
-                    sync_genres=not options['skip_genres']
-                )
-            elif 'popular' in movie_types:
-                # Only popular
-                stats = movie_service.seed_database(
-                    popular_pages=pages,
-                    top_rated_pages=0,
-                    sync_genres=not options['skip_genres']
-                )
-            elif 'top_rated' in movie_types:
-                # Only top rated
-                stats = movie_service.seed_database(
-                    popular_pages=0,
-                    top_rated_pages=pages,
-                    sync_genres=not options['skip_genres']
-                )
-            else:
-                # Trending or other
-                stats = movie_service.seed_database(
-                    popular_pages=pages,
-                    top_rated_pages=0,
-                    sync_genres=not options['skip_genres']
-                )
+            preview_count = 0
             
-            # Merge stats
-            total_stats.update(stats)
+            if sync_popular:
+                self.stdout.write(f'\n📈 Would sync ~{pages * 20} popular movies:')
+                
+                # Get a sample of popular movies
+                popular = movie_service.tmdb.get_popular_movies(page=1)
+                sample_movies = popular.get('results', [])[:5]
+                
+                for movie in sample_movies:
+                    year = movie.get('release_date', '')[:4] if movie.get('release_date') else 'N/A'
+                    rating = movie.get('vote_average', 'N/A')
+                    self.stdout.write(f'  • {movie.get("title")} ({year}) - ⭐ {rating}')
+                
+                self.stdout.write(f'  ... and ~{pages * 20 - 5} more popular movies')
+                preview_count += pages * 20
+            
+            if sync_top_rated:
+                self.stdout.write(f'\n🏆 Would sync ~{pages * 20} top-rated movies')
+                preview_count += pages * 20
+            
+            if sync_trending:
+                self.stdout.write('\n🔥 Would sync trending movies')
+                preview_count += 20
+            
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f'\n✅ DRY RUN: Would potentially create/update ~{preview_count} movies'
+                )
+            )
+            
+            # Estimate time
+            estimated_time = preview_count * 0.5  # Rough estimate: 0.5 seconds per movie
+            self.stdout.write(f'⏱️  Estimated time: ~{estimated_time/60:.1f} minutes')
+            
+            if options['omdb_enrichment']:
+                self.stdout.write('⚠️  OMDB enrichment would add ~2x more time')
             
         except Exception as e:
-            raise CommandError(f'Seeding process failed: {e}')
-        
-        # Calculate duration
-        end_time = timezone.now()
-        duration = (end_time - start_time).total_seconds()
-        total_stats['duration'] = duration
-        
-        # Display results
-        self._display_seeding_results(total_stats, movie_types, options)
-        
-        # Check for errors
-        if total_stats.get('fatal_error'):
-            raise CommandError(f'Fatal error occurred: {total_stats["fatal_error"]}')
+            self.stdout.write(f'Could not generate preview: {e}')
     
-    def _estimate_sync_time(self, movie_count, fast_mode):
-        """Estimate sync time based on movie count and mode."""
-        # Rough estimates: 2 seconds per movie with OMDB, 0.5 seconds without
-        time_per_movie = 0.5 if fast_mode else 2.0
-        estimated_seconds = movie_count * time_per_movie
-        return round(estimated_seconds / 60, 1)
-    
-    def _display_seeding_results(self, stats, movie_types, options):
+    def _display_seeding_results(self, stats, duration, options):
         """Display comprehensive seeding results."""
-        self.stdout.write('\n' + '='*60)
-        self.stdout.write(self.style.SUCCESS('🎉 MOVIE SEEDING COMPLETED'))
-        self.stdout.write('='*60)
         
-        # Basic stats
-        self.stdout.write(f'⏱️  Duration: {stats["duration"]:.2f} seconds')
-        self.stdout.write(f'🎭 Genres synced: {stats["genres_synced"]}')
-        self.stdout.write(f'🎬 Movies created: {stats["movies_created"]}')
-        self.stdout.write(f'📝 Movies updated: {stats["movies_updated"]}')
-        self.stdout.write(f'❌ Errors: {stats["errors"]}')
-        self.stdout.write(f'📊 Types synced: {", ".join(movie_types)}')
+        self.stdout.write('\n' + '=' * 60)
+        self.stdout.write('🎬 MOVIE SEEDING RESULTS')
+        self.stdout.write('=' * 60)
         
-        # Current database stats
-        from apps.movies.models import Movie, Genre
+        # Main statistics
+        self.stdout.write(f'⏱️  Duration: {duration:.2f} seconds ({duration/60:.1f} minutes)')
+        self.stdout.write(f'🎭 Genres synced: {stats.get("genres_synced", 0)}')
+        self.stdout.write(f'🎬 Movies created: {stats.get("movies_created", 0)}')
+        self.stdout.write(f'🔄 Movies updated: {stats.get("movies_updated", 0)}')
+        self.stdout.write(f'❌ Errors: {stats.get("errors", 0)}')
         
-        total_movies = Movie.objects.count()
-        total_genres = Genre.objects.count()
-        movies_with_ratings = Movie.objects.filter(tmdb_rating__isnull=False).count()
+        # Calculate success rate
+        total_processed = stats.get("movies_created", 0) + stats.get("movies_updated", 0) + stats.get("errors", 0)
+        if total_processed > 0:
+            success_rate = ((stats.get("movies_created", 0) + stats.get("movies_updated", 0)) / total_processed) * 100
+            self.stdout.write(f'✅ Success rate: {success_rate:.1f}%')
         
-        self.stdout.write(f'\n📈 Database Status:')
-        self.stdout.write(f'  • Total movies: {total_movies}')
-        self.stdout.write(f'  • Total genres: {total_genres}')
-        self.stdout.write(f'  • Movies with ratings: {movies_with_ratings}')
+        # Performance metrics
+        if duration > 0:
+            movies_per_minute = ((stats.get("movies_created", 0) + stats.get("movies_updated", 0)) / duration) * 60
+            self.stdout.write(f'🚀 Processing speed: {movies_per_minute:.1f} movies/minute')
         
-        # Data quality
-        if total_movies > 0:
-            quality_percentage = (movies_with_ratings / total_movies) * 100
-            quality_color = self.style.SUCCESS if quality_percentage > 80 else self.style.WARNING
-            self.stdout.write(
-                quality_color(f'  • Data quality: {quality_percentage:.1f}% have ratings')
-            )
+        # Show total in database now
+        try:
+            from apps.movies.models import Movie
+            total_movies = Movie.objects.count()
+            self.stdout.write(f'📊 Total movies in database: {total_movies}')
+        except:
+            pass
         
-        # Next steps
-        self.stdout.write(f'\n🚀 Next Steps:')
-        self.stdout.write(f'  1. Generate recommendations:')
-        self.stdout.write(f'     python manage.py generate_recommendations --all-users')
-        self.stdout.write(f'  2. Start Django server:')
-        self.stdout.write(f'     python manage.py runserver')
-        self.stdout.write(f'  3. Test API endpoints:')
-        self.stdout.write(f'     curl http://localhost:8000/api/v1/recommendations/trending/')
+        self.stdout.write('=' * 60)
         
-        if stats['errors'] > 0:
-            self.stdout.write(
-                self.style.WARNING(
-                    f'\n⚠️  {stats["errors"]} errors occurred during seeding. '
-                    f'Check logs for details.'
-                )
-            )
+        # Status message
+        if stats.get("errors", 0) == 0:
+            self.stdout.write(self.style.SUCCESS('🎉 Seeding completed successfully!'))
+        elif stats.get("errors", 0) < 10:
+            self.stdout.write(self.style.WARNING('⚠️  Seeding completed with minor errors'))
+        else:
+            self.stdout.write(self.style.ERROR('❌ Seeding completed with significant errors'))
+    
+    def _show_sample_movies(self):
+        """Show a sample of newly seeded movies."""
+        try:
+            from apps.movies.models import Movie
+            
+            recent_movies = Movie.objects.order_by('-created_at')[:5]
+            
+            self.stdout.write('\n🎬 Sample of newly added movies:')
+            for movie in recent_movies:
+                genres = ', '.join(movie.genre_names[:3]) if movie.genre_names else 'No genres'
+                rating = f"⭐ {movie.tmdb_rating}" if movie.tmdb_rating else "No rating"
+                self.stdout.write(f'  • {movie.title} ({movie.year}) - {rating} - {genres}')
+        
+        except Exception as e:
+            self.stdout.write(f'Could not show sample movies: {e}')
+    
+    def _display_next_steps(self, stats):
+        """Display helpful next steps."""
+        
+        movies_created = stats.get("movies_created", 0)
+        
+        if movies_created > 0:
+            self.stdout.write('\n🚀 NEXT STEPS:')
+            self.stdout.write('-' * 20)
+            
+            self.stdout.write('1. 👥 Create test users:')
+            self.stdout.write('   python manage.py createsuperuser')
+            
+            self.stdout.write('\n2. 🎯 Generate recommendations:')
+            self.stdout.write('   python manage.py generate_recommendations --all-users --algorithm hybrid')
+            
+            self.stdout.write('\n3. 🏃‍♀️ Start Django server:')
+            self.stdout.write('   python manage.py runserver')
+            
+            self.stdout.write('\n4. 🧪 Test API endpoints:')
+            self.stdout.write('   curl http://localhost:8000/api/v1/recommendations/trending/')
+            
+            self.stdout.write('\n5. 📊 View analytics:')
+            self.stdout.write('   python manage.py recommendation_analytics --days 7')
+            
+            self.stdout.write('\n6. 🎛️  Admin panel:')
+            self.stdout.write('   http://localhost:8000/admin/')
+        
+        else:
+            self.stdout.write('\n💡 No movies were created. Try running with --force or check your API keys.')
+    
+    def handle_label(self, label, **options):
+        """Handle individual label (not used but required by Django)."""
+        pass

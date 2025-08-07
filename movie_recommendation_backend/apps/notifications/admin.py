@@ -62,7 +62,7 @@ class NotificationsPreferencesAdmin(admin.ModelAdmin):
         
         Reasoning: Quick navigation to user details without opening new tabs
         """
-        url = reverse('admin:auth_user_change', args=[obj.user.pk])
+        url = reverse('admin:authentication_user_change', args=[obj.user.pk])
         return format_html('<a href="{}">{}</a>', url, obj.user.username)
     user_link.short_description = 'User'
     user_link.admin_order_field = 'user__username'
@@ -197,7 +197,7 @@ class NotificationLogAdmin(admin.ModelAdmin):
     
     def user_link(self, obj):
         """Link to user admin page"""
-        url = reverse('admin:auth_user_change', args=[obj.user.pk])
+        url = reverse('admin:authentication_user_change', args=[obj.user.pk])
         return format_html('<a href="{}">{}</a>', url, obj.user.username)
     user_link.short_description = 'User'
     user_link.admin_order_field = 'user__username'
@@ -335,7 +335,7 @@ class InAppNotificationsAdmin(admin.ModelAdmin):
     
     def user_link(self, obj):
         """Link to user admin page"""
-        url = reverse('admin:auth_user_change', args=[obj.user.pk])
+        url = reverse('admin:authentication_user_change', args=[obj.user.pk])
         return format_html('<a href="{}">{}</a>', url, obj.user.username)
     user_link.short_description = 'User'
     user_link.admin_order_field = 'user__username'
@@ -343,7 +343,7 @@ class InAppNotificationsAdmin(admin.ModelAdmin):
     def title_preview(self, obj):
         """
         Show truncated title with full title in tooltip
-        
+    
         Reasoning: Keep list view compact while allowing full title access
         """
         title = obj.title if hasattr(obj, 'title') else 'No Title'
@@ -397,6 +397,13 @@ class InAppNotificationsAdmin(admin.ModelAdmin):
         )
         self.message_user(request, f'{updated} notifications marked as unread.')
     mark_as_unread.short_description = "Mark selected as unread"
+    
+    @admin.display(description='User')
+    def user_link(self, obj):
+        if obj.user_id:
+            url = reverse('admin:authentication_user_change', args=[obj.user.pk])
+            return format_html('<a href="{}">{}</a>', url, obj.user.username)
+        return "-"
     
     def archive_notifications(self, request, queryset):
         """Bulk archive notifications"""
