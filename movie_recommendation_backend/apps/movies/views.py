@@ -31,53 +31,61 @@ from .filters import MovieFilter
 def movie_hub(request):
     """Movies app hub showing all available endpoints, grouped by section."""
 
-    endpoints = {
+    endpoints_by_section = {
         "🎬 MOVIES": [
-            {"method": "GET", "url": "/movies/api/v1/movies/", "description": "List all movies"},
-            {"method": "POST", "url": "/movies/api/v1/movies/", "description": "Create a new movie"},
-            {"method": "GET", "url": "/movies/api/v1/movies/{id}/", "description": "Retrieve movie details"},
-            {"method": "PUT", "url": "/movies/api/v1/movies/{id}/", "description": "Update movie"},
-            {"method": "PATCH", "url": "/movies/api/v1/movies/{id}/", "description": "Partial update"},
-            {"method": "DELETE", "url": "/movies/api/v1/movies/{id}/", "description": "Delete movie"},
+            {"method": "GET",    "url": "/movies/api/v1/movies/",                  "description": "List all movies",       "status": "✅ Active"},
+            {"method": "POST",   "url": "/movies/api/v1/movies/",                  "description": "Create a new movie",     "status": "✅ Active"},
+            {"method": "GET",    "url": "/movies/api/v1/movies/{id}/",            "description": "Retrieve movie details", "status": "✅ Active"},
+            {"method": "PUT",    "url": "/movies/api/v1/movies/{id}/",            "description": "Update movie",           "status": "✅ Active"},
+            {"method": "PATCH",  "url": "/movies/api/v1/movies/{id}/",            "description": "Partial update",         "status": "✅ Active"},
+            {"method": "DELETE", "url": "/movies/api/v1/movies/{id}/",            "description": "Delete movie",           "status": "✅ Active"},
         ],
         "🎯 MOVIE CUSTOM ACTIONS": [
-            {"method": "GET", "url": "/movies/api/v1/movies/popular/", "description": "Popular movies"},
-            {"method": "GET", "url": "/movies/api/v1/movies/top_rated/", "description": "Top-rated movies"},
-            {"method": "GET", "url": "/movies/api/v1/movies/recent/", "description": "Recently released"},
-            {"method": "GET", "url": "/movies/api/v1/movies/by_genre/?genre=Action", "description": "Movies by genre"},
-            {"method": "GET", "url": "/movies/api/v1/movies/stats/", "description": "Movie stats"},
-            {"method": "POST", "url": "/movies/api/v1/movies/{id}/increment_views/", "description": "Increment views"},
-            {"method": "POST", "url": "/movies/api/v1/movies/{id}/increment_likes/", "description": "Increment likes"},
-            {"method": "GET", "url": "/movies/api/v1/movies/{id}/similar/", "description": "Similar movies"},
+            {"method": "GET",    "url": "/movies/api/v1/movies/popular/",                     "description": "Popular movies",       "status": "✅ Active"},
+            {"method": "GET",    "url": "/movies/api/v1/movies/top_rated/",                   "description": "Top-rated movies",     "status": "✅ Active"},
+            {"method": "GET",    "url": "/movies/api/v1/movies/recent/",                      "description": "Recently released",    "status": "✅ Active"},
+            {"method": "GET",    "url": "/movies/api/v1/movies/by_genre/?genre=Action",       "description": "Movies by genre",      "status": "✅ Active"},
+            {"method": "GET",    "url": "/movies/api/v1/movies/stats/",                       "description": "Movie stats",          "status": "✅ Active"},
+            {"method": "POST",   "url": "/movies/api/v1/movies/{id}/increment_views/",        "description": "Increment views",      "status": "✅ Active"},
+            {"method": "POST",   "url": "/movies/api/v1/movies/{id}/increment_likes/",        "description": "Increment likes",      "status": "✅ Active"},
+            {"method": "GET",    "url": "/movies/api/v1/movies/{id}/similar/",                "description": "Similar movies",       "status": "✅ Active"},
         ],
         "📚 GENRES": [
-            {"method": "GET", "url": "/movies/api/v1/genres/", "description": "List genres"},
-            {"method": "POST", "url": "/movies/api/v1/genres/", "description": "Create genre"},
-            {"method": "GET", "url": "/movies/api/v1/genres/{id}/", "description": "Genre details"},
-            {"method": "PUT", "url": "/movies/api/v1/genres/{id}/", "description": "Update genre"},
-            {"method": "PATCH", "url": "/movies/api/v1/genres/{id}/", "description": "Partial update"},
-            {"method": "DELETE", "url": "/movies/api/v1/genres/{id}/", "description": "Delete genre"},
-            {"method": "GET", "url": "/movies/api/v1/genres/{id}/movies/", "description": "Movies in genre"},
+            {"method": "GET",    "url": "/movies/api/v1/genres/",                  "description": "List genres",             "status": "✅ Active"},
+            {"method": "POST",   "url": "/movies/api/v1/genres/",                  "description": "Create genre",            "status": "✅ Active"},
+            {"method": "GET",    "url": "/movies/api/v1/genres/{id}/",            "description": "Genre details",           "status": "✅ Active"},
+            {"method": "PUT",    "url": "/movies/api/v1/genres/{id}/",            "description": "Update genre",            "status": "✅ Active"},
+            {"method": "PATCH",  "url": "/movies/api/v1/genres/{id}/",            "description": "Partial update",          "status": "✅ Active"},
+            {"method": "DELETE", "url": "/movies/api/v1/genres/{id}/",            "description": "Delete genre",            "status": "✅ Active"},
+            {"method": "GET",    "url": "/movies/api/v1/genres/{id}/movies/",     "description": "Movies in genre",         "status": "✅ Active"},
         ],
         "🔎 SEARCH & RECOMMENDATIONS": [
-            {"method": "GET", "url": "/movies/api/v1/search/?q=batman", "description": "Advanced search"},
-            {"method": "GET", "url": "/movies/api/v1/recommendations/?type=popular", "description": "Recommendations"},
+            {"method": "GET", "url": "/movies/api/v1/search/?q=batman",             "description": "Advanced search",         "status": "✅ Active"},
+            {"method": "GET", "url": "/movies/api/v1/recommendations/?type=popular","description": "Recommendations",         "status": "✅ Active"},
         ],
         "📊 ANALYTICS": [
-            {"method": "GET", "url": "/movies/api/v1/analytics/", "description": "Analytics overview"},
+            {"method": "GET", "url": "/movies/api/v1/analytics/",                  "description": "Analytics overview",      "status": "✅ Active"},
         ],
         "📘 API DOCUMENTATION": [
-            {"method": "GET", "url": "/api/v1/movies/docs/", "description": "Swagger UI"},
-            {"method": "GET", "url": "/api/v1/movies/redoc/", "description": "ReDoc UI"},
-            {"method": "GET", "url": "/api/v1/movies/schema/", "description": "Schema (JSON)"},
+            {"method": "GET", "url": "/movies/api/docs/",   "description": "Swagger UI",   "status": "✅ Active"},
+            {"method": "GET", "url": "/movies/api/redoc/",  "description": "ReDoc UI",      "status": "✅ Active"},
+            {"method": "GET", "url": "/movies/api/schema/", "description": "Schema (JSON)", "status": "✅ Active"},
         ],
     }
+    
+    # Flatten the endpoints for the template
+    flat_endpoints = []
+    for section_name, section_endpoints in endpoints_by_section.items():
+        for endpoint in section_endpoints:
+            flat_endpoints.append(endpoint)
+    
+    context = {
+        'endpoints': flat_endpoints,
+        'endpoints_by_section': endpoints_by_section,  # In case you want to group them later
+    }
+    
+    return render(request, 'movies/movie_hub.html', context)
 
-    return render(request, 'movies/movie_hub.html', {
-        'app_name': '🎬 Movie API Hub',
-        'app_description': 'Explore all endpoints of the Movie Recommendation System',
-        'endpoints': endpoints,
-    })
 from rest_framework.pagination import PageNumberPagination
 
 class StandardResultsPagination(PageNumberPagination):
