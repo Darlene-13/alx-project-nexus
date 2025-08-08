@@ -223,12 +223,9 @@ class MovieDataService:
         
         self.logger.info(f"Retrieved complete data for {len(complete_movies)} movies")
         return complete_movies
+
     # DATABASE SYNCHRONIZATION HELPERS
-
-    # Replace the prepare_movie_for_database method in services/movie_data_service.py
-    # with this fixed version that handles the TMDB ID correctly:
-
-
+    
     def prepare_movie_for_database(self, complete_movie_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Transform complete movie data into format suitable for database storage.
@@ -343,8 +340,8 @@ class MovieDataService:
         
         for i, movie_data in enumerate(movie_data_list):
             try:
-                # Get the movie title for debugging
-                movie_title = movie_data.get('tmdb_data', {}).get('title', f'Movie #{i}')
+                # Get the movie title for debugging - handle both data structures
+                movie_title = movie_data.get('title', movie_data.get('tmdb_data', {}).get('title', f'Movie #{i}'))
                 print(f"🎬 Processing movie {i+1}/{len(movie_data_list)}: {movie_title}")
                 
                 with transaction.atomic():
@@ -376,17 +373,29 @@ class MovieDataService:
                         stats['errors'] += 1
                         continue
                     
-                    # Update genre relationships
-                    tmdb_data = movie_data.get('tmdb_data', {})
-                    if 'genres' in tmdb_data and tmdb_data['genres']:
-                        genre_ids = [g['id'] for g in tmdb_data['genres'] if 'id' in g]
-                        print(f"  🎭 Genre IDs: {genre_ids}")
-                        
-                        if genre_ids:
-                            genres = Genre.objects.filter(tmdb_id__in=genre_ids)
-                            movie.genres.set(genres)
-                            stats['genres_processed'] += len(genres)
-                            print(f"  ✅ Set {len(genres)} genres")
+                    # ✅ FIXED: Handle genre relationships more flexibly
+                    genre_ids = []
+                    
+                    # Try to get genre_ids from different locations
+                    if 'genre_ids' in movie_data:
+                        genre_ids = movie_data['genre_ids']
+                    elif 'tmdb_data' in movie_data:
+                        tmdb_data = movie_data['tmdb_data']
+                        if 'genre_ids' in tmdb_data:
+                            genre_ids = tmdb_data['genre_ids']
+                        elif 'genres' in tmdb_data and tmdb_data['genres']:
+                            genre_ids = [g['id'] for g in tmdb_data['genres'] if 'id' in g]
+                    elif 'genres' in movie_data and movie_data['genres']:
+                        # Handle direct genres array
+                        genre_ids = [g['id'] for g in movie_data['genres'] if 'id' in g]
+                    
+                    print(f"  🎭 Genre IDs: {genre_ids}")
+                    
+                    if genre_ids:
+                        genres = Genre.objects.filter(tmdb_id__in=genre_ids)
+                        movie.genres.set(genres)
+                        stats['genres_processed'] += len(genres)
+                        print(f"  ✅ Set {len(genres)} genres")
                     
                     if created:
                         stats['created'] += 1
@@ -394,7 +403,7 @@ class MovieDataService:
                         stats['updated'] += 1
                         
             except Exception as e:
-                movie_title = movie_data.get('tmdb_data', {}).get('title', f'Movie #{i}')
+                movie_title = movie_data.get('title', movie_data.get('tmdb_data', {}).get('title', f'Movie #{i}'))
                 print(f"❌ FAILED to sync movie {movie_title}: {e}")
                 import traceback
                 traceback.print_exc()
@@ -444,16 +453,20 @@ class MovieDataService:
     # CONVENIENCE METHODS
     
     def seed_database(self, 
-                     popular_pages: int = 10, 
-                     top_rated_pages: int = 5,
-                     sync_genres: bool = True) -> Dict[str, Any]:
+                     popular_pages: int = 0, 
+                     top_rated_pages: int = 0,
+                     trending_pages: int = 0,
+                     sync_genres: bool = True,
+                     omdb_enrichment: bool = False) -> Dict[str, Any]:
         """
-        Seed the database with movies from both APIs.
+        Seed the database with movies from APIs.
         
         Args:
             popular_pages: Number of popular movie pages to fetch
             top_rated_pages: Number of top-rated movie pages to fetch
+            trending_pages: Number of trending movie pages to fetch (not used in current implementation)
             sync_genres: Whether to sync genres first
+            omdb_enrichment: Whether to enrich with OMDB data
             
         Returns:
             Seeding statistics
@@ -473,21 +486,40 @@ class MovieDataService:
             if sync_genres:
                 total_stats['genres_synced'] = self.sync_genres_to_database()
             
-            # Get and sync popular movies
-            popular_movies = self.get_popular_movies_enriched(popular_pages)
-            popular_stats = self.sync_movies_to_database(popular_movies)
+            all_movies = []
             
-            # Get and sync top-rated movies
-            top_rated_movies = self.get_top_rated_movies_enriched(top_rated_pages)
-            top_rated_stats = self.sync_movies_to_database(top_rated_movies)
+            # Get popular movies
+            if popular_pages > 0:
+                if omdb_enrichment:
+                    popular_movies = self.get_popular_movies_enriched(popular_pages)
+                else:
+                    # Get raw TMDB data without OMDB enrichment
+                    popular_movies = self.tmdb.get_movies_by_pages('popular_movies', popular_pages)
+                all_movies.extend(popular_movies)
+                self.logger.info(f"Retrieved {len(popular_movies)} popular movies")
             
-            # Combine statistics
-            total_stats.update({
-                'movies_created': popular_stats['created'] + top_rated_stats['created'],
-                'movies_updated': popular_stats['updated'] + top_rated_stats['updated'],
-                'errors': popular_stats['errors'] + top_rated_stats['errors'],
-                'end_time': timezone.now()
-            })
+            # Get top-rated movies
+            if top_rated_pages > 0:
+                if omdb_enrichment:
+                    top_rated_movies = self.get_top_rated_movies_enriched(top_rated_pages)
+                else:
+                    # Get raw TMDB data without OMDB enrichment
+                    top_rated_movies = self.tmdb.get_movies_by_pages('top_rated_movies', top_rated_pages)
+                all_movies.extend(top_rated_movies)
+                self.logger.info(f"Retrieved {len(top_rated_movies)} top-rated movies")
+            
+            # Sync all movies to database
+            if all_movies:
+                movie_stats = self.sync_movies_to_database(all_movies)
+                total_stats.update({
+                    'movies_created': movie_stats['created'],
+                    'movies_updated': movie_stats['updated'],
+                    'errors': movie_stats['errors']
+                })
+            else:
+                self.logger.warning("No movies to sync - check your parameters")
+            
+            total_stats['end_time'] = timezone.now()
             
             # Calculate duration
             duration = total_stats['end_time'] - total_stats['start_time']

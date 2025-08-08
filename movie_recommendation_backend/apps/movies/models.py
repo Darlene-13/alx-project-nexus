@@ -90,15 +90,15 @@ class Movie(models.Model):
     director = models.CharField(max_length=255, blank=True, verbose_name="Director", help_text="The director of the movie", null=True)
     main_cast = models.JSONField(default=list, validators=[validate_json_array], verbose_name="Main Cast", help_text="List of main cast members", blank=True, null=True)
     # Ratings
-    tmdb_rating = models.DecimalField(max_digits=5, decimal_places=3, null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(10)], verbose_name="TMDB Rating", help_text="The TMDB rating of the movie")
+    tmdb_rating = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(10)], verbose_name="TMDB Rating", help_text="The TMDB rating of the movie")
     tmdb_vote_count = models.PositiveIntegerField(default=0, verbose_name="TMDB Vote Count", help_text="The number of votes for the TMDB rating")
-    omdb_rating = models.DecimalField(max_digits=5, decimal_places=3, null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(10)], verbose_name="OMDB Rating", help_text="The OMDB rating of the movie")
-    our_rating = models.DecimalField(max_digits=5, decimal_places=3, null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(10)], verbose_name="Our Rating", help_text="User-generated average rating of the movie")
+    omdb_rating = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(10)], verbose_name="OMDB Rating", help_text="The OMDB rating of the movie")
+    our_rating = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(10)], verbose_name="Our Rating", help_text="User-generated average rating of the movie")
     # Media Assets
     poster_path = models.CharField(max_length=255, blank=True, verbose_name="Poster Path", help_text="Path to the movie poster image")
     backdrop_path = models.CharField(max_length=255, blank=True, verbose_name="Backdrop Path", help_text="Path to the movie backdrop image")
     # Performance metrics
-    popularity_score = models.DecimalField(max_digits=10, decimal_places=2, default=0.0, verbose_name="Popularity", help_text="The popularity score of the movie")
+    popularity_score = models.FloatField(verbose_name="Popularity Score", help_text="The popularity score of the movie based on TMDB metrics", default=0.0)
     views = models.PositiveIntegerField(default=0, verbose_name="Views", help_text="The number of views for the movie")
     like_count = models.PositiveIntegerField(default=0, verbose_name="Like Count", help_text="The number of likes for the movie")
     # Adult content flag
