@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_name }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-attachment: fixed;
+            color: #334155;
+            line-height: 1.6;
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .back-button {
+            display: inline-block;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            color: white;
+            background-color: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+        }
+
+        .back-button:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #64748b;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .section-header {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            padding: 20px 25px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .section-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0;
+        }
+
+        .endpoints-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .endpoints-table th {
+            background: #f8fafc;
+            padding: 15px 20px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .endpoints-table td {
+            padding: 15px 20px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: top;
+        }
+
+        .endpoints-table tr:hover {
+            background: linear-gradient(90deg, #f8fafc 0%, #f1f5f9 100%);
+        }
+
+        .endpoints-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .method-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .method-get {
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+            color: #166534;
+        }
+
+        .method-post {
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            color: #1e40af;
+        }
+
+        .method-patch {
+            background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%);
+            color: #d97706;
+        }
+
+        .method-delete {
+            background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+            color: #dc2626;
+        }
+
+        .url-cell {
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 14px;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            padding: 8px 12px;
+            border-radius: 6px;
+            color: #1e40af;
+            font-weight: 500;
+            word-break: break-all;
+        }
+
+        .url-link {
+            color: #1e40af;
+            text-decoration: none;
+        }
+
+        .url-link:hover {
+            text-decoration: underline;
+        }
+
+        .description-cell {
+            color: #4b5563;
+            max-width: 300px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 500;
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+            color: #166534;
+        }
+
+        .chart-icon {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        .analytics-highlight {
+            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+            border-left: 4px solid #4f46e5;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 10px 10px 0;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .feature-item {
+            background: rgba(255, 255, 255, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .feature-icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .feature-title {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 5px;
+        }
+
+        .feature-desc {
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 20px 10px;
+            }
+
+            h1 {
+                font-size: 2.2rem;
+            }
+
+            .endpoints-table {
+                font-size: 13px;
+            }
+
+            .endpoints-table th,
+            .endpoints-table td {
+                padding: 10px 12px;
+            }
+
+            .url-cell {
+                font-size: 12px;
+                word-break: break-word;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="/" class="back-button">← Back to Home</a>
+            <h1><span class="chart-icon">📊</span> Analytics API</h1>
+            <p class="subtitle">{{ app_description }}</p>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📈</div>
+                <div class="stat-number">{{ endpoints|length }}</div>
+                <div class="stat-label">API Sections</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🔥</div>
+                <div class="stat-number">Real-time</div>
+                <div class="stat-label">Data Tracking</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-number">Advanced</div>
+                <div class="stat-label">Analytics</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⚡</div>
+                <div class="stat-number">Fast</div>
+                <div class="stat-label">Insights</div>
+            </div>
+        </div>
+
+        <!-- Key Features -->
+        <div class="analytics-highlight">
+            <h3 style="margin-bottom: 15px; color: #374151;">🎯 Analytics Features</h3>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <div class="feature-icon">📝</div>
+                    <div class="feature-title">Activity Logging</div>
+                    <div class="feature-desc">Track user interactions and behaviors</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-title">Popularity Metrics</div>
+                    <div class="feature-desc">Monitor movie popularity trends</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🔥</div>
+                    <div class="feature-title">Trending Analysis</div>
+                    <div class="feature-desc">Real-time trending movies data</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">📱</div>
+                    <div class="feature-title">Session Tracking</div>
+                    <div class="feature-desc">Analyze user session patterns</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Endpoints by Section -->
+        {% for section_name, section_endpoints in endpoints.items %}
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">{{ section_name }}</h2>
+            </div>
+            <table class="endpoints-table">
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th>Endpoint</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for endpoint in section_endpoints %}
+                    <tr>
+                        <td>
+                            <span class="method-badge method-{{ endpoint.method|lower }}">
+                                {{ endpoint.method }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="url-cell">
+                                <a href="{{ endpoint.url }}" class="url-link" target="_blank">
+                                    {{ endpoint.url }}
+                                </a>
+                            </div>
+                        </td>
+                        <td class="description-cell">
+                            {{ endpoint.description }}
+                        </td>
+                        <td>
+                            <span class="status-badge">{{ endpoint.status }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+
+        <!-- Usage Examples -->
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">💡 Usage Examples</h2>
+            </div>
+            <div style="padding: 25px;">
+                <div style="margin-bottom: 20px;">
+                    <h4 style="color: #374151; margin-bottom: 10px;">📝 Log a Movie View:</h4>
+                    <div class="url-cell" style="font-size: 13px; background: #f1f5f9;">
+                        POST /analytics/api/v1/activity-logs/<br>
+                        {"action_type": "movie_view", "movie_id": 123, "session_id": "abc123"}
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <h4 style="color: #374151; margin-bottom: 10px;">📊 Get User Summary:</h4>
+                    <div class="url-cell" style="font-size: 13px; background: #f1f5f9;">
+                        GET /analytics/api/v1/activity-logs/analytics_summary/
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 style="color: #374151; margin-bottom: 10px;">🔥 Get Trending Movies:</h4>
+                    <div class="url-cell" style="font-size: 13px; background: #f1f5f9;">
+                        GET /analytics/api/v1/trending/?days=7&limit=10
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Reference -->
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">📋 Quick Reference</h2>
+            </div>
+            <div style="padding: 25px;">
+                <p style="color: #64748b; margin-bottom: 15px;">
+                    <strong>Base URL:</strong> <code>/analytics/api/v1/</code>
+                </p>
+                <p style="color: #64748b; margin-bottom: 15px;">
+                    <strong>Authentication:</strong> Bearer Token (optional for read-only endpoints)
+                </p>
+                <p style="color: #64748b; margin-bottom: 15px;">
+                    <strong>Response Format:</strong> JSON
+                </p>
+                <p style="color: #64748b;">
+                    <strong>Rate Limiting:</strong> Standard rate limits apply
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

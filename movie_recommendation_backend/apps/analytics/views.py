@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.decorators import action
 from django.utils import timezone
+from django.shortcuts import render
 
 from .models import UserActivityLog, PopularityMetrics
 from .serializers import (
@@ -15,6 +16,48 @@ from .serializers import (
     UserActivitySummarySerializer,
     SessionAnalyticsSerializer,
 )
+
+def analytics_hub(request):
+    """Analytics app hub showing all available endpoints."""
+    from django.shortcuts import render
+    
+    endpoints_by_section = {
+        "📊 ACTIVITY LOGS": [
+            {"method": "GET",    "url": "/analytics/api/v1/activity-logs/",                    "description": "List user activity logs",        "status": "✅ Active"},
+            {"method": "POST",   "url": "/analytics/api/v1/activity-logs/",                    "description": "Create activity log",            "status": "✅ Active"},
+            {"method": "GET",    "url": "/analytics/api/v1/activity-logs/{pk}/",              "description": "Get activity log details",       "status": "✅ Active"},
+            {"method": "POST",   "url": "/analytics/api/v1/activity-logs/bulk_log/",          "description": "Bulk activity logging",          "status": "✅ Active"},
+            {"method": "GET",    "url": "/analytics/api/v1/activity-logs/analytics_summary/", "description": "User activity summary",          "status": "✅ Active"},
+            {"method": "GET",    "url": "/analytics/api/v1/activity-logs/sessions/",          "description": "Session analytics",              "status": "✅ Active"},
+        ],
+        "📈 POPULARITY METRICS": [
+            {"method": "GET",    "url": "/analytics/api/v1/popularity-metrics/",              "description": "List popularity metrics",        "status": "✅ Active"},
+            {"method": "GET",    "url": "/analytics/api/v1/popularity-metrics/{pk}/",        "description": "Get specific metric details",    "status": "✅ Active"},
+        ],
+        "🔥 TRENDING & INSIGHTS": [
+            {"method": "GET",    "url": "/analytics/api/v1/trending/",                        "description": "Get trending movies",            "status": "✅ Active"},
+        ],
+        "📘 API DOCUMENTATION": [
+            {"method": "GET", "url": "/api/v1/analytics/docs/",   "description": "Swagger UI",   "status": "✅ Active"},
+            {"method": "GET", "url": "/api/v1/analytics/redoc/",  "description": "ReDoc UI",     "status": "✅ Active"},
+            {"method": "GET", "url": "/api/v1/analytics/schema/", "description": "Schema (JSON)", "status": "✅ Active"},
+        ],
+    }
+    
+    # Flatten the endpoints for the template
+    flat_endpoints = []
+    for section_name, section_endpoints in endpoints_by_section.items():
+        for endpoint in section_endpoints:
+            flat_endpoints.append(endpoint)
+    
+    context = {
+        'app_name': '📊 Analytics API Hub',
+        'app_description': 'Monitor user behavior, track engagement, and analyze movie trends',
+        'endpoints': endpoints_by_section,
+        'flat_endpoints': flat_endpoints,
+    }
+    
+    return render(request, 'analytics/analytics_hub.html', context)
 
 class UserActivityLogViewSet(viewsets.ModelViewSet):
     """

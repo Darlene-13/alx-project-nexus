@@ -17,6 +17,8 @@ router.register(r'inapp', InAppNotificationsViewSet, basename='inapp')
 router.register(r'health', NotificationHealthView, basename='health')
 
 urlpatterns = [
+
+    
     path('', notifications_hub, name='notifications-hub'), 
-    path('', include(router.urls)),
+    path('api/v1/', include(router.urls)),
 ]
