@@ -200,6 +200,8 @@ class UserMovieInteractionViewSet(
     viewsets.ModelViewSet
 ):
     
+    model = UserMovieInteraction
+    serializer_class = UserMovieInteractionListSerializer
     queryset = UserMovieInteraction.objects.all()
     """
     ViewSet for managing user-movie interactions.
@@ -422,6 +424,9 @@ class UserRecommendationViewSet(
     CacheableViewMixin,
     viewsets.ReadOnlyModelViewSet
 ):
+    
+    model = UserRecommendations
+    serializer_class = UserRecommendationListSerializer
     queryset = UserRecommendations.objects.all()
     """
     ViewSet for serving user recommendations.

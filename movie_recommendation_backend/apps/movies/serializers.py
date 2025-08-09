@@ -10,6 +10,7 @@ from django.db.models import Avg
 
 
 class GenreSerializer(serializers.ModelSerializer):
+    movie_count = serializers.SerializerMethodField()
     class Meta:
         model = Genre
         fields = ['id', 'tmdb_id', 'name', 'slug', 'movie_count', 'created_at']
