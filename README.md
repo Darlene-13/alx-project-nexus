@@ -60,7 +60,7 @@ This Movie Recommendation System represents a production-ready backend solution 
 
 ### Third-Party Integrations
 - **Movie Data:** TMDb API, OMDb API
-- **Email Service:** SendGrid/Mailgun
+- **Email Service:** Brevo
 - **Push Notifications:** Firebase/OneSignal
 - **Analytics:** Google Analytics API
 - **Monitoring:** Sentry, Django Silk
