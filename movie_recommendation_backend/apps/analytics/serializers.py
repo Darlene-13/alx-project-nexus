@@ -1,8 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import UserActivityLog, PopularityMetrics
-from movies.models import Movie
-
+from apps.movies.models import Movie
 User = get_user_model()
 
 
