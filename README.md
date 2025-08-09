@@ -17,7 +17,7 @@ This Movie Recommendation System represents a production-ready backend solution 
 
 
 ### Key Highlights
-- **6 Third-Party API Integrations** (TMDb, SendGrid, Firebase, Google Analytics, etc.)
+- **6 Third-Party API Integrations** (TMDb, Brevo, Firebase, Google Analytics, etc.)
 - **AI-Powered Recommendation Engine** with collaborative and content-based filtering
 - **Multi-Channel Communication** (Email, Push, In-App notifications)
 - **Real-Time Analytics** and performance monitoring
