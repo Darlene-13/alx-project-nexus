@@ -33,8 +33,8 @@ class MovieBasicSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = Movie
-        fields = ['id', 'title', 'slug']
-        read_only_fields = ['id', 'title', 'slug']
+        fields = ['id', 'title']
+        read_only_fields = ['id', 'title']
 
 
 class UserActivityLogCreateSerializer(serializers.ModelSerializer):

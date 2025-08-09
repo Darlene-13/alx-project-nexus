@@ -450,7 +450,7 @@ class PopularityMetricsAdmin(admin.ModelAdmin):
     ]
     
     # Search by movie
-    search_fields = ['movie__title', 'movie__slug']
+    search_fields = ['movie__title']
     
     # Order by most recent and highest performing
     ordering = ['-date', '-view_count']
