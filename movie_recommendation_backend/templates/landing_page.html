@@ -247,6 +247,201 @@
             padding: 10px 20px;
         }
 
+        /* About Section Specific Styling */
+        #about {
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.3) 0%, rgba(26, 26, 46, 0.4) 50%, rgba(22, 33, 62, 0.3) 100%);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #about::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(255, 107, 107, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(78, 205, 196, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        #about .container {
+            position: relative;
+            z-index: 2;
+        }
+
+        #about h2 {
+            font-size: clamp(2rem, 4vw, 3rem);
+            font-weight: 700;
+            margin-bottom: 30px;
+            background: linear-gradient(45deg, #ffffff, #4ecdc4, #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+        }
+
+        #about p {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            margin-bottom: 40px;
+            opacity: 0.9;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+            text-align: justify;
+            color: #e2e8f0;
+        }
+        
+
+                /* Contact Section Specific Styling */
+        #contact {
+            background: linear-gradient(135deg, rgba(22, 33, 62, 0.4) 0%, rgba(26, 26, 46, 0.3) 50%, rgba(0, 0, 0, 0.3) 100%);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #contact::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 30% 40%, rgba(78, 205, 196, 0.15) 0%, transparent 60%),
+                radial-gradient(circle at 70% 80%, rgba(255, 107, 107, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        #contact .container {
+            position: relative;
+            z-index: 2;
+        }
+
+        #contact h2 {
+            font-size: clamp(2.2rem, 4vw, 3.2rem);
+            font-weight: 700;
+            margin-bottom: 25px;
+            background: linear-gradient(45deg, #4ecdc4, #ffffff, #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(78, 205, 196, 0.3);
+        }
+
+        #contact p {
+            font-size: 1.2rem;
+            margin-bottom: 40px;
+            opacity: 0.9;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            color: #f1f5f9;
+        }
+
+        /* Enhanced CTA buttons for contact section */
+        #contact .cta-buttons {
+            display: flex;
+            gap: 25px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 40px;
+        }
+
+        #contact .btn {
+            position: relative;
+            overflow: hidden;
+            min-width: 140px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            transition: all 0.4s ease;
+        }
+
+        #contact .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.6s ease;
+        }
+
+        #contact .btn:hover::before {
+            left: 100%;
+        }
+
+        #contact .btn:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 20px 40px rgba(78, 205, 196, 0.3);
+        }
+
+        /* Social media specific button styling */
+        #contact .btn-primary:nth-child(1) {
+            background: linear-gradient(45deg, #ea4335, #fbbc04);
+            box-shadow: 0 10px 20px rgba(234, 67, 53, 0.3);
+        }
+
+        #contact .btn-primary:nth-child(2) {
+            background: linear-gradient(45deg, #333, #24292e);
+            box-shadow: 0 10px 20px rgba(36, 41, 46, 0.3);
+        }
+
+        #contact .btn-primary:nth-child(3) {
+            background: linear-gradient(45deg, #0077b5, #00a0dc);
+            box-shadow: 0 10px 20px rgba(0, 119, 181, 0.3);
+        }
+
+        /* Add icons to contact buttons */
+        #contact .btn-primary:nth-child(1)::after {
+            content: '✉️';
+            margin-left: 8px;
+        }
+
+        #contact .btn-primary:nth-child(2)::after {
+            content: '🐙';
+            margin-left: 8px;
+        }
+
+        #contact .btn-primary:nth-child(3)::after {
+            content: '💼';
+            margin-left: 8px;
+        }
+
+        /* Animated floating elements for sections */
+        #about::after {
+            content: '🎬';
+            position: absolute;
+            top: 20%;
+            right: 10%;
+            font-size: 3rem;
+            opacity: 0.1;
+            animation: float 8s ease-in-out infinite;
+            z-index: 1;
+        }
+
+        #contact::after {
+            content: '📞';
+            position: absolute;
+            bottom: 20%;
+            left: 10%;
+            font-size: 3rem;
+            opacity: 0.1;
+            animation: float 6s ease-in-out infinite reverse;
+            z-index: 1;
+        }
+
         /* Auth Section */
         .auth-section {
             background: rgba(255, 255, 255, 0.02);
@@ -270,25 +465,43 @@
             border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        /* Responsive */
+        /* Responsive adjustments */
         @media (max-width: 768px) {
-            .nav-links {
-                display: none;
+            #about p {
+                text-align: left;
+                font-size: 1rem;
+                line-height: 1.6;
             }
             
-            .hero {
-                padding: 60px 0;
-            }
-            
-            .apps-grid {
-                grid-template-columns: 1fr;
-                gap: 20px;
-            }
-            
-            .cta-buttons,
-            .auth-buttons {
+            #contact .cta-buttons {
                 flex-direction: column;
                 align-items: center;
+                gap: 15px;
+            }
+            
+            #contact .btn {
+                width: 80%;
+                max-width: 250px;
+            }
+            
+            #about::after,
+            #contact::after {
+                display: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #about h2,
+            #contact h2 {
+                font-size: 1.8rem;
+            }
+            
+            #about p {
+                font-size: 0.95rem;
+            }
+            
+            #contact p {
+                font-size: 1rem;
             }
         }
 
@@ -395,6 +608,39 @@
                     <p>Stay updated with new movie releases, personalized recommendations, and updates from your favorite genres and actors.</p>
                     <a href="notifications/" class="btn btn-secondary">Access Notifications</a>
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <!----About Section-->
+    <section class="hero" id="about">
+        <div class="container">
+            <h2>Brief Overview of our Movie Recommendation API Backend</h2>
+            <p>
+                This Movie Recommendation System represents a production-ready backend solution that combines multiple cutting-edge technologies to deliver personalized movie experiences. 
+                Built as part of the ALX ProDev Backend Engineering program, this project demonstrates mastery of modern backend development practices, API integrations, 
+                and scalable architecture design. The system is a modular backend application built with Django, 
+                designed to deliver highly personalized movie discovery experiences at scale. This system integrates robust user authentication (JWT), 
+                real-time data caching with Redis, background processing via Celery, and third-party APIs like TMDb and SendGrid to provide AI-driven movie recommendations, 
+                user interaction features (watchlists, reviews, ratings), and multi-channel notifications. Engineered for performance, extensibility, and production-readiness, 
+                this project demonstrates mastery of modern backend practices including API versioning, performance monitoring, external service orchestration, and 
+                scalable architecture—making it an ideal showcase for senior backend engineering roles.
+            </p>
+            <div class="cta-buttons">
+                <a href="https://github.com/Darlene-13/alx-project-nexus.git" class="btn btn-primary">Read Project Documentation</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section class="hero" id="contact">
+        <div class="container">
+            <h2>Get in Touch</h2>
+            <p>Have questions, feedback, or just want to chat about movies? Reach out to me!</p>
+            <div class="cta-buttons">
+                <a href="mailto:darlenenasimiyu@gmail.com" class="btn btn-primary">Email Me</a>
+                <a href="https://github.com/Darlene-13" class="btn btn-primary">Github</a>
+                <a href="https://www.linkedin.com/in/darlenenasimiyu" class="btn btn-primary">LinkedIn</a>
             </div>
         </div>
     </section>
