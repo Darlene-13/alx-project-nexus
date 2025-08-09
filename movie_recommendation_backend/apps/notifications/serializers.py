@@ -204,7 +204,7 @@ class InAppNotificationsCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = InAppNotifications
         fields = [
-            'user', 'category', 'title', 'content', 
+            'user', 'category', 'title', 'message', 
             'action_url', 'action_data', 'expires_at'
         ]
 
