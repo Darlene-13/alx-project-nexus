@@ -85,7 +85,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'apps.analytics.middleware.google_analytics.GoogleAnalyticsMiddleware',
+    'apps.analytics.middleware_old.google_analytics.GoogleAnalyticsMiddleware',
     'apps.analytics.middleware.UserActivityLoggingMiddleware',
 ]
 

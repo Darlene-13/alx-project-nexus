@@ -145,7 +145,7 @@ app.conf.beat_schedule = {
     
     # Database maintenance - Every day at 4:00 AM (moved to notifications app)
     'database-maintenance': {
-        'task': 'notifications.tasks.database_maintenance',
+        'task': 'apps.notifications.tasks.database_maintenance',
         'schedule': crontab(hour=4, minute=0),
         'options': {'queue': 'notifications'}
     },
