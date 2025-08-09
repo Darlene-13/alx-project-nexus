@@ -1,0 +1,50 @@
+# k8s/namespace.yml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: movie-recommendation
+  labels:
+    app: movie-recommendation-backend
+
+---
+# k8s/configmap.yml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: movie-recommendation-config
+  namespace: movie-recommendation
+data:
+  DEBUG: "1"
+  PORT: "8001:8000"
+  POSTGRES_HOST: "postgres-service"
+  POSTGRES_PORT: "5433:5432"
+  POSTGRES_DB: "movie_recommendation_db"
+  POSTGRES_HOST_AUTH_METHOD: "trust"
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  CELERY_BROKER_URL: "redis://redis-service:6379/0"
+  CELERY_RESULT_BACKEND: "redis://redis-service:6379/0"
+  DJANGO_SETTINGS_MODULE: "movie_recommendation_backend.settings"
+  # Email settings
+  EMAIL_BACKEND: "django.core.mail.backends.console.EmailBackend"
+  SITE_URL: "http://localhost:8001"
+  SUPPORT_EMAIL: "support@movierecommendation.com"
+
+---
+# k8s/secrets.yml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: movie-recommendation-secrets
+  namespace: movie-recommendation
+type: Opaque
+data:
+environment:
+.env
+  # Base64 encoded values - replace these with your actual credentials
+  POSTGRES_USER: ${POSTGRES_USER}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  SECRET_KEY: ${SECRET_KEY}
+  # Email credentials (base64 encoded)
+  EMAIL_HOST_USER: darlenenasimiyu@gmail.com
+  EMAIL_HOST_PASSWORD: ${BREVO_SMTP_KEY}}

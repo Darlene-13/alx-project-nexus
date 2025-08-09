@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 from datetime import timedelta
+import sentry_sdk
 
 
 load_dotenv() 
@@ -84,6 +85,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'apps.analytics.middleware.google_analytics.GoogleAnalyticsMiddleware',
+    'apps.analytics.middleware.UserActivityLoggingMiddleware',
 ]
 
 ROOT_URLCONF = 'movie_recommendation_backend.urls'
@@ -218,6 +221,32 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20
 }
 
+# Email settings for Brevo (Sendinblue)
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp-relay.brevo.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('BREVO_HOST_USER', 'darlenenasimiyu@gmail.com')
+EMAIL_HOST_PASSWORD = os.getenv('BREVO_SMTP_KEY', 'your-brevo-smtp-key')
+DEFAULT_FROM_EMAIL = '  Movie Recommendation <darlenenasimiyu@gmail.com>'
+
+
+# Email settings
+EMAIL_TIMEOUT = 30
+EMAIL_SUBJECT_PREFIX = '[MovieRec] '
+
+
+# Google Analytics 4 Configuration
+GOOGLE_ANALYTICS = {
+    'MEASUREMENT_ID': os.getenv('GA_MEASUREMENT_ID', default=''),
+    'API_SECRET': os.getenv('GA_API_KEY', default=''),
+    'ENABLED': os.getenv('GA_ENABLED', default=True),
+    'TRACK_AUTHENTICATED_USERS': os.getenv('GA_TRACK_AUTH_USERS', default=True),
+    'BATCH_SIZE': os.getenv('GA_BATCH_SIZE', default=25),
+    'TIMEOUT': os.getenv('GA_TIMEOUT', default=5),
+}
+
+
 # External API Settings
 TMDB_API_KEY = os.getenv('TMDB_API_KEY')
 OMDB_API_KEY = os.getenv('OMDB_API_KEY')
@@ -285,3 +314,117 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+#LOGGING CONFIGURATION
+# Logging Configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {asctime} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple'
+        },
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'django.log'),
+            'formatter': 'verbose',
+        },
+        'analytics_file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'analytics.log'),
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'analytics.middleware': {
+            'handlers': ['console', 'analytics_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'analytics': {
+            'handlers': ['console', 'analytics_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
+}
+
+# Create logs directory if it doesn't exist
+LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+if not os.path.exists(LOGS_DIR):
+    os.makedirs(LOGS_DIR)
+
+
+# Celery Configuration
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+
+# Celery Settings
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+CELERY_ENABLE_UTC = True
+
+# Task routing
+CELERY_TASK_ROUTES = {
+    'apps.notifications.tasks.*': {'queue': 'notifications'},
+    'apps.analytics.tasks.*': {'queue': 'analytics'},
+    'apps.movies.tasks.*': {'queue': 'recommendations'},
+}
+
+# Retry configuration
+CELERY_TASK_RETRY_DELAY = 60  # Retry after 60 seconds
+CELERY_TASK_MAX_RETRIES = 3
+
+# Beat schedule for periodic tasks
+CELERY_BEAT_SCHEDULE = {
+    'send-weekly-digest': {
+        'task': 'apps.notifications.tasks.send_weekly_digest_to_all_users',
+        'schedule': 604800.0,  # Weekly (in seconds)
+        # 'schedule': crontab(day_of_week=1, hour=9, minute=0),  # Every Monday at 9 AM
+    },
+    'update-movie-popularity': {
+        'task': 'analytics.tasks.update_daily_popularity_metrics',
+        'schedule': 86400.0,  # Daily (in seconds)
+        # 'schedule': crontab(hour=1, minute=0),  # Every day at 1 AM
+    },
+    'cleanup-old-analytics': {
+        'task': 'analytics.tasks.cleanup_old_analytics_data',
+        'schedule': 604800.0,  # Weekly
+    },
+}
+
+# Optional: Redis-specific settings
+CELERY_REDIS_MAX_CONNECTIONS = 20
+
+sentry_sdk.init(
+    dsn="https://6ed80536f888ca5fc0dbe6f65aeff254@o4509815140515840.ingest.us.sentry.io/4509816410275840",
+    # Add data like request headers and IP for users,
+    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+    send_default_pii=True,
+)

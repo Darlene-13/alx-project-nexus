@@ -43,7 +43,7 @@ from .serializers import (
 )
 
 from ipware import get_client_ip
-
+from apps.notifications.tasks import send_welcome_email_task
 
 # Configuration of logging
 logger = logging.getLogger(__name__)
@@ -178,39 +178,37 @@ def get_client_ip(request):
     return ip
 
 
-
-# AUTHENTICATION VIEWS
-
 class UserRegistrationView(APIView):
     """
     View for user registration.
-
+    
     HTTP methods: POST
     URL: /api/v1/auth/register/
     Permissions: AllowAny
     """
-
+    
     permission_classes = [AllowAny]
-
+    
     def post(self, request):
         """
         Handle User registration, returns the user profile data.
         """
-        logger.info("User registraction request received.")
-
+        logger.info("User registration request received.")  # Fixed typo
+        
         serializer = UserRegistrationSerializer(data=request.data)
-
+        
         if serializer.is_valid():
             try:
                 with transaction.atomic():
                     user = serializer.save()
                     refresh = RefreshToken.for_user(user)
                     access_token = str(refresh.access_token)
-
+                    
                     # Update last login with timestamp
                     user.last_login = timezone.now()
-
-                    # Log successful registration.
+                    user.save()  # Don't forget to save!
+                    
+                    # Log successful registration
                     log_user_action(
                         user=user,
                         action='User Registration',
@@ -222,21 +220,32 @@ class UserRegistrationView(APIView):
                             'created_at': user.date_joined.isoformat(),
                         }
                     )
-
-                    # Prepare reponse data
+                    
+                    # 🚀 SEND WELCOME EMAIL ASYNCHRONOUSLY
+                    try:
+                        send_welcome_email_task.delay(user.id)
+                        logger.info(f"Welcome email queued for user {user.username}")
+                    except Exception as email_error:
+                        # Don't fail registration if email fails
+                        logger.error(f"Failed to queue welcome email for {user.username}: {email_error}")
+                    
+                    # Prepare response data  # Fixed typo
                     user_data = UserProfileSerializer(user).data
-
+                    
                     logger.info(f"User {user.username} registered successfully.")
                     return Response({
                         'user': user_data,
                         'access_token': access_token,
                         'refresh_token': str(refresh),
+                        'message': 'Registration successful! Welcome email sent.'
                     }, status=status.HTTP_201_CREATED)
+                    
             except ValidationError as e:
                 logger.error(f"Registration failed for {request.data.get('username', 'unknown')}: {str(e)}")
                 return Response({
-                    'error': 'Registration failed due to server error..'
-                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                    'error': 'Registration failed due to server error.'  # Fixed typo (removed extra dot)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
         else:
             logger.warning(f"Registration failed for {request.data.get('username', 'unknown')}: {serializer.errors}")
             log_user_action(
@@ -249,12 +258,12 @@ class UserRegistrationView(APIView):
                 },
                 request=request
             )
-            return Response(
-                {
-                    'error': 'Invalid data provided.',
-                    'details': serializer.errors
-                }, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({
+                'error': 'Invalid data provided.',
+                'details': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 
 class UserLoginView(APIView):

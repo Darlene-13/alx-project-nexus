@@ -1,0 +1,10 @@
+# k8s/namespace.yml
+# This creates a "container" for all your movie recommendation resources
+# Think of it like a project folder that keeps everything organized
+
+apiVersion: v1           # Kubernetes API version
+kind: Namespace         
+metadata:
+  name: movie-recommendation     
+  labels:
+    app: movie-recommendation-backend    
