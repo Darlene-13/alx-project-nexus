@@ -21,9 +21,6 @@ from .serializers import (
     NotificationStatsSerializer
 )
 
-s
-
-
 
 def notifications_hub(request):
     """
