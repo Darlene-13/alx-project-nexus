@@ -39,9 +39,9 @@ def analytics_hub(request):
             {"method": "GET",    "url": "/analytics/api/v1/trending/",                        "description": "Get trending movies",            "status": "✅ Active"},
         ],
         "📘 API DOCUMENTATION": [
-            {"method": "GET", "url": "/api/v1/analytics/docs/",   "description": "Swagger UI",   "status": "✅ Active"},
-            {"method": "GET", "url": "/api/v1/analytics/redoc/",  "description": "ReDoc UI",     "status": "✅ Active"},
-            {"method": "GET", "url": "/api/v1/analytics/schema/", "description": "Schema (JSON)", "status": "✅ Active"},
+            {"method": "GET", "url": "/analytics/docs/",   "description": "Swagger UI",   "status": "✅ Active"},
+            {"method": "GET", "url": "/analytics/redoc/",  "description": "ReDoc UI",     "status": "✅ Active"},
+            {"method": "GET", "url": "/analytics/schema/", "description": "Schema (JSON)", "status": "✅ Active"},
         ],
     }
     
