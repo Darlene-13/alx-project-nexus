@@ -164,6 +164,7 @@
             <table>
                 <thead>
                     <tr>
+                        <th>Method</th>
                         <th>URL</th>
                         <th>Description</th>
                         <th>Status</th>
@@ -172,6 +173,12 @@
                 <tbody>
                     {% for endpoint in endpoints %}
                     <tr>
+                        <td>
+                            <div class="method-cell">
+                                <a href="{{ endpoint.url }}" class="url-link" target="_blank">
+                                    {{ endpoint.method }}
+                                </a>
+                            </div>
                         <td>
                             <div class="url-cell">
                                 <a href="{{ endpoint.url }}" class="url-link" target="_blank">

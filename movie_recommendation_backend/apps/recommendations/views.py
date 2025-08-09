@@ -50,64 +50,81 @@ from .filters import UserInteractionFilter, RecommendationFilter, UserPreference
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
-
-
 def recommendations_hub(request):
     """
     Recommendation system hub view.
     Lists all major endpoints for personalization, experiments, analytics, and utilities.
     """
 
-    endpoints = {
+    endpoints_by_section = {
         "👤 USER PROFILES & PREFERENCES": [
-            {"method": "GET", "url": "/recommendations/v1/users/me/", "description": "Get current user's profile"},
-            {"method": "PATCH", "url": "/recommendations/v1/users/update_preferences/", "description": "Update preferences"},
-            {"method": "POST", "url": "/recommendations/v1/users/onboarding/", "description": "Complete onboarding"},
-            {"method": "POST", "url": "/recommendations/v1/users/add_genre_preference/", "description": "Add genre preference"},
-            {"method": "GET", "url": "/recommendations/v1/users/recommendation_context/", "description": "Get recommendation context"},
-            {"method": "POST", "url": "/recommendations/v1/users/reset_preferences/", "description": "Reset all preferences"},
+            {"method": "GET", "url": "/recommendations/v1/users/me/", "description": "Get current user's profile", "status": "✅ Active"},
+            {"method": "PATCH", "url": "/recommendations/v1/users/update_preferences/", "description": "Update preferences", "status": "✅ Active"},
+            {"method": "POST", "url": "/recommendations/v1/users/onboarding/", "description": "Complete onboarding", "status": "✅ Active"},
+            {"method": "POST", "url": "/recommendations/v1/users/add_genre_preference/", "description": "Add genre preference", "status": "✅ Active"},
+            {"method": "GET", "url": "/recommendations/v1/users/recommendation_context/", "description": "Get recommendation context", "status": "✅ Active"},
+            {"method": "POST", "url": "/recommendations/v1/users/reset_preferences/", "description": "Reset all preferences", "status": "✅ Active"},
         ],
         "🎬 USER MOVIE INTERACTIONS": [
-            {"method": "GET", "url": "/recommendations/v1/interactions/", "description": "List all interactions"},
-            {"method": "POST", "url": "/recommendations/v1/interactions/", "description": "Create a new interaction"},
-            {"method": "GET", "url": "/recommendations/v1/interactions/my_interactions/", "description": "My interaction summary"},
-            {"method": "POST", "url": "/recommendations/v1/interactions/bulk_create/", "description": "Bulk create interactions"},
-            {"method": "GET", "url": "/recommendations/v1/interactions/analytics/", "description": "Interaction analytics"},
-            {"method": "PATCH", "url": "/recommendations/v1/interactions/<id>/update_feedback/", "description": "Update feedback for interaction"},
+            {"method": "GET", "url": "/recommendations/v1/interactions/", "description": "List all interactions", "status": "✅ Active"},
+            {"method": "POST", "url": "/recommendations/v1/interactions/", "description": "Create a new interaction", "status": "✅ Active"},
+            {"method": "GET", "url": "/recommendations/v1/interactions/{id}/", "description": "Get interaction details", "status": "✅ Active"},
+            {"method": "PUT", "url": "/recommendations/v1/interactions/{id}/", "description": "Update interaction", "status": "✅ Active"},
+            {"method": "PATCH", "url": "/recommendations/v1/interactions/{id}/", "description": "Partial update", "status": "✅ Active"},
+            {"method": "DELETE", "url": "/recommendations/v1/interactions/{id}/", "description": "Delete interaction", "status": "✅ Active"},
+            {"method": "GET", "url": "/recommendations/v1/interactions/my_interactions/", "description": "My interaction summary", "status": "✅ Active"},
+            {"method": "POST", "url": "/recommendations/v1/interactions/bulk_create/", "description": "Bulk create interactions", "status": "✅ Active"},
+            {"method": "GET", "url": "/recommendations/v1/interactions/analytics/", "description": "Interaction analytics", "status": "✅ Active"},
+            {"method": "PATCH", "url": "/recommendations/v1/interactions/{id}/update_feedback/", "description": "Update feedback for interaction", "status": "✅ Active"},
         ],
         "🔮 RECOMMENDATIONS": [
-            {"method": "GET", "url": "/recommendations/v1/recommendations/", "description": "List personalized recommendations"},
-            {"method": "GET", "url": "/recommendations/v1/recommendations/personalized/", "description": "Get personalized (filtered)"},
-            {"method": "GET", "url": "/recommendations/v1/recommendations/performance/", "description": "Get recommendation performance"},
-            {"method": "POST", "url": "/recommendations/v1/recommendations/<id>/click/", "description": "Mark recommendation as clicked"},
-            {"method": "POST", "url": "/recommendations/v1/recommendations/bulk_click/", "description": "Bulk click tracking"},
+            {"method": "GET", "url": "/recommendations/v1/recommendations/", "description": "List personalized recommendations", "status": "✅ Active"},
+            {"method": "GET", "url": "/recommendations/v1/recommendations/{id}/", "description": "Get recommendation details", "status": "✅ Active"},
+            {"method": "GET", "url": "/recommendations/v1/recommendations/personalized/", "description": "Get personalized (filtered)", "status": "✅ Active"},
+            {"method": "GET", "url": "/recommendations/v1/recommendations/performance/", "description": "Get recommendation performance", "status": "✅ Active"},
+            {"method": "POST", "url": "/recommendations/v1/recommendations/{id}/click/", "description": "Mark recommendation as clicked", "status": "✅ Active"},
+            {"method": "POST", "url": "/recommendations/v1/recommendations/bulk_click/", "description": "Bulk click tracking", "status": "✅ Active"},
         ],
         "🧪 EXPERIMENTS (Admin)": [
-            {"method": "GET", "url": "/recommendations/v1/experiments/", "description": "List experiments"},
-            {"method": "POST", "url": "/recommendations/v1/experiments/", "description": "Create experiment"},
-            {"method": "POST", "url": "/recommendations/v1/experiments/<id>/stop/", "description": "Stop an experiment"},
-            {"method": "GET", "url": "/recommendations/v1/experiments/<id>/metrics/", "description": "Get experiment metrics"},
-            {"method": "POST", "url": "/recommendations/v1/experiments/<id>/update_results/", "description": "Update experiment results"},
-            {"method": "GET", "url": "/recommendations/v1/experiments/active/", "description": "Get active experiment"},
+            {"method": "GET", "url": "/recommendations/v1/experiments/", "description": "List experiments", "status": "✅ Active"},
+            {"method": "POST", "url": "/recommendations/v1/experiments/", "description": "Create experiment", "status": "✅ Active"},
+            {"method": "GET", "url": "/recommendations/v1/experiments/{id}/", "description": "Get experiment details", "status": "✅ Active"},
+            {"method": "PUT", "url": "/recommendations/v1/experiments/{id}/", "description": "Update experiment", "status": "✅ Active"},
+            {"method": "PATCH", "url": "/recommendations/v1/experiments/{id}/", "description": "Partial update", "status": "✅ Active"},
+            {"method": "DELETE", "url": "/recommendations/v1/experiments/{id}/", "description": "Delete experiment", "status": "✅ Active"},
+            {"method": "GET", "url": "/recommendations/v1/experiments/active/", "description": "Get active experiment", "status": "✅ Active"},
+            {"method": "POST", "url": "/recommendations/v1/experiments/{id}/stop/", "description": "Stop an experiment", "status": "✅ Active"},
+            {"method": "GET", "url": "/recommendations/v1/experiments/{id}/metrics/", "description": "Get experiment metrics", "status": "✅ Active"},
+            {"method": "POST", "url": "/recommendations/v1/experiments/{id}/update_results/", "description": "Update experiment results", "status": "✅ Active"},
         ],
         "📊 ANALYTICS & SEGMENTATION (Admin)": [
-            {"method": "GET", "url": "/recommendations/v1/analytics/dashboard/", "description": "Dashboard metrics"},
-            {"method": "GET", "url": "/recommendations/v1/analytics/algorithm_performance/", "description": "Algorithm performance"},
-            {"method": "GET", "url": "/recommendations/v1/analytics/user_segmentation/", "description": "User segmentation"},
+            {"method": "GET", "url": "/recommendations/v1/analytics/dashboard/", "description": "Dashboard metrics", "status": "✅ Active"},
+            {"method": "GET", "url": "/recommendations/v1/analytics/algorithm_performance/", "description": "Algorithm performance", "status": "✅ Active"},
+            {"method": "GET", "url": "/recommendations/v1/analytics/user_segmentation/", "description": "User segmentation", "status": "✅ Active"},
         ],
         "🛠 UTILITY & HEALTH": [
-            {"method": "POST", "url": "/recommendations/v1/utils/generate_recommendations/", "description": "Trigger generation"},
-            {"method": "GET", "url": "/recommendations/v1/utils/health/", "description": "System health check"},
+            {"method": "POST", "url": "/recommendations/v1/utils/generate_recommendations/", "description": "Trigger generation", "status": "✅ Active"},
+            {"method": "GET", "url": "/recommendations/v1/utils/health/", "description": "System health check", "status": "✅ Active"},
+        ],
+        "📘 API DOCUMENTATION": [
+            {"method": "GET", "url": "/recommendations/api/docs/", "description": "Swagger UI", "status": "✅ Active"},
+            {"method": "GET", "url": "/recommendations/api/redoc/", "description": "ReDoc UI", "status": "✅ Active"},
+            {"method": "GET", "url": "/recommendations/api/schema/", "description": "Schema (JSON)", "status": "✅ Active"},
         ]
     }
+    
+    # Flatten the endpoints for the template
+    flat_endpoints = []
+    for section_name, section_endpoints in endpoints_by_section.items():
+        for endpoint in section_endpoints:
+            flat_endpoints.append(endpoint)
+    
+    context = {
+        'endpoints': flat_endpoints,
+        'endpoints_by_section': endpoints_by_section,  # In case you want to group them later
+    }
 
-    return render(request, 'recommendations/recommendations_hub.html', {
-        'app_name': '🎯 Recommendations API Hub',
-        'app_description': 'Explore and test all endpoints for movie recommendations, personalization, and A/B testing.',
-        'endpoints': endpoints,
-    })
-
-
+    return render(request, 'recommendations/recommendations_hub.html', context)
 
 # BASE CLASSES & MIXINS
 
