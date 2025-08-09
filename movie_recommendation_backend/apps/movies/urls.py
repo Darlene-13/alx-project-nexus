@@ -3,37 +3,32 @@ This is the URL configuration for the movies app in the movie recommendation bac
 The urls are defined based on our views.
 """
 
-from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView
-)
 from . import views
-from .views import (movie_hub,
-                    MovieSearchView,
-                    MovieRecommendationView,
-                    MovieAnalyticsView
-                    )
-
+from .views import (
+    movie_hub,
+    MovieSearchView,
+    MovieRecommendationView,
+    MovieAnalyticsView
+)
 
 # Create router for ViewSets
 router = DefaultRouter()
 router.register(r'movies', views.MovieViewSet, basename='movie')
 router.register(r'genres', views.GenreViewSet, basename='genre')
 
+
 # Custom URL patterns for specific endpoints
 urlpatterns = [
-    # Include router URLs
+    # Movie hub - landing page showing all endpoints
     path('', movie_hub, name='movie-hub'),
    
-
-    # Custom search and recommendsation endpoints
-    path('movies/', include(router.urls)),
-    path('api/search/', views.MovieSearchView.as_view(), name='movie-search'),
-    path('api/recommendations/', views.MovieRecommendationView.as_view(), name='movie-recommendations'),
-    path('api/analytics/', views.MovieAnalyticsView.as_view(), name='movie-analytics'),
+    # API v1 endpoints - clean structure
+    path('api/v1/', include(router.urls)),  # Creates: /movies/api/v1/movies/, /movies/api/v1/genres/
+    path('api/v1/search/', MovieSearchView.as_view(), name='movie-search'),
+    path('api/v1/recommendations/', MovieRecommendationView.as_view(), name='movie-recommendations'),
+    path('api/v1/analytics/', MovieAnalyticsView.as_view(), name='movie-analytics'),
 ]
 
 """

@@ -22,10 +22,11 @@ user_recommendation_context = UserProfileViewSet.as_view({'get': 'recommendation
 user_reset_preferences = UserProfileViewSet.as_view({'post': 'reset_preferences'})
 
 urlpatterns = [
-    # User Movie Interactions
-    # Recommendation hub landing page
-    path('v1/', recommendations_hub, name='recommendations-hub'),
+    # Recommendations hub landing page
+    path('', recommendations_hub, name='recommendations-hub'),
 
+    # API v1 endpoints
+    # User Movie Interactions
     path('v1/interactions/', include([
         path('', UserMovieInteractionViewSet.as_view({'get': 'list', 'post': 'create'}), name='interaction-list'),
         path('<int:pk>/', UserMovieInteractionViewSet.as_view({
