@@ -43,7 +43,9 @@ ALLOWED_HOSTS = [
 
 # CRSF Settings
 CSRF_TRUSTED_ORIGINS = [
-    'https://alx-project-nexus-y0c5.onrender.com'
+    'https://alx-project-nexus-y0c5.onrender.com',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
 ]
 
 
@@ -77,6 +79,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
