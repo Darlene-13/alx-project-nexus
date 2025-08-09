@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import UserActivityLog, PopularityMetrics
+from movies.models import Movie
 
 User = get_user_model()
 
@@ -32,7 +33,7 @@ class MovieBasicSerializer(serializers.ModelSerializer):
     to avoid circular import issues between apps.
     """
     class Meta:
-        model = 'movies.Movie'  
+        model = Movie
         fields = ['id', 'title', 'slug']
         read_only_fields = ['id', 'title', 'slug']
 

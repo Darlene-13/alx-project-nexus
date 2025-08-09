@@ -113,15 +113,26 @@ class NotificationsPreferencesViewSet(viewsets.ModelViewSet):
     
     serializer_class = NotificationsPreferencesSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         """
         Filter queryset to current user's preferences only
         
         Reasoning: Users should only see their own preferences
         """
+        # Handle Swagger documentation generation
+        if getattr(self, 'swagger_fake_view', False):
+            return NotificationsPreferences.objects.none()
+        
+        # Handle unauthenticated users
+        if not self.request.user.is_authenticated:
+            return NotificationsPreferences.objects.none()
+        
+        # Staff users can see all preferences
         if self.request.user.is_staff:
             return NotificationsPreferences.objects.all()
+        
+        # Regular users only see their own preferences
         return NotificationsPreferences.objects.filter(user=self.request.user)
     
     def get_serializer_class(self):
@@ -238,10 +249,22 @@ class NotificationLogViewSet(viewsets.ModelViewSet):
     filterset_fields = ['notification_type', 'status', 'user']
     ordering = ['-created_at']
     
+
     def get_queryset(self):
         """Filter logs based on user permissions"""
+        # Handle Swagger documentation generation
+        if getattr(self, 'swagger_fake_view', False):
+            return NotificationLog.objects.none()
+        
+        # Handle unauthenticated users
+        if not self.request.user.is_authenticated:
+            return NotificationLog.objects.none()
+        
+        # Staff users can see all logs
         if self.request.user.is_staff:
             return NotificationLog.objects.all()
+        
+        # Regular users only see their own logs
         return NotificationLog.objects.filter(user=self.request.user)
     
     def get_serializer_class(self):
@@ -388,16 +411,26 @@ class InAppNotificationsViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['category', 'is_read', 'is_archived']
     ordering = ['-created_at']
-    
+
+
     def get_queryset(self):
         """
         Filter to user's notifications and auto-archive expired ones
         
         Reasoning: Clean up expired notifications automatically
         """
+        # Handle Swagger documentation generation
+        if getattr(self, 'swagger_fake_view', False):
+            return InAppNotifications.objects.none()
+        
+        # Handle unauthenticated users
+        if not self.request.user.is_authenticated:
+            return InAppNotifications.objects.none()
+        
+        # Get user's notifications
         queryset = InAppNotifications.objects.filter(user=self.request.user)
         
-        # Auto-archive expired notifications
+        # Auto-archive expired notifications (only for authenticated users)
         expired_notifications = queryset.filter(
             expires_at__lt=timezone.now(),
             is_archived=False
@@ -405,6 +438,7 @@ class InAppNotificationsViewSet(viewsets.ModelViewSet):
         expired_notifications.update(is_archived=True)
         
         return queryset
+
     
     def get_serializer_class(self):
         """Use create serializer for creation"""

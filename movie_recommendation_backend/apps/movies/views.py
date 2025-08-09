@@ -133,7 +133,7 @@ class MovieViewSet(viewsets.ModelViewSet):
         """
         It returns the queryset for the viewset.
         """
-        queryset = Movie.objects.select_related.prefetch_related('genres')
+        queryset = Movie.objects.select_related().prefetch_related('genres')
 
         # Application of different optimization based on acction
         if self.action == 'list':

@@ -199,6 +199,8 @@ class UserMovieInteractionViewSet(
     CacheableViewMixin,
     viewsets.ModelViewSet
 ):
+    
+    queryset = UserMovieInteraction.objects.all()
     """
     ViewSet for managing user-movie interactions.
     
@@ -420,6 +422,7 @@ class UserRecommendationViewSet(
     CacheableViewMixin,
     viewsets.ReadOnlyModelViewSet
 ):
+    queryset = UserRecommendations.objects.all()
     """
     ViewSet for serving user recommendations.
     
