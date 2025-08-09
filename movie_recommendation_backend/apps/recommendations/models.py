@@ -292,7 +292,7 @@ class UserRecommendations(models.Model):
         interacted_movies = user_interactions.values_list('movie_id', flat=True)
         
         # Simple genre-based recommendation (you can enhance this)
-        from movies.models import Movie  # Adjust import as needed
+        from apps.movies.models import Movie
         candidate_movies = Movie.objects.exclude(
             id__in=interacted_movies
         ).filter(

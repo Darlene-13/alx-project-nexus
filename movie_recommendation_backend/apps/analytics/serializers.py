@@ -207,7 +207,7 @@ class TrendingMoviesSerializer(serializers.Serializer):
         # If movie info not included in aggregation, fetch it
         if 'movie_title' not in instance or not instance['movie_title']:
             try:
-                from movies.models import Movie  # Local import to avoid circular deps
+                from apps.movies.models import Movie
                 movie = Movie.objects.get(id=instance['movie'])
                 data['movie_title'] = movie.title
             except:
