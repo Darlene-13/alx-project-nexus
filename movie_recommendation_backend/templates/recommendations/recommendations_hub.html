@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recommendations API Hub</title>
+    <title>🤖 Recommendations API Hub</title>
     <style>
         * {
             margin: 0;
@@ -13,16 +13,55 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0d0d0e 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3a 30%, #2d1b69 70%, #4a00e0 100%);
+            background-attachment: fixed;
             color: #334155;
             line-height: 1.6;
             padding: 40px 20px;
             min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* AI Neural Network Background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 15% 30%, rgba(138, 43, 226, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 85% 70%, rgba(75, 0, 130, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 50% 10%, rgba(72, 61, 139, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 20% 80%, rgba(106, 90, 205, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Animated Neural Nodes */
+        .neural-node {
+            position: fixed;
+            width: 4px;
+            height: 4px;
+            background: rgba(138, 43, 226, 0.6);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: -1;
+            animation: neuralPulse 3s infinite ease-in-out;
+        }
+
+        @keyframes neuralPulse {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.5); }
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
+            position: relative;
+            z-index: 1;
         }
 
         .header {
@@ -34,175 +73,348 @@
             display: inline-block;
             padding: 12px 24px;
             font-size: 14px;
-            font-weight: 600;
+            font-weight: 500;
             color: white;
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
             text-decoration: none;
             transition: all 0.3s ease;
             margin-bottom: 30px;
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(15px);
         }
 
         .back-button:hover {
-            background: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(138, 43, 226, 0.5);
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 8px 20px rgba(138, 43, 226, 0.3);
         }
 
         h1 {
-            font-size: 3rem;
-            font-weight: 800;
+            font-size: 3.5rem;
+            font-weight: 700;
             color: white;
             margin-bottom: 15px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            text-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            background: linear-gradient(45deg, #ffffff, #8a2be2, #4b0082);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .subtitle {
             color: rgba(255, 255, 255, 0.9);
-            font-size: 1.2rem;
-            font-weight: 500;
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
-        .table-container {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-            overflow: hidden;
+        .ai-badges {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 25px 0;
+            flex-wrap: wrap;
+        }
+
+        .ai-badge {
+            background: rgba(138, 43, 226, 0.2);
             backdrop-filter: blur(10px);
+            border: 1px solid rgba(138, 43, 226, 0.3);
+            border-radius: 25px;
+            padding: 8px 16px;
+            color: white;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
         }
 
-        table {
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(138, 43, 226, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(138, 43, 226, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(138, 43, 226, 0.1), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .stat-card:hover::before {
+            left: 100%;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 20px 50px rgba(138, 43, 226, 0.3);
+            border-color: rgba(138, 43, 226, 0.3);
+        }
+
+        .stat-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #64748b;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(138, 43, 226, 0.15);
+            overflow: hidden;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(138, 43, 226, 0.1);
+        }
+
+        .section-header {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            padding: 20px 25px;
+            border-bottom: 1px solid #e2e8f0;
+            position: relative;
+        }
+
+        .section-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(45deg, #8a2be2, #4b0082);
+        }
+
+        .section-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .endpoints-table {
             width: 100%;
             border-collapse: collapse;
         }
 
-        th {
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-            color: white;
-            padding: 20px 24px;
+        .endpoints-table th {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            padding: 15px 20px;
             text-align: left;
-            font-weight: 700;
-            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.9rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+
+        .endpoints-table td {
+            padding: 15px 20px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: top;
+        }
+
+        .endpoints-table tr:hover {
+            background: linear-gradient(90deg, rgba(138, 43, 226, 0.05) 0%, rgba(75, 0, 130, 0.05) 100%);
+            transform: translateX(5px);
+            transition: all 0.3s ease;
+        }
+
+        .endpoints-table tr:last-child td {
             border-bottom: none;
         }
 
-        th:first-child {
-            border-top-left-radius: 20px;
-        }
-
-        th:last-child {
-            border-top-right-radius: 20px;
-        }
-
-        td {
-            padding: 18px 24px;
-            border-bottom: 1px solid #e2e8f0;
-            vertical-align: middle;
-        }
-
-        tr:last-child td {
-            border-bottom: none;
-        }
-
-        tr:hover {
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            transform: scale(1.001);
-            transition: all 0.2s ease;
-        }
-
-        .method-cell {
-            font-family: 'Monaco', 'Consolas', monospace;
-            font-size: 13px;
-            font-weight: 700;
-            padding: 6px 12px;
-            border-radius: 8px;
+        .method-badge {
             display: inline-block;
-            min-width: 60px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 50px;
             text-align: center;
-            color: white;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
-        .method-GET { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
-        .method-POST { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); }
-        .method-PUT { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
-        .method-PATCH { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
-        .method-DELETE { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+        .method-get {
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+            color: #166534;
+        }
+
+        .method-post {
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            color: #1e40af;
+        }
+
+        .method-patch {
+            background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%);
+            color: #d97706;
+        }
+
+        .method-put {
+            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+            color: #4338ca;
+        }
+
+        .method-delete {
+            background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+            color: #dc2626;
+        }
 
         .url-cell {
             font-family: 'Monaco', 'Consolas', monospace;
-            font-size: 13px;
+            font-size: 14px;
             background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-            padding: 10px 16px;
-            border-radius: 8px;
+            padding: 8px 12px;
+            border-radius: 6px;
             color: #1e40af;
-            font-weight: 600;
+            font-weight: 500;
             word-break: break-all;
-            max-width: 400px;
+            border: 1px solid rgba(138, 43, 226, 0.1);
         }
 
         .url-link {
             color: #1e40af;
             text-decoration: none;
-            transition: color 0.2s ease;
         }
 
         .url-link:hover {
-            color: #1d4ed8;
             text-decoration: underline;
+            color: #8a2be2;
         }
 
         .description-cell {
-            color: #475569;
-            font-weight: 500;
-            max-width: 300px;
+            color: #4b5563;
+            max-width: 350px;
+            line-height: 1.5;
         }
 
         .status-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 6px 12px;
+            display: inline-block;
+            padding: 4px 10px;
             border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
+            font-size: 11px;
+            font-weight: 500;
             background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
             color: #166534;
-            border: 1px solid #86efac;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
-        .stats-bar {
-            background: rgba(255, 255, 255, 0.1);
+        .brain-icon {
+            animation: brainPulse 2s infinite ease-in-out;
+        }
+
+        @keyframes brainPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .ai-features {
+            background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%);
+            border-left: 4px solid #8b5cf6;
             padding: 20px;
-            border-radius: 15px;
-            margin-bottom: 30px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin: 20px 0;
+            border-radius: 0 10px 10px 0;
         }
 
-        .stats-grid {
+        .feature-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
+            gap: 15px;
+            margin: 20px 0;
         }
 
-        .stat-item {
+        .feature-item {
+            background: rgba(255, 255, 255, 0.8);
+            padding: 15px;
+            border-radius: 8px;
             text-align: center;
-            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            transition: transform 0.3s ease;
         }
 
-        .stat-number {
-            font-size: 2rem;
-            font-weight: 800;
+        .feature-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(138, 43, 226, 0.2);
+        }
+
+        .feature-icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .feature-title {
+            font-weight: 600;
+            color: #374151;
             margin-bottom: 5px;
         }
 
-        .stat-label {
-            font-size: 0.9rem;
-            opacity: 0.9;
+        .feature-desc {
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+
+        .ai-examples {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 13px;
+            margin: 10px 0;
+            overflow-x: auto;
+            border-left: 4px solid #8a2be2;
+        }
+
+        .ml-highlight {
+            background: linear-gradient(135deg, rgba(138, 43, 226, 0.1) 0%, rgba(75, 0, 130, 0.1) 100%);
+            border: 1px solid rgba(138, 43, 226, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
         }
 
         @media (max-width: 768px) {
@@ -211,60 +423,123 @@
             }
 
             h1 {
-                font-size: 2rem;
+                font-size: 2.5rem;
             }
 
-            table {
+            .endpoints-table {
                 font-size: 13px;
             }
 
-            th, td {
-                padding: 12px 15px;
+            .endpoints-table th,
+            .endpoints-table td {
+                padding: 10px 12px;
             }
 
             .url-cell {
-                font-size: 11px;
-                max-width: 250px;
+                font-size: 12px;
+                word-break: break-word;
             }
 
-            .method-cell {
-                font-size: 11px;
-                min-width: 50px;
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .ai-badges {
+                justify-content: center;
+            }
+
+            .endpoints-table tr:hover {
+                transform: none;
             }
         }
     </style>
 </head>
 <body>
+    <!-- Neural Network Nodes -->
+    <div class="neural-node" style="top: 10%; left: 5%; animation-delay: 0s;"></div>
+    <div class="neural-node" style="top: 30%; right: 15%; animation-delay: 1s;"></div>
+    <div class="neural-node" style="bottom: 20%; left: 20%; animation-delay: 2s;"></div>
+    <div class="neural-node" style="top: 60%; right: 8%; animation-delay: 0.5s;"></div>
+    <div class="neural-node" style="bottom: 40%; right: 30%; animation-delay: 1.5s;"></div>
+
     <div class="container">
         <div class="header">
             <a href="/" class="back-button">← Back to Home</a>
-            <h1>🎯 Recommendations API</h1>
-            <p class="subtitle">Personalization, A/B Testing & Machine Learning Endpoints</p>
+            <h1><span class="brain-icon">🤖</span> Recommendations API</h1>
+            <p class="subtitle">AI-powered personalized movie recommendation engine with ML algorithms</p>
+            
+            <div class="ai-badges">
+                <span class="ai-badge">🧠 Machine Learning</span>
+                <span class="ai-badge">🎯 Personalization</span>
+                <span class="ai-badge">🧪 A/B Testing</span>
+                <span class="ai-badge">📊 Analytics</span>
+                <span class="ai-badge">⚡ Real-time</span>
+            </div>
         </div>
 
-        <div class="stats-bar">
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-number">{{ endpoints|length }}</div>
-                    <div class="stat-label">Total Endpoints</div>
+        <!-- Quick Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">🤖</div>
+                <div class="stat-number">{{ endpoints_by_section|length }}</div>
+                <div class="stat-label">API Sections</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🧠</div>
+                <div class="stat-number">AI</div>
+                <div class="stat-label">Powered</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🎯</div>
+                <div class="stat-number">Smart</div>
+                <div class="stat-label">Personalization</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📈</div>
+                <div class="stat-number">Advanced</div>
+                <div class="stat-label">Analytics</div>
+            </div>
+        </div>
+
+        <!-- AI Features -->
+        <div class="ai-features">
+            <h3 style="margin-bottom: 15px; color: #374151;">🤖 AI Recommendation Features</h3>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <div class="feature-icon">🧠</div>
+                    <div class="feature-title">Machine Learning</div>
+                    <div class="feature-desc">Advanced ML algorithms for personalization</div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-number">6</div>
-                    <div class="stat-label">Feature Areas</div>
+                <div class="feature-item">
+                    <div class="feature-icon">🎯</div>
+                    <div class="feature-title">User Profiling</div>
+                    <div class="feature-desc">Deep user preference understanding</div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-number">A/B</div>
-                    <div class="stat-label">Testing Ready</div>
+                <div class="feature-item">
+                    <div class="feature-icon">🧪</div>
+                    <div class="feature-title">A/B Testing</div>
+                    <div class="feature-desc">Experiment with different algorithms</div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-number">ML</div>
-                    <div class="stat-label">Powered</div>
+                <div class="feature-item">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-title">Real-time Analytics</div>
+                    <div class="feature-desc">Performance monitoring and insights</div>
                 </div>
             </div>
         </div>
 
-        <div class="table-container">
-            <table>
+        <!-- API Endpoints by Section -->
+        {% for section_name, section_endpoints in endpoints_by_section.items %}
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">{{ section_name }}</h2>
+            </div>
+            <table class="endpoints-table">
                 <thead>
                     <tr>
                         <th>Method</th>
@@ -274,10 +549,10 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for endpoint in endpoints %}
+                    {% for endpoint in section_endpoints %}
                     <tr>
                         <td>
-                            <span class="method-cell method-{{ endpoint.method }}">
+                            <span class="method-badge method-{{ endpoint.method|lower }}">
                                 {{ endpoint.method }}
                             </span>
                         </td>
@@ -298,6 +573,102 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+        {% endfor %}
+
+        <!-- ML Algorithm Examples -->
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">🧠 Machine Learning Examples</h2>
+            </div>
+            <div class="ai-examples">
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: #374151; margin-bottom: 10px;">🎯 Get Personalized Recommendations:</h4>
+                    <div class="code-block">
+GET /recommendations/v1/recommendations/personalized/?limit=10&refresh=true
+Authorization: Bearer &lt;token&gt;
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: #374151; margin-bottom: 10px;">🧪 A/B Test Algorithm Performance:</h4>
+                    <div class="code-block">
+POST /recommendations/v1/experiments/
+{
+  "name": "Algorithm Comparison",
+  "algorithm_a": "collaborative_filtering",
+  "algorithm_b": "deep_learning",
+  "traffic_split": 0.5
+}
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: #374151; margin-bottom: 10px;">📊 Track User Interactions:</h4>
+                    <div class="code-block">
+POST /recommendations/v1/interactions/
+{
+  "movie_id": 123,
+  "interaction_type": "like",
+  "rating": 8.5,
+  "feedback_type": "positive"
+}
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 style="color: #374151; margin-bottom: 10px;">🎭 Complete User Onboarding:</h4>
+                    <div class="code-block">
+POST /recommendations/v1/users/onboarding/
+{
+  "favorite_genres": [{"genre_id": 28, "preference_score": 0.9}],
+  "content_rating_preference": "PG-13",
+  "diversity_preference": 0.7
+}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ML Insights -->
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">🔬 ML Algorithm Insights</h2>
+            </div>
+            <div style="padding: 25px;">
+                <div class="ml-highlight">
+                    <h4 style="color: #374151; margin-bottom: 10px;">🧠 Available Algorithms:</h4>
+                    <ul style="color: #64748b; margin-left: 20px; line-height: 1.8;">
+                        <li><strong>Collaborative Filtering:</strong> Finds users with similar preferences</li>
+                        <li><strong>Content-Based:</strong> Recommends based on movie attributes</li>
+                        <li><strong>Deep Learning:</strong> Neural networks for complex patterns</li>
+                        <li><strong>Hybrid Approach:</strong> Combines multiple algorithms</li>
+                    </ul>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <h4 style="color: #374151; margin-bottom: 10px;">🎯 Personalization Features:</h4>
+                    <ul style="color: #64748b; margin-left: 20px; line-height: 1.8;">
+                        <li>Real-time user preference learning</li>
+                        <li>Dynamic algorithm selection based on user behavior</li>
+                        <li>Cold start handling for new users</li>
+                        <li>Diversity and novelty controls</li>
+                        <li>A/B testing for algorithm optimization</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <p style="color: #64748b; margin-bottom: 15px;">
+                        <strong>Base URL:</strong> <code>/recommendations/v1/</code>
+                    </p>
+                    <p style="color: #64748b; margin-bottom: 15px;">
+                        <strong>Authentication:</strong> JWT Bearer Token required
+                    </p>
+                    <p style="color: #64748b;">
+                        <strong>ML Pipeline:</strong> Real-time training and inference
+                    </p>
+                </div>
+            </div>
         </div>
     </div>
 </body>

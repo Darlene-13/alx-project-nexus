@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.decorators import action
 from django.utils import timezone
 from django.shortcuts import render
+from django.db import models
 
 from .models import UserActivityLog, PopularityMetrics
 from .serializers import (

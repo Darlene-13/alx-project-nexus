@@ -18,6 +18,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.core.cache import cache
+from django.db import models
 
 from .models import Movie, Genre, MovieGenre
 from .serializers import (
@@ -199,8 +200,8 @@ class MovieViewSet(viewsets.ModelViewSet):
         movie = self.get_object()
         Movie.objects.filter(id=movie.id).update(views=F('views') + 1)
         movie.refresh_from_db()
-        return Response (
-            {'views': movies.views}
+        return Response(
+            {'views': movie.views}
         )
     
 
@@ -235,6 +236,7 @@ class MovieViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 
+
     @action(detail=False, methods=['get'])
     def stats(self, request):
         """
@@ -244,15 +246,14 @@ class MovieViewSet(viewsets.ModelViewSet):
         stats = {
             'total_movies': Movie.objects.count(),
             'avg_rating': Movie.objects.aggregate(avg=Avg('tmdb_rating'))['avg'],
-            'total_views': Movie.objects.aggregate(total=models.Sum('views'))['total'],
-            'top_genres': Genre.objects.annotate(
-                movie_count=Count('movies').
-                order_by('-movie_count')[:10]
-                .values('name', 'movie_count')
-            )
+            'total_views': Movie.objects.aggregate(total=models.Sum('views'))['total'] or 0,  # Fixed: added "or 0"
+            'total_likes': Movie.objects.aggregate(total=models.Sum('like_count'))['total'] or 0,  # Added this
+            'top_genres': list(Genre.objects.annotate(
+                movie_count=Count('movies')
+            ).order_by('-movie_count')[:10]
+            .values('name', 'movie_count'))  # Fixed: moved outside annotate
         }
         return Response(stats, status=status.HTTP_200_OK)
-    
 
 
 class GenreViewSet(viewsets.ModelViewSet):
@@ -288,7 +289,7 @@ class GenreViewSet(viewsets.ModelViewSet):
         movies = genre.movies.all()
 
         # Apply pagination
-        paginator = StandardResultsSetPagination()
+        paginator = StandardResultsPagination()
         page = paginator.paginate_queryset(movies, request)
         if page is not None:
             serializer = MovieListSerializer(page, many=True)
@@ -296,48 +297,6 @@ class GenreViewSet(viewsets.ModelViewSet):
         
         serializer = MovieListSerializer(movies, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
-    class MovieSearchView(APIView):
-        """
-        Advanced search functionality for movies
-        It supports complex queries across multiple fields.
-        """
-        def get(self, request):
-            query = request.query_params.get('query', '')
-            genre = request.query_params.get('genre', None)
-            year = request.query_params.get('year', None)
-            rating_min = request.query_params.get('rating_min', None)
-            rating_max = request.query_params.get('rating_max', None)
-
-            # Start with all movies
-            movies = Movie.objects.select_related().prefetch_related('genres')
-
-            # Apply filters based on query parameters
-            if query:
-                movies = movies.filter(Q(title__icontains=query) | Q(description__icontains=query))
-            if genre:
-                movies = movies.filter(genres__name__icontains=genre)
-            if year:
-                movies = movies.filter(release_year=year)
-            if rating_min is not None:
-                movies = movies.filter(tmdb_rating__gte=rating_min)
-            if rating_max is not None:
-                movies = movies.filter(tmdb_rating__lte=rating_max)
-
-            # Order by relevance
-            movies = movies.order_by(
-                '-popularity_score',
-                '-tmdb_rating'
-            ).distinct()
-            # Paginate results
-            paginator = StandardResultsPagination()
-            page = paginator.paginate_queryset(movies, request)
-            if page is not None:
-                serializer = MovieListSerializer(page, many=True)
-                return paginator.get_paginated_response(serializer.data)
-
-            serializer = MovieListSerializer(movies, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK) 
 
 class MovieSearchView(APIView):
     """
@@ -393,8 +352,6 @@ class MovieSearchView(APIView):
         serializer = MovieSearchSerializer(movies, many=True)
         return Response(serializer.data)
 
-
-
 class MovieRecommendationView(APIView):
     """
     Movie recommendation engine
@@ -411,11 +368,11 @@ class MovieRecommendationView(APIView):
 
         # Fetch recommendations based on the type
         if rec_type == 'popular':
-            movies = self._get_popular_recommendations(limit)
+            recommendations = self._get_popular_recommendations(limit)
         elif rec_type == 'top_rated':
-            movies = self._get_top_rated_movies(limit)
-        elif rec_type == 'random':
-            movies = self._get_random_recommendations(limit)
+            recommendations = self._get_top_rated_recommendations(limit)
+        elif rec_type == 'recent':
+            recommendations = self._get_recent_recommendations(limit)
         else:
             recommendations = self._get_popular_recommendations(limit)
         # Add recommendations metadata
