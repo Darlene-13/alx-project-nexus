@@ -107,9 +107,9 @@ def recommendations_hub(request):
             {"method": "GET", "url": "/recommendations/v1/utils/health/", "description": "System health check", "status": "✅ Active"},
         ],
         "📘 API DOCUMENTATION": [
-            {"method": "GET", "url": "/recommendations/api/docs/", "description": "Swagger UI", "status": "✅ Active"},
-            {"method": "GET", "url": "/recommendations/api/redoc/", "description": "ReDoc UI", "status": "✅ Active"},
-            {"method": "GET", "url": "/recommendations/api/schema/", "description": "Schema (JSON)", "status": "✅ Active"},
+            {"method": "GET", "url": "/recommendations/docs/", "description": "Swagger UI", "status": "✅ Active"},
+            {"method": "GET", "url": "/recommendations/redoc/", "description": "ReDoc UI", "status": "✅ Active"},
+            {"method": "GET", "url": "/recommendations/schema/", "description": "Schema (JSON)", "status": "✅ Active"},
         ]
     }
     

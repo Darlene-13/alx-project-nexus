@@ -59,6 +59,11 @@ def notifications_hub(request):
         "🛠 SYSTEM HEALTH": [
             {"method": "GET", "url": "/notifications/api/v1/health/system_health/", "description": "Check system health"},
         ],
+        "📘 API DOCUMENTATION": [
+            {"method": "GET", "url": "/notifications/docs/", "description": "Swagger UI", "status": "✅ Active"},
+            {"method": "GET", "url": "/notifications/redoc/", "description": "ReDoc UI", "status": "✅ Active"},
+            {"method": "GET", "url": "/notifications/schema/", "description": "Schema (JSON)", "status": "✅ Active"},
+        ]
     }
 
     return render(request, 'notifications/notifications_hub.html', {
