@@ -12,22 +12,25 @@ class GoogleAnalyticsMiddleware:
     """
     True async middleware for Google Analytics with server-side tracking
     """
+    # Class-level async_mode to prevent AttributeError
+    async_mode = False
     
     def __init__(self, get_response):
         self.get_response = get_response
-        # Detect if get_response is async
-        if asyncio.iscoroutinefunction(self.get_response):
-            self.async_mode = True
-        else:
-            self.async_mode = False
-        
+        # Set instance-level async_mode based on get_response
+        self.async_mode = asyncio.iscoroutinefunction(get_response)
         self.ga_tracking_id = getattr(settings, 'GOOGLE_ANALYTICS_TRACKING_ID', None)
         self.ga_measurement_url = 'https://www.google-analytics.com/collect'
     
-    def __call__(self, request):
+    async def __call__(self, request):
+        """Django's standard async middleware pattern"""
         if self.async_mode:
-            return self.__acall__(request)
+            # Full async path
+            await self.process_request_async(request)
+            response = await self.get_response(request)
+            return await self.process_response_async(request, response)
         else:
+            # Sync fallback path
             return self._sync_call(request)
     
     async def __acall__(self, request):
