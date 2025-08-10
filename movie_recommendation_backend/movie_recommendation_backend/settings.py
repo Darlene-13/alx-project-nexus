@@ -86,7 +86,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'apps.analytics.middleware_old.google_analytics.GoogleAnalyticsMiddleware',
-    'apps.analytics.middleware.UserActivityLoggingMiddleware',
+    #'apps.analytics.middleware.UserActivityLoggingMiddleware',
 ]
 
 ROOT_URLCONF = 'movie_recommendation_backend.urls'
