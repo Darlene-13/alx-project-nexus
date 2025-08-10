@@ -5,7 +5,7 @@ import logging
 from django.utils.deprecation import MiddlewareMixin
 from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
-from analytics.models import UserActivityLog
+from .models import UserActivityLog
 
 logger = logging.getLogger(__name__)
 UserActivityLoggingMiddleware = 'apps.analytics.middleware.UserActivityLoggingMiddleware'
