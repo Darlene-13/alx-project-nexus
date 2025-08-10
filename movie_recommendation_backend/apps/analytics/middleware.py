@@ -8,7 +8,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from .models import UserActivityLog
 
 logger = logging.getLogger(__name__)
-UserActivityLoggingMiddleware = 'apps.analytics.middleware.UserActivityLoggingMiddleware'
 
 class UserActivityLoggingMiddleware(MiddlewareMixin):
     """
@@ -17,6 +16,7 @@ class UserActivityLoggingMiddleware(MiddlewareMixin):
     
     def __init__(self, get_response):
         self.get_response = get_response
+        super().__init__(get_response)  # Call parent constructor
         # Define paths to skip logging
         self.skip_paths = [
             "/static/", 
@@ -85,7 +85,7 @@ class UserActivityLoggingMiddleware(MiddlewareMixin):
                 ip_address=ip_address,
                 user_agent=user_agent,
                 source=source,
-                User=user,  # Match your model's parameter name
+                user=user,  # Fixed: lowercase 'user' instead of 'User'
                 referer=referer,
                 metadata=metadata
             )
@@ -166,7 +166,7 @@ class UserActivityLoggingMiddleware(MiddlewareMixin):
         try:
             # Handle anonymous users - only log if user is authenticated
             # since your model's user field appears to be required
-            user = kwargs.get('User')
+            user = kwargs.get('user')
             if not user or not user.is_authenticated:
                 # Skip logging for anonymous users since your model requires a user
                 return
