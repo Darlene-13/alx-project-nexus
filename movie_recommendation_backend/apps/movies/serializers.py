@@ -39,6 +39,21 @@ class MovieListSerializer(serializers.ModelSerializer):
             'views', 'like_count'
         ]
 
+    def get_genre_names(self, obj):
+        """
+        Return a list of genre names for this movie
+        """
+        try:
+            # Since you have genres = GenreSerializer(many=True), 
+            # this means obj.genres is a ManyToMany relationship
+            return list(obj.genres.values_list('name', flat=True))
+        except Exception as e:
+            # Fallback in case of any errors
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error getting genre names for movie {obj.id}: {e}")
+            return []
+
 class MovieDetailSerializer(serializers.ModelSerializer):
     """
     Comprehensive serializer for movie details.
