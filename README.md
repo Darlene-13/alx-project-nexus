@@ -17,7 +17,7 @@ This Movie Recommendation System represents a production-ready backend solution 
 
 
 ### Key Highlights
-- **6 Third-Party API Integrations** (TMDb, Brevo, Firebase, Google Analytics, etc.)
+- **4 Third-Party API Integrations** (TMDb, Brevo, OMDb, Google Analytics.)
 - **AI-Powered Recommendation Engine** with collaborative and content-based filtering
 - **Multi-Channel Communication** (Email, Push, In-App notifications)
 - **Real-Time Analytics** and performance monitoring
@@ -55,15 +55,13 @@ This Movie Recommendation System represents a production-ready backend solution 
 ### Core Backend
 - **Framework:** Django 4.2+ with Django REST Framework
 - **Database:** PostgreSQL 13+ (primary), Redis 6+ (cache/sessions)
-- **Task Queue:** Celery with RabbitMQ/Redis broker
+- **Task Queue:** Celery with Redis broker
 - **Authentication:** JWT tokens with refresh mechanism
 
 ### Third-Party Integrations
 - **Movie Data:** TMDb API, OMDb API
 - **Email Service:** Brevo
-- **Push Notifications:** Firebase/OneSignal
 - **Analytics:** Google Analytics API
-- **Monitoring:** Sentry, Django Silk
 - **Documentation:** Swagger/OpenAPI 3.0
 
 ### Development & Testing
@@ -96,7 +94,6 @@ This Movie Recommendation System represents a production-ready backend solution 
 
 ### 📧 Multi-Channel Communication
 - **Email Campaigns:** Weekly digests, new recommendations
-- **Push Notifications:** Real-time trending alerts
 - **In-App Messages:** Personalized suggestions
 - **Smart Segmentation:** Target by preferences and behavior
 
@@ -211,10 +208,9 @@ REDIS_URL=redis://localhost:6379/0
 
 # API Keys
 TMDB_API_KEY=your-tmdb-api-key
-SENDGRID_API_KEY=your-sendgrid-api-key
-ONESIGNAL_APP_ID=your-onesignal-app-id
+BREVO_SMTP_KEY=your-sendgrid-api-key
+OMDB_API_KEY=your-omdb-api-key
 GOOGLE_ANALYTICS_PROPERTY_ID=your-ga-property-id
-SENTRY_DSN=your-sentry-dsn
 ```
 
 ### 4. Database Migration & Setup
@@ -288,32 +284,6 @@ pytest tests/test_performance.py -v
 - **Models:** 100% coverage
 - **Views:** 95%+ coverage
 - **Services:** 90%+ coverage
-
----
-
-## 📊 Performance Monitoring
-
-### Monitoring Stack
-- **Application Performance:** Sentry APM
-- **Database Queries:** Django Silk profiling
-- **Custom Metrics:** Redis-based counters
-- **User Analytics:** Google Analytics integration
-- **Error Tracking:** Sentry error monitoring
-
-### Key Metrics Tracked
-- **Response Times:** API endpoint performance
-- **Database Performance:** Query optimization
-- **Cache Hit Rates:** Redis effectiveness
-- **User Engagement:** Feature usage patterns
-- **Recommendation Accuracy:** ML algorithm performance
-- **Notification Delivery:** Email/push success rates
-
-### Performance Targets
-- **API Response Time:** < 200ms (95th percentile)
-- **Database Query Time:** < 50ms (average)
-- **Cache Hit Rate:** > 85%
-- **Uptime:** 99.9%
-- **Error Rate:** < 0.1%
 
 ---
 
@@ -444,7 +414,7 @@ docker-compose up -d --build
 
 ### Real-World Applications
 ✅ **Scalable Architecture** - Handles thousands of concurrent users
-✅ **Multi-Channel Communication** - Email, push, in-app notifications
+✅ **Multi-Channel Communication** - Email and in-app notifications
 ✅ **AI-Powered Recommendations** - Machine learning algorithms
 ✅ **Analytics Integration** - Data-driven decision making
 ✅ **Background Processing** - Celery task management

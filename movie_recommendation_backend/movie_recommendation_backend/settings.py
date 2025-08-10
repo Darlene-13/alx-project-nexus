@@ -226,7 +226,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp-relay.brevo.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv('BREVO_HOST_USER', 'darlenenasimiyu@gmail.com')
+EMAIL_HOST_USER = os.getenv('BREVO_HOST_USER', '9459bf001@smtp-brevo.com')
 EMAIL_HOST_PASSWORD = os.getenv('BREVO_SMTP_KEY', 'your-brevo-smtp-key')
 DEFAULT_FROM_EMAIL = '  Movie Recommendation <darlenenasimiyu@gmail.com>'
 
