@@ -161,16 +161,94 @@ class CacheableViewMixin:
             timeout = self.cache_timeout
         cache.set(cache_key, data, timeout)
 
-
 class UserContextMixin:
-    """Mixin to filter queries by current user"""
+    """
+    Enhanced mixin to filter queries by current user with flexible configuration.
+    
+    Configuration Options:
+    - user_field: Field name to filter by (default: 'user')
+    - allow_anonymous: Whether anonymous users can access data (default: False)
+    
+    Usage Examples:
+    
+    # Basic usage (private user data):
+    class UserMovieInteractionViewSet(UserContextMixin, ModelViewSet):
+        pass
+    
+    # Custom user field:
+    class UserPostsViewSet(UserContextMixin, ModelViewSet):
+        user_field = 'author'
+    
+    # Public data with optional user filtering:
+    class PublicMoviesViewSet(UserContextMixin, ModelViewSet):
+        allow_anonymous = True
+    """
+    
+    # Configuration options - override in your viewset
+    user_field = 'user'  # Field name to filter by
+    allow_anonymous = False  # Whether anonymous users can access data
     
     def get_queryset(self):
-        """Filter queryset to current user's data"""
+        """Filter queryset to current user's data based on configuration"""
+        # Handle Swagger schema generation
+        if getattr(self, 'swagger_fake_view', False):
+            return super().get_queryset().none()
+        
         queryset = super().get_queryset()
-        if hasattr(self.model, 'user'):
-            return queryset.filter(user=self.request.user)
+        
+        # Check if model has the specified user field
+        if self._model_has_user_field():
+            if self.request.user.is_authenticated:
+                # Filter by authenticated user
+                filter_kwargs = {self.user_field: self.request.user}
+                return queryset.filter(**filter_kwargs)
+            elif not self.allow_anonymous:
+                # Return empty queryset for anonymous users (default behavior)
+                return queryset.none()
+            # If allow_anonymous=True, fall through to return unfiltered queryset
+        
         return queryset
+    
+    def _model_has_user_field(self):
+        """Check if the model has the specified user field"""
+        try:
+            # Check if field exists on model
+            field_names = [f.name for f in self.model._meta.get_fields()]
+            return self.user_field in field_names
+        except AttributeError:
+            # Handle case where model might not be set
+            return False
+    
+    def perform_create(self, serializer):
+        """Automatically set user when creating objects"""
+        if (self.request.user.is_authenticated and 
+            self._model_has_user_field() and
+            self.user_field not in serializer.validated_data):
+            # Only set user if:
+            # 1. User is authenticated
+            # 2. Model has the user field  
+            # 3. User field not already set in validated_data
+            serializer.save(**{self.user_field: self.request.user})
+        else:
+            super().perform_create(serializer)
+    
+    def perform_update(self, serializer):
+        """Ensure user field doesn't get changed during updates"""
+        # Remove user field from validated_data to prevent tampering
+        validated_data = serializer.validated_data
+        if self.user_field in validated_data:
+            validated_data.pop(self.user_field)
+        
+        super().perform_update(serializer)
+    
+    def get_permissions(self):
+        """Default permissions - can be overridden"""
+        # Handle Swagger schema generation
+        if getattr(self, 'swagger_fake_view', False):
+            return []
+        
+        # You can override this in your viewset for custom permissions
+        return super().get_permissions()
 
 
 class PerformanceOptimizedMixin:
