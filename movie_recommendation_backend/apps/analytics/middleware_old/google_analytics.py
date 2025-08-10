@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class GoogleAnalyticsMiddleware:
     """
-    True async middleware for Google Analytics with server-side tracking
+    Fixed async middleware for Google Analytics with server-side tracking
     """
     # Class-level async_mode to prevent AttributeError
     async_mode = False
@@ -22,15 +22,13 @@ class GoogleAnalyticsMiddleware:
         self.ga_tracking_id = getattr(settings, 'GOOGLE_ANALYTICS_TRACKING_ID', None)
         self.ga_measurement_url = 'https://www.google-analytics.com/collect'
     
-    async def __call__(self, request):
-        """Django's standard async middleware pattern"""
+    def __call__(self, request):
+        """Fixed: NOT async - handles both sync and async properly"""
         if self.async_mode:
-            # Full async path
-            await self.process_request_async(request)
-            response = await self.get_response(request)
-            return await self.process_response_async(request, response)
+            # Return coroutine for async mode
+            return self.__acall__(request)
         else:
-            # Sync fallback path
+            # Return response directly for sync mode
             return self._sync_call(request)
     
     async def __acall__(self, request):
@@ -48,9 +46,24 @@ class GoogleAnalyticsMiddleware:
     
     def _sync_call(self, request):
         """Synchronous fallback"""
-        # Sync version for compatibility
+        # Process request (sync version)
+        self.process_request_sync(request)
+        
+        # Get response from view
         response = self.get_response(request)
+        
+        # Process response (sync version)
         return self.process_response_sync(request, response)
+    
+    def process_request_sync(self, request):
+        """Sync request processing"""
+        # Skip for static files
+        if any(request.path.startswith(path) for path in ['/static/', '/media/', '/admin/', '/favicon.ico']):
+            return
+        
+        # Log GA tracking (sync version)
+        if self.ga_tracking_id:
+            logger.debug(f"GA tracking for {request.path}")
     
     async def process_request_async(self, request):
         """Async request processing"""
@@ -80,6 +93,51 @@ class GoogleAnalyticsMiddleware:
             await self._inject_ga_script_async(response)
         
         return response
+    
+    def process_response_sync(self, request, response):
+        """Sync response processing"""
+        # Skip non-HTML responses
+        try:
+            content_type = response.get('Content-Type', '')
+            if not content_type.startswith('text/html'):
+                return response
+        except AttributeError:
+            return response
+        
+        # Skip static files
+        if any(request.path.startswith(path) for path in ['/static/', '/media/', '/admin/', '/favicon.ico']):
+            return response
+        
+        # Sync GA script injection
+        if self.ga_tracking_id and hasattr(response, 'content'):
+            self._inject_ga_script_sync(response)
+        
+        return response
+    
+    def _inject_ga_script_sync(self, response):
+        """Inject GA script synchronously"""
+        try:
+            if b'</head>' in response.content:
+                ga_script = f'''
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id={self.ga_tracking_id}"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){{dataLayer.push(arguments);}}
+        gtag('js', new Date());
+        gtag('config', '{self.ga_tracking_id}');
+    </script>
+    '''
+                response.content = response.content.replace(
+                    b'</head>', 
+                    ga_script.encode('utf-8') + b'</head>'
+                )
+                
+                if response.get('Content-Length'):
+                    response['Content-Length'] = len(response.content)
+                    
+        except Exception as e:
+            logger.error(f"Error in sync GA script injection: {e}")
     
     async def _send_ga_pageview(self, request):
         """Send pageview to Google Analytics servers asynchronously"""
@@ -151,8 +209,3 @@ class GoogleAnalyticsMiddleware:
                     
         except Exception as e:
             logger.error(f"Error in async GA script injection: {e}")
-    
-    def process_response_sync(self, request, response):
-        """Sync fallback for response processing"""
-        # Basic sync processing - just return response unchanged
-        return response
