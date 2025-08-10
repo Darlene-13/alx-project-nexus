@@ -43,8 +43,8 @@ This Movie Recommendation System represents a production-ready backend solution 
                               │                       │
                     ┌─────────────────┐     ┌─────────────────┐
                     │ Third-Party APIs│     │  Monitoring     │
-                    │ TMDb, SendGrid, │     │ Sentry, Silk,   │
-                    │ Firebase, GA    │     │ Custom Metrics  │
+                    │ TMDb, Brevo     │     │   Render        │
+                    │ GA              │     │ Custom Metrics  │
                     └─────────────────┘     └─────────────────┘
 ```
 
