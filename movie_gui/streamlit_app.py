@@ -443,12 +443,13 @@ def make_api_request(endpoint: str, method: str = "GET", data: dict = None,
             response = requests.delete(url, headers=headers, timeout=timeout)
         
         # Update connection status and environment
-        st.session_state.backend_status = "connected"
-        if "render.com" in config.api_base_url:
-            st.session_state.api_environment = "production"
-        else:
-            st.session_state.api_environment = "local"
-            
+        if response:
+            st.session_state.backend_status = "connected"
+            if "render.com" in config.api_base_url:
+                st.session_state.api_environment = "production"
+            else:
+                st.session_state.api_environment = "local"
+        
         return response
         
     except requests.exceptions.ConnectionError:
@@ -457,6 +458,9 @@ def make_api_request(endpoint: str, method: str = "GET", data: dict = None,
         return None
     except requests.exceptions.Timeout:
         st.session_state.backend_status = "timeout"
+        return None
+    except requests.exceptions.RequestException as e:
+        st.session_state.backend_status = "error"
         return None
     except Exception as e:
         st.session_state.backend_status = "error"
@@ -489,13 +493,60 @@ def check_backend_health() -> bool:
 
 # Data fetching functions
 def fetch_popular_movies():
-    """Fetch popular movies using actual API"""
+    """Fetch popular movies with enhanced error handling"""
     if st.session_state.popular_movies is None:
-        response = make_api_request("/movies/api/v1/movies/popular/", auth_required=False)
-        if response and response.status_code == 200:
-            st.session_state.popular_movies = response.json()
-        else:
-            # Enhanced fallback data
+        try:
+            response = make_api_request("/movies/api/v1/movies/popular/", auth_required=False)
+            if response and response.status_code == 200:
+                data = response.json()
+                # Ensure we have the right structure
+                if isinstance(data, dict) and 'results' in data:
+                    st.session_state.popular_movies = data
+                elif isinstance(data, list):
+                    st.session_state.popular_movies = {"results": data}
+                else:
+                    st.session_state.popular_movies = {"results": []}
+            else:
+                # Enhanced fallback data based on your seeded movies
+                st.session_state.popular_movies = {
+                    "results": [
+                        {
+                            "id": 1,
+                            "title": "Spider-Man: No Way Home",
+                            "tmdb_rating": 7.9,
+                            "release_date": "2021-12-15",
+                            "overview": "Peter Parker's secret identity is revealed to the entire world. Desperate for help, Peter turns to Doctor Strange to make the world forget that he is Spider-Man.",
+                            "popularity_score": 30.58,
+                            "poster_path": "/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg",
+                            "views": 15420,
+                            "like_count": 892
+                        },
+                        {
+                            "id": 2,
+                            "title": "Inside Out 2", 
+                            "tmdb_rating": 7.6,
+                            "release_date": "2024-06-11",
+                            "overview": "Return to the mind of newly minted teenager Riley just as headquarters is undergoing a sudden demolition to make room for something entirely unexpected: new Emotions!",
+                            "popularity_score": 35.45,
+                            "poster_path": "/vpnVM9B6NMmQpWeZvzLvDESb2QY.jpg",
+                            "views": 12890,
+                            "like_count": 734
+                        },
+                        {
+                            "id": 3,
+                            "title": "Despicable Me 4",
+                            "tmdb_rating": 7.0,
+                            "release_date": "2024-06-20", 
+                            "overview": "Gru and Lucy and their girls—Margo, Edith and Agnes—welcome a new member to the Gru family, Gru Jr., who seems intent on tormenting his dad.",
+                            "popularity_score": 37.4,
+                            "poster_path": "/wWba3TaojhK7NdycRhoQpsG0FaH.jpg",
+                            "views": 10234,
+                            "like_count": 623
+                        }
+                    ]
+                }
+        except Exception as e:
+            # Fallback to demo data on any error
             st.session_state.popular_movies = {
                 "results": [
                     {
@@ -503,34 +554,40 @@ def fetch_popular_movies():
                         "title": "Spider-Man: No Way Home",
                         "tmdb_rating": 7.9,
                         "release_date": "2021-12-15",
-                        "overview": "Peter Parker's secret identity is revealed to the entire world. Desperate for help, Peter turns to Doctor Strange to make the world forget that he is Spider-Man.",
+                        "overview": "Peter Parker's secret identity is revealed to the entire world.",
                         "popularity_score": 30.58,
-                        "poster_path": "/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg",
                         "views": 15420,
                         "like_count": 892
-                    },
-                    {
-                        "id": 2,
-                        "title": "Inside Out 2", 
-                        "tmdb_rating": 7.6,
-                        "release_date": "2024-06-11",
-                        "overview": "Return to the mind of newly minted teenager Riley just as headquarters is undergoing a sudden demolition to make room for something entirely unexpected: new Emotions!",
-                        "popularity_score": 35.45,
-                        "poster_path": "/vpnVM9B6NMmQpWeZvzLvDESb2QY.jpg",
-                        "views": 12890,
-                        "like_count": 734
                     }
                 ]
             }
 
 def fetch_movie_stats():
-    """Fetch comprehensive movie statistics"""
+    """Fetch comprehensive movie statistics with error handling"""
     if st.session_state.movie_stats is None:
-        response = make_api_request("/movies/api/v1/movies/stats/", auth_required=False)
-        if response and response.status_code == 200:
-            st.session_state.movie_stats = response.json()
-        else:
-            # Enhanced fallback stats
+        try:
+            response = make_api_request("/movies/api/v1/movies/stats/", auth_required=False)
+            if response and response.status_code == 200:
+                data = response.json()
+                # Ensure we have a valid dictionary
+                if isinstance(data, dict):
+                    st.session_state.movie_stats = data
+                else:
+                    st.session_state.movie_stats = {}
+            else:
+                # Enhanced fallback stats
+                st.session_state.movie_stats = {
+                    "total_movies": 100,
+                    "total_users": 1247,
+                    "total_ratings": 15643,
+                    "total_recommendations": 48921,
+                    "genres_count": 18,
+                    "avg_rating": 7.2,
+                    "recent_additions": 23,
+                    "popular_this_week": 45
+                }
+        except Exception as e:
+            # Fallback stats on any error
             st.session_state.movie_stats = {
                 "total_movies": 100,
                 "total_users": 1247,
@@ -543,11 +600,25 @@ def fetch_movie_stats():
             }
 
 def fetch_trending_movies():
-    """Fetch trending movies from analytics"""
+    """Fetch trending movies from analytics with error handling"""
     if st.session_state.trending_movies is None:
-        response = make_api_request("/analytics/api/v1/trending/", auth_required=False)
-        if response and response.status_code == 200:
-            st.session_state.trending_movies = response.json()
+        try:
+            response = make_api_request("/analytics/api/v1/trending/", auth_required=False)
+            if response and response.status_code == 200:
+                data = response.json()
+                # Ensure we have the right structure
+                if isinstance(data, dict) and 'results' in data:
+                    st.session_state.trending_movies = data
+                elif isinstance(data, list):
+                    st.session_state.trending_movies = {"results": data}
+                else:
+                    st.session_state.trending_movies = {"results": []}
+            else:
+                # Fallback trending data
+                st.session_state.trending_movies = {"results": []}
+        except Exception as e:
+            # Silent fallback on error
+            st.session_state.trending_movies = {"results": []}
 
 def fetch_user_recommendations():
     """Fetch user's personalized recommendations"""
@@ -660,40 +731,137 @@ def show_enhanced_login_form():
                         time.sleep(0.01)
                         progress_bar.progress(i + 1)
                     
+                    # Prepare login data
+                    login_data = {
+                        "username": username,
+                        "password": password
+                    }
+                    
+                    # Debug login attempt
+                    st.info(f"🔍 **Debug:** Attempting login to `/authentication/auth/login/`")
+                    with st.expander("📋 Login Data (Debug)", expanded=False):
+                        safe_login_data = login_data.copy()
+                        safe_login_data["password"] = "***HIDDEN***"
+                        st.json(safe_login_data)
+                    
                     # Use actual login endpoint
                     response = make_api_request(
                         "/authentication/auth/login/",
                         method="POST",
-                        data={"username": username, "password": password},
+                        data=login_data,
                         auth_required=False
                     )
                     
                     if response and response.status_code == 200:
-                        data = response.json()
-                        st.session_state.authenticated = True
-                        st.session_state.token = data.get("access", data.get("access_token"))
-                        st.session_state.refresh_token = data.get("refresh", data.get("refresh_token"))
-                        st.session_state.user_info = {"username": username}
-                        st.session_state.user_journey = 'authenticated'
-                        
-                        # Clear cached data to fetch fresh user data
-                        st.session_state.user_profile = None
-                        st.session_state.user_recommendations = None
-                        
-                        st.success("✅ Login successful! Welcome to CineFlow!")
-                        st.balloons()
-                        time.sleep(2)
-                        st.rerun()
+                        try:
+                            data = response.json()
+                            
+                            # Handle different token response formats
+                            access_token = (
+                                data.get("access") or 
+                                data.get("access_token") or 
+                                data.get("token") or
+                                data.get("key")  # Some APIs use 'key'
+                            )
+                            
+                            refresh_token = (
+                                data.get("refresh") or 
+                                data.get("refresh_token")
+                            )
+                            
+                            if access_token:
+                                st.session_state.authenticated = True
+                                st.session_state.token = access_token
+                                if refresh_token:
+                                    st.session_state.refresh_token = refresh_token
+                                st.session_state.user_info = {"username": username}
+                                st.session_state.user_journey = 'authenticated'
+                                
+                                # Clear cached data to fetch fresh user data
+                                st.session_state.user_profile = None
+                                st.session_state.user_recommendations = None
+                                
+                                st.success("✅ Login successful! Welcome to CineFlow!")
+                                st.balloons()
+                                time.sleep(2)
+                                st.rerun()
+                            else:
+                                st.error("❌ Login response missing token")
+                                st.json(data)
+                                
+                        except Exception as e:
+                            st.error(f"❌ Error parsing login response: {str(e)}")
+                            st.text(f"Raw response: {response.text}")
+                            
                     else:
                         st.error("❌ Invalid credentials. Please check your username and password.")
+                        
                         if response:
+                            st.error(f"🚨 **HTTP Status:** {response.status_code}")
                             try:
                                 error_data = response.json()
+                                st.error("📄 **Server Response:**")
+                                st.json(error_data)
+                                
                                 if "detail" in error_data:
                                     st.info(f"💡 **Server message**: {error_data['detail']}")
+                                elif "non_field_errors" in error_data:
+                                    st.info(f"💡 **Error**: {error_data['non_field_errors'][0]}")
+                                    
                             except:
-                                pass
-                        st.info("💡 **Tip**: Make sure your caps lock is off and try again!")
+                                st.error(f"📄 **Raw Response:** {response.text}")
+                                
+                            # Suggest troubleshooting
+                            st.markdown("""
+                            ### 🔧 **Login Troubleshooting:**
+                            
+                            1. **Check Credentials:**
+                               - Ensure username and password are correct
+                               - Username might be case-sensitive
+                               - Make sure account was created successfully
+                            
+                            2. **Backend Issues:**
+                               - Login endpoint might expect different field names
+                               - Some backends use 'email' instead of 'username'
+                               - Check if account activation is required
+                            
+                            3. **Try Alternative Login Format:**
+                            """)
+                            
+                            # Try email-based login
+                            if st.button("🔄 **Try Email Login**", key="email_login"):
+                                email_login_data = {
+                                    "email": username,  # Try username as email
+                                    "password": password
+                                }
+                                
+                                st.info("🔄 Trying login with email field...")
+                                email_response = make_api_request(
+                                    "/authentication/auth/login/",
+                                    method="POST",
+                                    data=email_login_data,
+                                    auth_required=False
+                                )
+                                
+                                if email_response and email_response.status_code == 200:
+                                    st.success("✅ Email login worked!")
+                                    # Process successful login
+                                    try:
+                                        data = email_response.json()
+                                        access_token = data.get("access") or data.get("token")
+                                        if access_token:
+                                            st.session_state.authenticated = True
+                                            st.session_state.token = access_token
+                                            st.session_state.user_info = {"username": username}
+                                            st.rerun()
+                                    except:
+                                        pass
+                                else:
+                                    st.error("❌ Email login also failed")
+                        else:
+                            st.error("🌐 **Connection Issue:** Cannot reach login endpoint")
+                            
+                        st.info("💡 **Tip**: Make sure you've successfully registered and your caps lock is off!")
             else:
                 st.warning("⚠️ Please enter both username and password.")
     
@@ -734,7 +902,7 @@ def show_enhanced_registration_form():
                 show_completion_step()
 
 def show_basic_info_step():
-    """Step 1: Basic information with validation"""
+    """Step 1: Basic information matching your User model"""
     st.markdown("#### 🔹 Basic Information")
     
     col_a, col_b = st.columns(2)
@@ -745,14 +913,46 @@ def show_basic_info_step():
             help="This will be your unique identifier on CineFlow"
         )
         first_name = st.text_input("👤 First Name", placeholder="Your first name")
+        phone_number = st.text_input("📱 Phone Number", placeholder="+1234567890 (optional)")
     
     with col_b:
         email = st.text_input(
             "📧 Email *", 
             placeholder="your.email@example.com",
-            help="We'll use this for important updates"
+            help="Must be unique - we'll use this for important updates"
         )
         last_name = st.text_input("👤 Last Name", placeholder="Your last name")
+        date_of_birth = st.date_input("📅 Date of Birth", value=None, help="Optional - helps with age-appropriate recommendations")
+    
+    # Additional profile fields
+    col_e, col_f = st.columns(2)
+    with col_e:
+        country = st.text_input("🌍 Country", placeholder="Your country (optional)")
+        preferred_language = st.selectbox("🗣️ Preferred Language", 
+            options=[
+                ("en", "English"),
+                ("es", "Spanish"), 
+                ("fr", "French"),
+                ("de", "German"),
+                ("zh", "Chinese"),
+                ("ja", "Japanese"),
+                ("ru", "Russian"),
+                ("it", "Italian"),
+                ("pt", "Portuguese"),
+                ("hi", "Hindi"),
+                ("ar", "Arabic"),
+                ("ko", "Korean")
+            ],
+            format_func=lambda x: x[1],
+            index=0
+        )
+    
+    with col_f:
+        bio = st.text_area("📝 Bio", placeholder="Tell us about your movie preferences... (optional)", height=60)
+        device_type = st.selectbox("📱 Device Type",
+            options=[("", "Select Device"), ("web", "Web"), ("android", "Android"), ("ios", "iOS")],
+            format_func=lambda x: x[1] if x[1] else "Select Device"
+        )
     
     st.markdown("#### 🔒 Security")
     col_c, col_d = st.columns(2)
@@ -794,13 +994,32 @@ def show_basic_info_step():
     if next_button:
         if all([username, email, password, confirm_password]):
             if password == confirm_password and len(password) >= 8:
-                st.session_state.registration_data = {
+                # Build registration data matching your User model
+                registration_data = {
                     "username": username,
-                    "email": email,
+                    "email": email.lower().strip(),
                     "password": password,
-                    "first_name": first_name,
-                    "last_name": last_name
                 }
+                
+                # Add optional fields only if provided
+                if first_name:
+                    registration_data["first_name"] = first_name
+                if last_name:
+                    registration_data["last_name"] = last_name
+                if phone_number:
+                    registration_data["phone_number"] = phone_number
+                if date_of_birth:
+                    registration_data["date_of_birth"] = date_of_birth.isoformat()
+                if country:
+                    registration_data["country"] = country
+                if bio:
+                    registration_data["bio"] = bio
+                if preferred_language:
+                    registration_data["preferred_language"] = preferred_language[0]
+                if device_type and device_type[0]:
+                    registration_data["device_type"] = device_type[0]
+                
+                st.session_state.registration_data = registration_data
                 st.session_state.registration_progress = 1
                 st.rerun()
             else:
@@ -812,23 +1031,16 @@ def show_basic_info_step():
             st.warning("⚠️ Please fill in all required fields (marked with *).")
 
 def show_preferences_step():
-    """Step 2: Movie preferences with actual genres"""
+    """Step 2: Movie preferences matching your User model"""
     st.markdown("#### 🎭 Tell us about your movie taste!")
     st.markdown("*This helps us give you better recommendations from day one*")
     
-    # Fetch genres for selection
-    fetch_genres()
-    
-    if st.session_state.genres:
-        available_genres = st.session_state.genres.get('results', [])
-        genre_options = [f"{genre.get('icon', '🎬')} {genre.get('name')}" for genre in available_genres]
-    else:
-        genre_options = [
-            "🎬 Action", "🗺️ Adventure", "🎨 Animation", "😂 Comedy",
-            "🔍 Crime", "📚 Documentary", "🎭 Drama", "👨‍👩‍👧‍👦 Family",
-            "🧙 Fantasy", "📜 History", "👻 Horror", "🎵 Music",
-            "🔍 Mystery", "💕 Romance", "🚀 Sci-Fi", "😰 Thriller"
-        ]
+    # Fetch genres for selection (this would come from your Genre model)
+    genre_options = [
+        "Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", 
+        "Drama", "Family", "Fantasy", "History", "Horror", "Music", 
+        "Mystery", "Romance", "Science Fiction", "Thriller", "War", "Western"
+    ]
     
     st.markdown("**Select your favorite genres:**")
     favorite_genres = st.multiselect(
@@ -837,30 +1049,58 @@ def show_preferences_step():
         help="Select 3-5 genres for best recommendations"
     )
     
-    st.markdown("**Movie preferences:**")
+    st.markdown("**🎬 Movie Preferences:**")
     col_a, col_b = st.columns(2)
     
     with col_a:
-        watch_frequency = st.selectbox(
-            "🍿 How often do you watch movies?",
-            ["Daily", "Several times a week", "Weekly", "Monthly", "Occasionally"]
+        preferred_decade = st.selectbox(
+            "📅 Preferred decade",
+            ["", "2020s", "2010s", "2000s", "1990s", "1980s", "1970s", "1960s"],
+            help="Your favorite time period for movies"
         )
         
-        preferred_decade = st.selectbox(
-            "📅 Preferred time period",
-            ["Any time", "Latest releases (2020+)", "Modern classics (2010-2020)", 
-             "2000s hits", "90s favorites", "Classic films (before 1990)"]
+        content_rating_preference = st.selectbox(
+            "🔞 Content rating preference",
+            ["", "G", "PG", "PG-13", "R", "NC-17"],
+            help="Preferred content rating"
         )
     
     with col_b:
-        preferred_duration = st.selectbox(
-            "⏱️ Preferred movie length",
-            ["Any length", "Short films (< 90 min)", "Standard (90-150 min)", "Long epics (150+ min)"]
+        diversity_preference = st.slider(
+            "🌈 Recommendation diversity", 
+            0.0, 1.0, 0.5, 0.1,
+            help="Higher values = more variety in recommendations"
         )
         
-        content_rating = st.selectbox(
-            "🔞 Content rating preference",
-            ["All ratings", "Family friendly (G, PG)", "Teen and up (PG-13)", "Mature (R)"]
+        novelty_preference = st.slider(
+            "🆕 Novelty preference", 
+            0.0, 1.0, 0.5, 0.1,
+            help="Higher values = more unknown/new movies"
+        )
+    
+    st.markdown("**🤖 Algorithm Settings:**")
+    algorithm_preference = st.selectbox(
+        "🔬 Preferred recommendation method",
+        ["", "collaborative", "content_based", "hybrid", "popularity"],
+        help="How you'd like recommendations to be generated"
+    )
+    
+    # Privacy settings
+    st.markdown("**🔒 Privacy Settings:**")
+    col_c, col_d = st.columns(2)
+    
+    with col_c:
+        allow_demographic_targeting = st.checkbox(
+            "👥 Allow demographic targeting", 
+            value=True,
+            help="Use age and location for better recommendations"
+        )
+    
+    with col_d:
+        data_usage_consent = st.checkbox(
+            "📊 Data usage consent", 
+            value=False,
+            help="Consent to use your data for improving the service"
         )
     
     col_back, col_next = st.columns(2)
@@ -874,15 +1114,25 @@ def show_preferences_step():
         st.rerun()
     
     if next_button:
-        # Combine all registration data
+        # Get existing registration data
         registration_data = st.session_state.get('registration_data', {})
+        
+        # Add movie preferences matching your User model fields
         registration_data.update({
-            "favorite_genres": [genre.split(' ', 1)[1] for genre in favorite_genres],
-            "watch_frequency": watch_frequency,
-            "preferred_decade": preferred_decade,
-            "preferred_duration": preferred_duration,
-            "content_rating": content_rating
+            "favorite_genres": favorite_genres,  # This will be stored as JSONField
+            "diversity_preference": diversity_preference,
+            "novelty_preference": novelty_preference,
+            "allow_demographic_targeting": allow_demographic_targeting,
+            "data_usage_consent": data_usage_consent,
         })
+        
+        # Add optional preference fields only if provided
+        if preferred_decade:
+            registration_data["preferred_decade"] = preferred_decade
+        if content_rating_preference:
+            registration_data["content_rating_preference"] = content_rating_preference
+        if algorithm_preference:
+            registration_data["algorithm_preference"] = algorithm_preference
         
         # Submit registration using actual API
         with st.spinner("🎬 Creating your CineFlow account..."):
@@ -891,6 +1141,11 @@ def show_preferences_step():
                 time.sleep(0.02)
                 progress_bar.progress(i + 1)
             
+            # Debug: Show what data we're sending
+            st.info(f"🔍 **Debug:** Sending registration data to `/authentication/auth/register/`")
+            with st.expander("📋 Registration Data (Debug)", expanded=False):
+                st.json(registration_data)
+            
             response = make_api_request(
                 "/authentication/auth/register/",
                 method="POST",
@@ -898,6 +1153,7 @@ def show_preferences_step():
                 auth_required=False
             )
             
+            # Enhanced error handling and debugging
             if response and response.status_code in [200, 201]:
                 st.session_state.registration_progress = 2
                 st.success("🎉 Account created successfully!")
@@ -905,18 +1161,102 @@ def show_preferences_step():
                 time.sleep(2)
                 st.rerun()
             else:
+                # Detailed error analysis
                 error_msg = "❌ Registration failed."
+                
                 if response:
+                    st.error(f"🚨 **HTTP Status:** {response.status_code}")
+                    
                     try:
                         error_data = response.json()
+                        st.error(f"📄 **Server Response:**")
+                        st.json(error_data)
+                        
+                        # Parse specific errors
                         if "username" in error_data:
                             error_msg += " Username already exists."
                         elif "email" in error_data:
                             error_msg += " Email already registered."
+                        elif "password" in error_data:
+                            error_msg += " Password validation failed."
+                        elif "phone_number" in error_data:
+                            error_msg += " Invalid phone number format."
+                        elif "detail" in error_data:
+                            error_msg += f" {error_data['detail']}"
+                        elif "non_field_errors" in error_data:
+                            error_msg += f" {error_data['non_field_errors'][0]}"
                         else:
-                            error_msg += f" {error_data.get('detail', 'Please try again.')}"
-                    except:
-                        pass
+                            error_msg += " Check the server response above for details."
+                            
+                    except Exception as e:
+                        st.error(f"📄 **Raw Response:** {response.text}")
+                        st.error(f"🔍 **Parse Error:** {str(e)}")
+                        
+                    # Suggest fixes based on your User model
+                    st.markdown("""
+                    ### 🔧 **Troubleshooting Steps:**
+                    
+                    1. **Check Required Fields:**
+                       - Username (unique, max 150 chars)
+                       - Email (unique, valid format)
+                       - Password (min 8 characters)
+                    
+                    2. **Optional Field Formats:**
+                       - Phone: +1234567890 or 1234567890 format
+                       - Date of birth: YYYY-MM-DD format
+                       - Favorite genres: Array of strings
+                    
+                    3. **User Model Field Mapping:**
+                       - Your backend expects exact field names from the User model
+                       - Some fields have validation (phone_number, favorite_genres)
+                    
+                    4. **Try Minimal Registration:**
+                    """)
+                    
+                    # Minimal registration button
+                    if st.button("🔄 **Try Minimal Registration**", key="minimal_reg"):
+                        # Try with only required fields
+                        minimal_data = {
+                            "username": registration_data.get("username"),
+                            "email": registration_data.get("email"),
+                            "password": registration_data.get("password"),
+                        }
+                        
+                        st.info("🔄 Trying minimal registration with only required fields...")
+                        minimal_response = make_api_request(
+                            "/authentication/auth/register/",
+                            method="POST",
+                            data=minimal_data,
+                            auth_required=False
+                        )
+                        
+                        if minimal_response and minimal_response.status_code in [200, 201]:
+                            st.success("✅ Minimal registration worked!")
+                            st.session_state.registration_progress = 2
+                            st.rerun()
+                        else:
+                            st.error("❌ Even minimal registration failed")
+                            if minimal_response:
+                                st.json(minimal_response.json() if minimal_response.text else {"error": "No response"})
+                else:
+                    error_msg += " No response from server. Check your connection."
+                    st.error("🌐 **Connection Issue:** Cannot reach the backend server.")
+                    st.markdown("""
+                    ### 🔧 **Connection Troubleshooting:**
+                    
+                    1. **Check Backend Status:**
+                       - Visit: `https://alx-project-nexus-y0c5.onrender.com` directly
+                       - Render services may be sleeping and need time to wake up
+                    
+                    2. **Wait and Retry:**
+                       - Render free tier sleeps after 15 minutes of inactivity
+                       - First request may take 30-60 seconds to wake up the service
+                    
+                    3. **Check API Endpoints:**
+                       - Try: `https://alx-project-nexus-y0c5.onrender.com/authentication/auth/register/`
+                       - Verify the endpoint exists and accepts POST requests
+                    """)
+                
                 st.error(error_msg)
 
 def show_completion_step():
@@ -958,9 +1298,9 @@ def show_completion_step():
         st.rerun()
 
 def show_enhanced_preview_content():
-    """Enhanced preview with live data integration"""
+    """Enhanced preview with live data integration and error handling"""
     
-    # Fetch all preview data
+    # Fetch all preview data safely
     fetch_popular_movies()
     fetch_movie_stats()
     fetch_trending_movies()
@@ -989,20 +1329,28 @@ def show_enhanced_preview_content():
             </div>
             """, unsafe_allow_html=True)
     
-    # Popular Movies Showcase
+    # Popular Movies Showcase with safe access
     st.markdown("### 🔥 Popular Movies Right Now")
     
-    if st.session_state.popular_movies:
-        movies = st.session_state.popular_movies.get('results', [])
-        
-        # Display movies in a beautiful grid
-        for i in range(0, min(len(movies), 6), 2):
-            cols = st.columns(2)
-            for j, col in enumerate(cols):
-                if i + j < len(movies):
-                    movie = movies[i + j]
-                    with col:
-                        display_enhanced_movie_card(movie, show_interactions=False)
+    try:
+        if st.session_state.popular_movies and isinstance(st.session_state.popular_movies, dict):
+            movies = st.session_state.popular_movies.get('results', [])
+            
+            if movies and len(movies) > 0:
+                # Display movies in a beautiful grid
+                for i in range(0, min(len(movies), 6), 2):
+                    cols = st.columns(2)
+                    for j, col in enumerate(cols):
+                        if i + j < len(movies):
+                            movie = movies[i + j]
+                            with col:
+                                display_enhanced_movie_card(movie, show_interactions=False)
+            else:
+                st.info("🎬 Loading popular movies...")
+        else:
+            st.info("🎬 Loading popular movies...")
+    except Exception as e:
+        st.info("🎬 Movies coming soon...")
     
     # Feature Highlights
     st.markdown("### ✨ Why Choose CineFlow?")
@@ -1035,18 +1383,22 @@ def show_enhanced_preview_content():
                     </div>
                     """, unsafe_allow_html=True)
     
-    # Trending Section
-    if st.session_state.trending_movies:
-        st.markdown("### 📈 Trending This Week")
-        trending = st.session_state.trending_movies.get('results', [])
-        if trending:
-            for movie in trending[:3]:
-                st.markdown(f"""
-                <div class="recommendation-card">
-                    <h4 style="margin-bottom: 0.5rem;">🔥 {movie.get('title', 'Unknown')}</h4>
-                    <p style="margin: 0; color: #666;">📊 Trending score: {movie.get('trending_score', 'N/A')}</p>
-                </div>
-                """, unsafe_allow_html=True)
+    # Trending Section with safe access
+    try:
+        if st.session_state.trending_movies and isinstance(st.session_state.trending_movies, dict):
+            trending = st.session_state.trending_movies.get('results', [])
+            if trending and len(trending) > 0:
+                st.markdown("### 📈 Trending This Week")
+                for movie in trending[:3]:
+                    st.markdown(f"""
+                    <div class="recommendation-card">
+                        <h4 style="margin-bottom: 0.5rem;">🔥 {movie.get('title', 'Unknown')}</h4>
+                        <p style="margin: 0; color: #666;">📊 Trending score: {movie.get('trending_score', 'N/A')}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+    except Exception as e:
+        # Silent fail for trending section
+        pass
     
     # Final Call to Action
     st.markdown("""
@@ -1312,11 +1664,11 @@ def show_preview_sidebar():
     
     st.markdown("---")
     
-    # Latest movie preview
+    # Latest movie preview with null check
     fetch_popular_movies()
-    if st.session_state.popular_movies:
+    if st.session_state.popular_movies and isinstance(st.session_state.popular_movies, dict):
         movies = st.session_state.popular_movies.get('results', [])
-        if movies:
+        if movies and len(movies) > 0:
             latest = movies[0]
             st.markdown("### 🔥 **Trending Now**")
             st.markdown(f"""
@@ -1326,6 +1678,23 @@ def show_preview_sidebar():
                 <div style="font-size: 0.8rem; color: #666;">📅 {latest.get('release_date', 'Unknown')}</div>
             </div>
             """, unsafe_allow_html=True)
+        else:
+            st.markdown("### 🔥 **Featured**")
+            st.markdown("""
+            <div style="background: white; padding: 1rem; border-radius: 12px; border: 1px solid #e2e8f0;">
+                <div style="font-weight: bold; margin-bottom: 0.5rem; color: #2d3748;">Spider-Man: No Way Home</div>
+                <div style="font-size: 0.8rem; color: #666; margin-bottom: 0.3rem;">⭐ 7.9/10</div>
+                <div style="font-size: 0.8rem; color: #666;">📅 2021</div>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.markdown("### 🔥 **Featured**")
+        st.markdown("""
+        <div style="background: white; padding: 1rem; border-radius: 12px; border: 1px solid #e2e8f0;">
+            <div style="font-weight: bold; margin-bottom: 0.5rem; color: #2d3748;">Welcome to CineFlow</div>
+            <div style="font-size: 0.8rem; color: #666;">🎬 Discover amazing movies</div>
+        </div>
+        """, unsafe_allow_html=True)
     
     st.markdown("---")
     
@@ -3129,3 +3498,4 @@ def provide_recommendation_feedback(recommendation_id, feedback_type):
 
 if __name__ == "__main__":
     main()
+    
