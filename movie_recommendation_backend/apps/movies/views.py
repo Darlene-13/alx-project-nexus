@@ -104,7 +104,7 @@ class StandardResultsPagination(PageNumberPagination):
 
 class MovieViewSet(viewsets.ModelViewSet):
     """
-    THis is a vieset for CRUD operations in the movie model.
+    TThis is a viewset for CRUD operations in the movie model.
     """
     queryset = Movie.objects.select_related().prefetch_related('genres')
     permission_classes = [IsAuthenticatedOrReadOnly]

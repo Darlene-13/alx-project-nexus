@@ -398,6 +398,8 @@ CELERY_TASK_ROUTES = {
 }
 
 # Retry configuration
+CELERY_BROKER_URL = 'redis://redis:6379/0'  
+CELERY_RESULT_BACKEND = 'redis://redis:6379/0'
 CELERY_TASK_RETRY_DELAY = 60  # Retry after 60 seconds
 CELERY_TASK_MAX_RETRIES = 3
 
