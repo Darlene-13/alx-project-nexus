@@ -84,7 +84,7 @@ numpy==2.3.2
 packaging==25.0
 pandas==2.3.1
 pillow==11.3.0
-plotly==6.2.0
+plotly==5.17.0
 prometheus_client==0.22.1
 prompt_toolkit==3.0.51
 propcache==0.3.2
