@@ -1,2 +1,4 @@
 .env
 myenv
+# Ignore Kubernetes manifests
+k8s/
