@@ -1031,7 +1031,7 @@ def show_basic_info_step():
             st.warning("⚠️ Please fill in all required fields (marked with *).")
 
 def show_preferences_step():
-    """Step 2: Movie preferences matching your User model"""
+    """Step 2: Movie preferences - simplified to match auth model"""
     st.markdown("#### 🎭 Tell us about your movie taste!")
     st.markdown("*This helps us give you better recommendations from day one*")
     
@@ -1049,59 +1049,11 @@ def show_preferences_step():
         help="Select 3-5 genres for best recommendations"
     )
     
-    st.markdown("**🎬 Movie Preferences:**")
-    col_a, col_b = st.columns(2)
-    
-    with col_a:
-        preferred_decade = st.selectbox(
-            "📅 Preferred decade",
-            ["", "2020s", "2010s", "2000s", "1990s", "1980s", "1970s", "1960s"],
-            help="Your favorite time period for movies"
-        )
-        
-        content_rating_preference = st.selectbox(
-            "🔞 Content rating preference",
-            ["", "G", "PG", "PG-13", "R", "NC-17"],
-            help="Preferred content rating"
-        )
-    
-    with col_b:
-        diversity_preference = st.slider(
-            "🌈 Recommendation diversity", 
-            0.0, 1.0, 0.5, 0.1,
-            help="Higher values = more variety in recommendations"
-        )
-        
-        novelty_preference = st.slider(
-            "🆕 Novelty preference", 
-            0.0, 1.0, 0.5, 0.1,
-            help="Higher values = more unknown/new movies"
-        )
-    
-    st.markdown("**🤖 Algorithm Settings:**")
-    algorithm_preference = st.selectbox(
-        "🔬 Preferred recommendation method",
-        ["", "collaborative", "content_based", "hybrid", "popularity"],
-        help="How you'd like recommendations to be generated"
-    )
-    
-    # Privacy settings
-    st.markdown("**🔒 Privacy Settings:**")
-    col_c, col_d = st.columns(2)
-    
-    with col_c:
-        allow_demographic_targeting = st.checkbox(
-            "👥 Allow demographic targeting", 
-            value=True,
-            help="Use age and location for better recommendations"
-        )
-    
-    with col_d:
-        data_usage_consent = st.checkbox(
-            "📊 Data usage consent", 
-            value=False,
-            help="Consent to use your data for improving the service"
-        )
+    # Optional: Add a brief explanation about how this will be used
+    if favorite_genres:
+        st.success(f"✨ Great choice! You selected {len(favorite_genres)} genres. This will help us recommend movies you'll love!")
+    else:
+        st.info("💡 **Tip:** Selecting a few genres now will give you better recommendations right away!")
     
     col_back, col_next = st.columns(2)
     with col_back:
@@ -1117,22 +1069,10 @@ def show_preferences_step():
         # Get existing registration data
         registration_data = st.session_state.get('registration_data', {})
         
-        # Add movie preferences matching your User model fields
+        # Add only the favorite genres (matching your User model)
         registration_data.update({
             "favorite_genres": favorite_genres,  # This will be stored as JSONField
-            "diversity_preference": diversity_preference,
-            "novelty_preference": novelty_preference,
-            "allow_demographic_targeting": allow_demographic_targeting,
-            "data_usage_consent": data_usage_consent,
         })
-        
-        # Add optional preference fields only if provided
-        if preferred_decade:
-            registration_data["preferred_decade"] = preferred_decade
-        if content_rating_preference:
-            registration_data["content_rating_preference"] = content_rating_preference
-        if algorithm_preference:
-            registration_data["algorithm_preference"] = algorithm_preference
         
         # Submit registration using actual API
         with st.spinner("🎬 Creating your CineFlow account..."):
@@ -1155,6 +1095,111 @@ def show_preferences_step():
             
             # Enhanced error handling and debugging
             if response and response.status_code in [200, 201]:
+                st.session_state.registration_progress = 2
+                st.success("🎉 Account created successfully!")
+                st.balloons()
+                time.sleep(2)
+                st.rerun()
+            else:
+                # Detailed error analysis
+                error_msg = "❌ Registration failed."
+                
+                if response:
+                    st.error(f"🚨 **HTTP Status:** {response.status_code}")
+                    
+                    try:
+                        error_data = response.json()
+                        st.error(f"📄 **Server Response:**")
+                        st.json(error_data)
+                        
+                        # Parse specific errors
+                        if "username" in error_data:
+                            error_msg += " Username already exists."
+                        elif "email" in error_data:
+                            error_msg += " Email already registered."
+                        elif "password" in error_data:
+                            error_msg += " Password validation failed."
+                        elif "phone_number" in error_data:
+                            error_msg += " Invalid phone number format."
+                        elif "favorite_genres" in error_data:
+                            error_msg += " Invalid genre selection."
+                        elif "detail" in error_data:
+                            error_msg += f" {error_data['detail']}"
+                        elif "non_field_errors" in error_data:
+                            error_msg += f" {error_data['non_field_errors'][0]}"
+                        else:
+                            error_msg += " Check the server response above for details."
+                            
+                    except Exception as e:
+                        st.error(f"📄 **Raw Response:** {response.text}")
+                        st.error(f"🔍 **Parse Error:** {str(e)}")
+                        
+                    # Suggest fixes based on your User model
+                    st.markdown("""
+                    ### 🔧 **Troubleshooting Steps:**
+                    
+                    1. **Check Required Fields:**
+                       - Username (unique, max 150 chars)
+                       - Email (unique, valid format)
+                       - Password (min 8 characters)
+                    
+                    2. **Optional Field Formats:**
+                       - Phone: +1234567890 or 1234567890 format
+                       - Date of birth: YYYY-MM-DD format
+                       - Favorite genres: Array of strings
+                    
+                    3. **User Model Field Mapping:**
+                       - Your backend expects exact field names from the User model
+                       - Some fields have validation (phone_number, favorite_genres)
+                    
+                    4. **Try Minimal Registration:**
+                    """)
+                    
+                    # Minimal registration button
+                    if st.button("🔄 **Try Minimal Registration**", key="minimal_reg"):
+                        # Try with only required fields
+                        minimal_data = {
+                            "username": registration_data.get("username"),
+                            "email": registration_data.get("email"),
+                            "password": registration_data.get("password"),
+                        }
+                        
+                        st.info("🔄 Trying minimal registration with only required fields...")
+                        minimal_response = make_api_request(
+                            "/authentication/auth/register/",
+                            method="POST",
+                            data=minimal_data,
+                            auth_required=False
+                        )
+                        
+                        if minimal_response and minimal_response.status_code in [200, 201]:
+                            st.success("✅ Minimal registration worked!")
+                            st.session_state.registration_progress = 2
+                            st.rerun()
+                        else:
+                            st.error("❌ Even minimal registration failed")
+                            if minimal_response:
+                                st.json(minimal_response.json() if minimal_response.text else {"error": "No response"})
+                else:
+                    error_msg += " No response from server. Check your connection."
+                    st.error("🌐 **Connection Issue:** Cannot reach the backend server.")
+                    st.markdown("""
+                    ### 🔧 **Connection Troubleshooting:**
+                    
+                    1. **Check Backend Status:**
+                       - Visit: `https://alx-project-nexus-y0c5.onrender.com` directly
+                       - Render services may be sleeping and need time to wake up
+                    
+                    2. **Wait and Retry:**
+                       - Render free tier sleeps after 15 minutes of inactivity
+                       - First request may take 30-60 seconds to wake up the service
+                    
+                    3. **Check API Endpoints:**
+                       - Try: `https://alx-project-nexus-y0c5.onrender.com/authentication/auth/register/`
+                       - Verify the endpoint exists and accepts POST requests
+                    """)
+                
+                st.error(error_msg)status_code in [200, 201]:
                 st.session_state.registration_progress = 2
                 st.success("🎉 Account created successfully!")
                 st.balloons()
