@@ -1,0 +1,190 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: celery-beat-pvc
+  namespace: movie-recommendation
+  labels:
+    app: movie-recommendation-celery
+    component: beat
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: standard # Change to your storage class
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-beat
+  namespace: movie-recommendation
+  labels:
+    app: movie-recommendation-celery
+    component: beat
+spec:
+  replicas: 1  # Only one beat scheduler needed
+  strategy:
+    type: Recreate  # Important: only one beat scheduler should run
+  selector:
+    matchLabels:
+      app: movie-recommendation-celery
+      component: beat
+  template:
+    metadata:
+      labels:
+        app: movie-recommendation-celery
+        component: beat
+    spec:
+      initContainers:
+      - name: wait-for-services
+        image: movie_recommendation_backend:latest  # Replace with your image
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Waiting for database..."
+          while ! nc -z postgres-service 5432; do
+            sleep 1
+          done
+          echo "Database is ready!"
+          
+          echo "Waiting for Redis..."
+          while ! nc -z redis-service 6379; do
+            sleep 1
+          done
+          echo "Redis is ready!"
+      
+      containers:
+      - name: celery-beat
+        image: movie_recommendation_backend:latest  # Replace with your image
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Starting Celery Beat scheduler..."
+          celery -A movie_recommendation_backend beat \
+            --loglevel=info \
+            --schedule=/app/celery-beat/celerybeat-schedule \
+            --pidfile=/app/celery-beat/celerybeat.pid
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: movie-recommendation-db-secret
+              key: DATABASE_URL
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: movie-recommendation-app-secret
+              key: SECRET_KEY
+        - name: C_FORCE_ROOT
+          value: "1"
+        envFrom:
+        - configMapRef:
+            name: movie-recommendation-config
+        volumeMounts:
+        - name: celery-beat-data
+          mountPath: /app/celery-beat
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "test -f /app/celery-beat/celerybeat.pid && kill -0 $(cat /app/celery-beat/celerybeat.pid)"
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "test -f /app/celery-beat/celerybeat.pid"
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+      
+      volumes:
+      - name: celery-beat-data
+        persistentVolumeClaim:
+          claimName: celery-beat-pvc
+      
+      restartPolicy: Always
+---
+# Celery Beat Configuration for Periodic Tasks
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: celery-beat-config
+  namespace: movie-recommendation
+  labels:
+    app: movie-recommendation-celery
+    component: beat
+data:
+  periodic-tasks-info.md: |
+    # Celery Beat Periodic Tasks Configuration
+    
+    Add this to your Django settings.py:
+    
+    ```python
+    # settings.py
+    from celery.schedules import crontab
+    
+    CELERY_BEAT_SCHEDULE = {
+        # Generate recommendations for all users daily at 2 AM
+        'generate-daily-recommendations': {
+            'task': 'movies.tasks.generate_recommendations_for_all_users',
+            'schedule': crontab(hour=2, minute=0),
+        },
+        
+        # Update movie database weekly on Sundays at 3 AM
+        'update-movie-database-weekly': {
+            'task': 'movies.tasks.update_movie_database',
+            'schedule': crontab(hour=3, minute=0, day_of_week=0),
+        },
+        
+        # Send weekly digest to all users on Sundays at 9 AM
+        'send-weekly-digest': {
+            'task': 'notifications.tasks.send_weekly_digest_to_all_users',
+            'schedule': crontab(hour=9, minute=0, day_of_week=0),
+        },
+        
+        # Clean up old analytics data monthly
+        'cleanup-old-analytics': {
+            'task': 'analytics.tasks.cleanup_old_analytics_data',
+            'schedule': crontab(hour=1, minute=0, day_of_month=1),
+        },
+        
+        # Update daily popularity metrics every hour
+        'update-popularity-metrics': {
+            'task': 'analytics.tasks.update_daily_popularity_metrics',
+            'schedule': crontab(minute=0),  # Every hour
+        },
+    }
+    
+    CELERY_TIMEZONE = 'UTC'
+    ```
+    
+    ## Monitoring Periodic Tasks
+    
+    You can monitor scheduled tasks using Celery commands:
+    
+    ```bash
+    # View scheduled tasks
+    kubectl exec -it deployment/celery-beat -n movie-recommendation -- \
+        celery -A movie_recommendation_backend inspect scheduled
+    
+    # View active tasks
+    kubectl exec -it deployment/celery-worker -n movie-recommendation -- \
+        celery -A movie_recommendation_backend inspect active
+    
+    # View registered tasks
+    kubectl exec -it deployment/celery-worker -n movie-recommendation -- \
+        celery -A movie_recommendation_backend inspect registered
+    ```

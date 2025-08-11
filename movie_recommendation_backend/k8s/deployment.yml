@@ -1,0 +1,222 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: movie-recommendation
+  labels:
+    app: movie-recommendation-backend
+    component: api
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: movie-recommendation-backend
+      component: api
+  template:
+    metadata:
+      labels:
+        app: movie-recommendation-backend
+        component: api
+    spec:
+      # Use your Docker image - update this to your image
+      # imagePullSecrets:
+      # - name: movie-recommendation-registry-secret
+      
+      initContainers:
+      - name: migrate
+        image: movie_recommendation_backend:latest  # Replace with your image
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Waiting for database..."
+          while ! nc -z postgres-service 5432; do
+            sleep 1
+          done
+          echo "Database is ready!"
+          
+          echo "Running migrations..."
+          python manage.py migrate
+          
+          echo "Collecting static files..."
+          python manage.py collectstatic --noinput
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: movie-recommendation-db-secret
+              key: DATABASE_URL
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: movie-recommendation-app-secret
+              key: SECRET_KEY
+        envFrom:
+        - configMapRef:
+            name: movie-recommendation-config
+        volumeMounts:
+        - name: static-files
+          mountPath: /app/staticfiles
+        - name: media-files
+          mountPath: /app/mediafiles
+      
+      containers:
+      - name: backend
+        image: movie_recommendation_backend:latest  # Replace with your image
+        ports:
+        - containerPort: 8000
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Starting Django application..."
+          # Use gunicorn for production
+          gunicorn movie_recommendation_backend.wsgi:application \
+            --bind 0.0.0.0:8000 \
+            --workers 3 \
+            --worker-class gthread \
+            --threads 2 \
+            --worker-connections 1000 \
+            --max-requests 1000 \
+            --max-requests-jitter 100 \
+            --preload \
+            --access-logfile - \
+            --error-logfile - \
+            --log-level info
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: movie-recommendation-db-secret
+              key: DATABASE_URL
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: movie-recommendation-app-secret
+              key: SECRET_KEY
+        - name: SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              name: movie-recommendation-app-secret
+              key: SENTRY_DSN
+              optional: true
+        envFrom:
+        - configMapRef:
+            name: movie-recommendation-config
+        volumeMounts:
+        - name: static-files
+          mountPath: /app/staticfiles
+        - name: media-files
+          mountPath: /app/mediafiles
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health/
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /health/
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 10"]
+      
+      volumes:
+      - name: static-files
+        emptyDir: {}
+      - name: media-files
+        persistentVolumeClaim:
+          claimName: media-files-pvc
+      
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: media-files-pvc
+  namespace: movie-recommendation
+  labels:
+    app: movie-recommendation-backend
+spec:
+  accessModes:
+    - ReadWriteMany  # Multiple pods need access
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard # Change to your storage class
+---
+# Health check endpoint - add this to your Django urls.py
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: health-check-info
+  namespace: movie-recommendation
+  labels:
+    app: movie-recommendation-backend
+data:
+  health-endpoint-info.md: |
+    # Health Check Endpoint Setup
+    
+    Add this to your Django project's main urls.py:
+    
+    ```python
+    # urls.py
+    from django.http import JsonResponse
+    from django.urls import path, include
+    
+    def health_check(request):
+        return JsonResponse({'status': 'healthy', 'service': 'movie-recommendation-backend'})
+    
+    urlpatterns = [
+        path('admin/', admin.site.urls),
+        path('health/', health_check, name='health_check'),
+        # ... your other URLs
+    ]
+    ```
+    
+    Or create a dedicated health app:
+    
+    ```python
+    # health/views.py
+    from django.http import JsonResponse
+    from django.db import connection
+    from django.core.cache import cache
+    
+    def health_check(request):
+        try:
+            # Check database
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+            
+            # Check cache/Redis
+            cache.set('health_check', 'ok', 1)
+            cache.get('health_check')
+            
+            return JsonResponse({
+                'status': 'healthy',
+                'database': 'ok',
+                'cache': 'ok',
+                'service': 'movie-recommendation-backend'
+            })
+        except Exception as e:
+            return JsonResponse({
+                'status': 'unhealthy',
+                'error': str(e)
+            }, status=500)
+    ```

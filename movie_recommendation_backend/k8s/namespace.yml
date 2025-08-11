@@ -1,10 +1,43 @@
-# k8s/namespace.yml
-# This creates a "container" for all your movie recommendation resources
-# Think of it like a project folder that keeps everything organized
-
-apiVersion: v1           # Kubernetes API version
-kind: Namespace         
+#Kubernetes Namespace and Resource Quota Configuration for Movie Recommendation Backend
+#This file defines the namespace, resource quota, and limit range for the movie recommendation backend application.
+#It ensures that the application runs in a dedicated namespace with specified resource limits.
+#This configuration is essential for managing resources effectively in a Kubernetes cluster.
+apiVersion: v1
+kind: Namespace
 metadata:
-  name: movie-recommendation     
+  name: movie-recommendation
   labels:
-    app: movie-recommendation-backend    
+    app: movie-recommendation-backend
+    environment: production
+    version: v1.0.0
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: movie-recommendation-quota
+  namespace: movie-recommendation
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    persistentvolumeclaims: "4"
+    services: "10"
+    secrets: "10"
+    configmaps: "10"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: movie-recommendation-limits
+  namespace: movie-recommendation
+spec:
+  limits:
+  - default:
+      memory: "1Gi"
+      cpu: "500m"
+    defaultRequest:
+      memory: "256Mi"
+      cpu: "100m"
+    type: Container

@@ -1,50 +1,119 @@
-# k8s/namespace.yml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: movie-recommendation
-  labels:
-    app: movie-recommendation-backend
+# movie_recommendation_backend/k8s/configmap.yml
+# Kubernetes ConfigMap for Movie Recommendation Backend
+# This file defines the configuration settings for the movie recommendation backend application.
+# It includes application settings, database configuration, Redis settings, Celery configuration,
+# email settings, and feature flags.
+# This configuration is essential for the application to run correctly in a Kubernetes environment.
 
----
-# k8s/configmap.yml
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: movie-recommendation-config
   namespace: movie-recommendation
+  labels:
+    app: movie-recommendation-backend
 data:
-  DEBUG: "1"
-  PORT: "8001:8000"
+  # Application Settings
+  DEBUG: "0"
+  PORT: "8000"
+  ALLOWED_HOSTS: "movie-recommendation.local,localhost,127.0.0.1"
+  
+  # Database Configuration
   POSTGRES_HOST: "postgres-service"
-  POSTGRES_PORT: "5433:5432"
+  POSTGRES_PORT: "5432"
   POSTGRES_DB: "movie_recommendation_db"
-  POSTGRES_HOST_AUTH_METHOD: "trust"
+  POSTGRES_USER: "movie_user"
+  
+  # Redis Configuration  
   REDIS_HOST: "redis-service"
   REDIS_PORT: "6379"
+  REDIS_URL: "redis://redis-service:6379/0"
+  
+  # Celery Configuration
   CELERY_BROKER_URL: "redis://redis-service:6379/0"
   CELERY_RESULT_BACKEND: "redis://redis-service:6379/0"
-  DJANGO_SETTINGS_MODULE: "movie_recommendation_backend.settings"
-  # Email settings
+  
+  # Email Configuration
   EMAIL_BACKEND: "django.core.mail.backends.console.EmailBackend"
-  SITE_URL: "http://localhost:8001"
-  SUPPORT_EMAIL: "support@movierecommendation.com"
-
+  DEFAULT_FROM_EMAIL: "noreply@movierecommendation.com"
+  
+  # Application URLs
+  FRONTEND_URL: "https://movie-recommendation.local"
+  API_URL: "https://api.movie-recommendation.local"
+  
+  # Feature Flags
+  ENABLE_RECOMMENDATIONS: "true"
+  ENABLE_ANALYTICS: "true"
+  ENABLE_NOTIFICATIONS: "true"
+  
+  # Performance Settings
+  CELERY_WORKER_CONCURRENCY: "4"
+  CELERY_WORKER_PREFETCH_MULTIPLIER: "1"
+  CELERY_TASK_SOFT_TIME_LIMIT: "300"
+  CELERY_TASK_TIME_LIMIT: "600"
+  
+  # Logging
+  LOG_LEVEL: "INFO"
+  
 ---
-# k8s/secrets.yml
 apiVersion: v1
-kind: Secret
+kind: ConfigMap
 metadata:
-  name: movie-recommendation-secrets
+  name: movie-recommendation-nginx-config
   namespace: movie-recommendation
-type: Opaque
+  labels:
+    app: movie-recommendation-nginx
 data:
-environment:
-.env
-  # Base64 encoded values - replace these with your actual credentials
-  POSTGRES_USER: ${POSTGRES_USER}
-  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-  SECRET_KEY: ${SECRET_KEY}
-  # Email credentials (base64 encoded)
-  EMAIL_HOST_USER: darlenenasimiyu@gmail.com
-  EMAIL_HOST_PASSWORD: ${BREVO_SMTP_KEY}}
+  nginx.conf: |
+    upstream backend {
+        server backend-service:8000;
+    }
+    
+    server {
+        listen 80;
+        server_name movie-recommendation.local;
+        
+        # Security headers
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "no-referrer-when-downgrade" always;
+        add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline'" always;
+        
+        # Gzip compression
+        gzip on;
+        gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+        
+        # Static files
+        location /static/ {
+            alias /var/www/static/;
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+        
+        location /media/ {
+            alias /var/www/media/;
+            expires 1y;
+            add_header Cache-Control "public";
+        }
+        
+        # API endpoints
+        location / {
+            proxy_pass http://backend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            
+            # Timeouts
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 60s;
+            proxy_read_timeout 60s;
+        }
+        
+        # Health check
+        location /health {
+            proxy_pass http://backend/health;
+            access_log off;
+        }
+    }

@@ -1,0 +1,206 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-worker
+  namespace: movie-recommendation
+  labels:
+    app: movie-recommendation-celery
+    component: worker
+spec:
+  replicas: 2  # Scale based on your workload
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: movie-recommendation-celery
+      component: worker
+  template:
+    metadata:
+      labels:
+        app: movie-recommendation-celery
+        component: worker
+    spec:
+      initContainers:
+      - name: wait-for-services
+        image: movie_recommendation_backend:latest  # Replace with your image
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Waiting for database..."
+          while ! nc -z postgres-service 5432; do
+            sleep 1
+          done
+          echo "Database is ready!"
+          
+          echo "Waiting for Redis..."
+          while ! nc -z redis-service 6379; do
+            sleep 1
+          done
+          echo "Redis is ready!"
+      
+      containers:
+      - name: celery-worker
+        image: movie_recommendation_backend:latest  # Replace with your image
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Starting Celery worker..."
+          celery -A movie_recommendation_backend worker \
+            --loglevel=info \
+            --concurrency=4 \
+            --prefetch-multiplier=1 \
+            --max-tasks-per-child=1000 \
+            --time-limit=600 \
+            --soft-time-limit=300 \
+            --queues=recommendations,analytics,notifications \
+            --hostname=worker-%h
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: movie-recommendation-db-secret
+              key: DATABASE_URL
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: movie-recommendation-app-secret
+              key: SECRET_KEY
+        - name: SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              name: movie-recommendation-app-secret
+              key: SENTRY_DSN
+              optional: true
+        - name: C_FORCE_ROOT
+          value: "1"  # Allow Celery to run as root in container
+        envFrom:
+        - configMapRef:
+            name: movie-recommendation-config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "celery -A movie_recommendation_backend inspect ping -d worker@$HOSTNAME"
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "celery -A movie_recommendation_backend inspect ping -d worker@$HOSTNAME"
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+      
+      restartPolicy: Always
+---
+# Separate deployment for high-priority recommendation tasks
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-worker-recommendations
+  namespace: movie-recommendation
+  labels:
+    app: movie-recommendation-celery
+    component: recommendations-worker
+spec:
+  replicas: 2  # Dedicated workers for recommendations
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: movie-recommendation-celery
+      component: recommendations-worker
+  template:
+    metadata:
+      labels:
+        app: movie-recommendation-celery
+        component: recommendations-worker
+    spec:
+      initContainers:
+      - name: wait-for-services
+        image: movie_recommendation_backend:latest  # Replace with your image
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Waiting for Redis..."
+          while ! nc -z redis-service 6379; do
+            sleep 1
+          done
+          echo "Redis is ready!"
+      
+      containers:
+      - name: celery-recommendations-worker
+        image: movie_recommendation_backend:latest  # Replace with your image
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Starting Celery recommendations worker..."
+          celery -A movie_recommendation_backend worker \
+            --loglevel=info \
+            --concurrency=2 \
+            --prefetch-multiplier=1 \
+            --max-tasks-per-child=100 \
+            --time-limit=900 \
+            --soft-time-limit=600 \
+            --queues=recommendations \
+            --hostname=rec-worker-%h
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: movie-recommendation-db-secret
+              key: DATABASE_URL
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: movie-recommendation-app-secret
+              key: SECRET_KEY
+        - name: C_FORCE_ROOT
+          value: "1"
+        envFrom:
+        - configMapRef:
+            name: movie-recommendation-config
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"  # More resources for ML tasks
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "celery -A movie_recommendation_backend inspect ping -d rec-worker@$HOSTNAME"
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "celery -A movie_recommendation_backend inspect ping -d rec-worker@$HOSTNAME"
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+      
+      restartPolicy: Always

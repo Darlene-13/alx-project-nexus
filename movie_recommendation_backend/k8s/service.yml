@@ -1,0 +1,115 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: movie-recommendation
+  labels:
+    app: movie-recommendation-backend
+    component: api
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: movie-recommendation-backend
+    component: api
+---
+# Load Balancer Service (alternative to Ingress)
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-loadbalancer
+  namespace: movie-recommendation
+  labels:
+    app: movie-recommendation-backend
+    component: external
+  annotations:
+    # Cloud provider specific annotations
+    # For AWS ELB
+    # service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    # For GCP
+    # cloud.google.com/load-balancer-type: External
+    # For Azure
+    # service.beta.kubernetes.io/azure-load-balancer-internal: "false"
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  - port: 443
+    targetPort: 8000
+    protocol: TCP
+    name: https
+  selector:
+    app: movie-recommendation-backend
+    component: api
+---
+# Headless service for Celery workers (for monitoring/debugging)
+apiVersion: v1
+kind: Service
+metadata:
+  name: celery-workers-headless
+  namespace: movie-recommendation
+  labels:
+    app: movie-recommendation-celery
+    component: workers
+spec:
+  type: ClusterIP
+  clusterIP: None  # Headless service
+  ports:
+  - port: 5555
+    targetPort: 5555
+    protocol: TCP
+    name: flower  # Celery monitoring (if you add Flower)
+  selector:
+    app: movie-recommendation-celery
+---
+# NodePort service for development/testing
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-nodeport
+  namespace: movie-recommendation
+  labels:
+    app: movie-recommendation-backend
+    component: nodeport
+spec:
+  type: NodePort
+  ports:
+  - port: 8000
+    targetPort: 8000
+    nodePort: 30800  # Choose a port between 30000-32767
+    protocol: TCP
+    name: http
+  selector:
+    app: movie-recommendation-backend
+    component: api
+---
+# Service Monitor for Prometheus (if using monitoring)
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-metrics
+  namespace: movie-recommendation
+  labels:
+    app: movie-recommendation-backend
+    component: metrics
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: metrics
+  selector:
+    app: movie-recommendation-backend
+    component: api
