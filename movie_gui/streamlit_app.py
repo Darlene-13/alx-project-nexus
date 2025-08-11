@@ -964,7 +964,7 @@ def show_basic_info_step():
             help="Use a strong password with letters, numbers, and symbols"
         )
     with col_d:
-        confirm_password = st.text_input(
+        password_confirm = st.text_input(
             "🔒 Confirm Password *", 
             type="password", 
             placeholder="Repeat your password"
@@ -992,8 +992,8 @@ def show_basic_info_step():
     next_button = st.form_submit_button("➡️ **Next: Movie Preferences**", use_container_width=True)
     
     if next_button:
-        if all([username, email, password, confirm_password]):
-            if password == confirm_password and len(password) >= 8:
+        if all([username, email, password, password_confirm]):
+            if password == password_confirm and len(password) >= 8:
                 # Build registration data matching your User model
                 registration_data = {
                     "username": username,
@@ -3498,4 +3498,3 @@ def provide_recommendation_feedback(recommendation_id, feedback_type):
 
 if __name__ == "__main__":
     main()
-    
