@@ -55,10 +55,10 @@ st.set_page_config(
     page_title="🎬 CinemaHub - AI Movie Recommendations",
     page_icon="🎬",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
     menu_items={
-        'Get Help': 'https://github.com/your-repo',
-        'Report a bug': 'https://github.com/your-repo/issues',
+        'Get Help': 'https://github.com/Darlene-13/alx-project-nexus.git',
+        'Report a bug': 'https://github.com/Darlene-13/alx-project-nexus.git',
         'About': "# CinemaHub\nAI-powered movie recommendations with comprehensive analytics!"
     }
 )
@@ -391,17 +391,17 @@ def init_session_state():
         'authenticated': False,
         'token': None,
         'refresh_token': None,
-        'user_info': {},  # ← Change from None to empty dict
-        'user_profile': {},  # ← Change from None to empty dict
+        'user_info': {},  
+        'user_profile': {}, 
         'backend_status': None,
         'api_environment': None,
-        'popular_movies': {"results": []},  # ← Change from None to empty structure
-        'movie_stats': {},  # ← Change from None to empty dict
-        'user_recommendations': {"results": []},  # ← Change from None to empty structure
-        'user_interactions': {"results": []},  # ← Change from None to empty structure
-        'notifications': {"results": []},  # ← Change from None to empty structure
-        'analytics_data': {},  # ← Change from None to empty dict
-        'genres': {"results": []},  # ← Change from None to empty structure
+        'popular_movies': {"results": []},  
+        'movie_stats': {},  
+        'user_recommendations': {"results": []},  
+        'user_interactions': {"results": []},  
+        'notifications': {"results": []},  
+        'analytics_data': {},  
+        'genres': {"results": []},  
         'selected_genres': [],
         'demo_mode': False,
         'user_journey': 'first_visit',
@@ -409,8 +409,8 @@ def init_session_state():
         'registration_progress': 0,
         'connection_attempts': 0,
         'last_api_call': None,
-        'trending_movies': {"results": []},  # ← Change from None to empty structure
-        'recommendation_performance': {}  # ← Change from None to empty dict
+        'trending_movies': {"results": []},  
+        'recommendation_performance': {}  
     }
     
     for key, default_value in defaults.items():
@@ -421,8 +421,8 @@ def init_session_state():
 def make_api_request(endpoint: str, method: str = "GET", data: dict = None, 
                     auth_required: bool = True, timeout: int = 15) -> Optional[requests.Response]:
     """Enhanced API request function with comprehensive error handling"""
-    headers = {"Content-Type": "application/json"}
-    
+    headers = {"Content-Type": "application/json"} # Default headers for json requests.
+    # What if the server takes long to respond?
     if auth_required and st.session_state.token:
         headers["Authorization"] = f"Bearer {st.session_state.token}"
     
@@ -513,10 +513,10 @@ def fetch_popular_movies():
                         {
                             "id": 1,
                             "title": "Spider-Man: No Way Home",
-                            "tmdb_rating": 7.9,
+                            "tmdb_rating": 3.9,
                             "release_date": "2021-12-15",
                             "overview": "Peter Parker's secret identity is revealed to the entire world. Desperate for help, Peter turns to Doctor Strange to make the world forget that he is Spider-Man.",
-                            "popularity_score": 30.58,
+                            "popularity_score": 1342,
                             "poster_path": "/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg",
                             "views": 15420,
                             "like_count": 892
@@ -524,10 +524,10 @@ def fetch_popular_movies():
                         {
                             "id": 2,
                             "title": "Inside Out 2", 
-                            "tmdb_rating": 7.6,
+                            "tmdb_rating": 2.6,
                             "release_date": "2024-06-11",
                             "overview": "Return to the mind of newly minted teenager Riley just as headquarters is undergoing a sudden demolition to make room for something entirely unexpected: new Emotions!",
-                            "popularity_score": 35.45,
+                            "popularity_score": 1274.23,
                             "poster_path": "/vpnVM9B6NMmQpWeZvzLvDESb2QY.jpg",
                             "views": 12890,
                             "like_count": 734
@@ -535,14 +535,26 @@ def fetch_popular_movies():
                         {
                             "id": 3,
                             "title": "Despicable Me 4",
-                            "tmdb_rating": 7.0,
+                            "tmdb_rating": 2.0,
                             "release_date": "2024-06-20", 
                             "overview": "Gru and Lucy and their girls—Margo, Edith and Agnes—welcome a new member to the Gru family, Gru Jr., who seems intent on tormenting his dad.",
-                            "popularity_score": 37.4,
+                            "popularity_score": 1057,
                             "poster_path": "/wWba3TaojhK7NdycRhoQpsG0FaH.jpg",
                             "views": 10234,
                             "like_count": 623
+                        },
+                        {
+                            "id": 4,
+                            "title": "War of the Worlds",
+                            "tmdb_rating": 4.3,
+                            "release_date": "2005-03-12",
+                            "overview": "Will Radford is a top analyst for Homeland Security who tracks potential threats through a mass surveillance program, until one day an attack by an unknown entity leads him to question whether the government is hiding something from him... and from the rest of the world.",
+                            "popularity_score": 1692.2,
+                            "poster_path": "/yvirUYrva23IudARHn3mMGVxWqM.jpg",
+                            "views": 12000,
+                            "like_count": 800
                         }
+
                     ]
                 }
         except Exception as e:
@@ -551,11 +563,12 @@ def fetch_popular_movies():
                 "results": [
                     {
                         "id": 1,
-                        "title": "Spider-Man: No Way Home",
+                        "title": "Jurassic World Rebirth",
                         "tmdb_rating": 7.9,
                         "release_date": "2021-12-15",
-                        "overview": "Peter Parker's secret identity is revealed to the entire world.",
-                        "popularity_score": 30.58,
+                        "overview": "Five years after the events of Jurassic World Dominion, covert operations expert Zora Bennett is contracted to lead a skilled team on a top-secret mission to secure genetic material from the world's three most massive dinosaurs. When Zora's operation intersects with a civilian family whose boating expedition was capsized, they all find themselves stranded on an island where they come face-to-face with a sinister, shocking discovery that's been hidden from the world for decades.",
+                        "popularity_score": 1274,
+                        "poster_path": "/1RICxzeoNCAO5NpcRMIgg1XT6fm.jpg",
                         "views": 15420,
                         "like_count": 892
                     }
@@ -578,25 +591,23 @@ def fetch_movie_stats():
                 # Enhanced fallback stats
                 st.session_state.movie_stats = {
                     "total_movies": 100,
-                    "total_users": 1247,
-                    "total_ratings": 15643,
-                    "total_recommendations": 48921,
-                    "genres_count": 18,
-                    "avg_rating": 7.2,
+                    "avg_rating": 1247,
+                    "total_views": 15643,
+                    "total_likes": 48921,
+                    "total_users": 18,
+                    "total_recommendations": 7.2,
                     "recent_additions": 23,
-                    "popular_this_week": 45
                 }
         except Exception as e:
             # Fallback stats on any error
             st.session_state.movie_stats = {
-                "total_movies": 100,
-                "total_users": 1247,
-                "total_ratings": 15643,
-                "total_recommendations": 48921,
-                "genres_count": 18,
-                "avg_rating": 7.2,
-                "recent_additions": 23,
-                "popular_this_week": 45
+                    "total_movies": 100,
+                    "avg_rating": 1247,
+                    "total_views": 15643,
+                    "total_likes": 48921,
+                    "total_users": 18,
+                    "total_recommendations": 7.2,
+                    "recent_additions": 23,
             }
 
 def fetch_trending_movies():
@@ -640,7 +651,7 @@ def fetch_user_profile():
         
     if st.session_state.get('user_profile') is None:
         try:
-            response = make_api_request("/recommendations/v1/users/me/")
+            response = make_api_request("/api/v1/auth/profile/")
             if response and response.status_code == 200:
                 st.session_state.user_profile = response.json()
             else:
@@ -723,8 +734,218 @@ def show_authentication_page():
     with tab3:
         show_enhanced_preview_content()
 
+
+def show_change_password_form():
+    """
+    Change password form that integrates with your existing authentication system.
+    Matches the style and patterns of your login form.
+    """
+    st.markdown('<div class="auth-container">', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 3, 1])
+    with col2:
+        st.markdown("### 🔐 Change Password")
+        st.markdown("Update your account password for enhanced security")
+        
+        # Back to login option
+        if st.button("← Back to Login", key="back_to_login"):
+            st.session_state.show_change_password = False
+            st.rerun()
+        
+        # Password requirements
+        with st.expander("📋 Password Requirements", expanded=False):
+            st.markdown("""
+            **Your new password must meet these requirements:**
+            - At least 8 characters long
+            - At least one uppercase letter (A-Z)  
+            - At least one number (0-9)
+            - At least one special character (!@#$%^&*)
+            - Different from your current password
+            """)
+        
+        with st.form("change_password_form", clear_on_submit=False):
+            # Current password
+            current_password = st.text_input(
+                "🔒 Current Password *",
+                type="password",
+                placeholder="Enter your current password"
+            )
+            
+            # New password
+            new_password = st.text_input(
+                "🆕 New Password *",
+                type="password", 
+                placeholder="Enter your new password"
+            )
+            
+            # Show password strength indicator
+            if new_password:
+                strength_score, strength_issues = _validate_password_strength(new_password)
+                
+                col_strength, col_score = st.columns([3, 1])
+                with col_strength:
+                    if strength_score >= 80:
+                        st.success("Password strength: Strong ✅")
+                    elif strength_score >= 60:
+                        st.warning("Password strength: Medium ⚠️")
+                    else:
+                        st.error("Password strength: Weak ❌")
+                
+                with col_score:
+                    st.metric("Strength", f"{strength_score}%")
+                
+                if strength_issues:
+                    st.error("**Issues to fix:**")
+                    for issue in strength_issues:
+                        st.write(f"❌ {issue}")
+            
+            # Confirm password
+            confirm_password = st.text_input(
+                "✅ Confirm New Password *",
+                type="password",
+                placeholder="Re-enter your new password"
+            )
+            
+            submit = st.form_submit_button("🔄 **Change Password**", use_container_width=True)
+        
+        if submit:
+            if current_password and new_password and confirm_password:
+                # Validate passwords
+                validation_result = _validate_passwords(current_password, new_password, confirm_password)
+                
+                if not validation_result['valid']:
+                    st.error(f"❌ {validation_result['message']}")
+                else:
+                    with st.spinner("🔄 Changing password..."):
+                        # Progress bar for UX consistency
+                        progress_bar = st.progress(0)
+                        for i in range(100):
+                            time.sleep(0.01)
+                            progress_bar.progress(i + 1)
+                        
+                        # Prepare change password data
+                        change_data = {
+                            "current_password": current_password,
+                            "new_password": new_password,
+                            "confirm_password": confirm_password
+                        }
+                        
+                        # Debug info (matching your login form style)
+                        st.info("🔍 **Debug:** Attempting password change")
+                        st.info("🔍 **Endpoint:** `/authentication/auth/change-password/`")
+                        with st.expander("📋 Request Data (Debug)", expanded=False):
+                            safe_data = change_data.copy()
+                            safe_data["current_password"] = "***HIDDEN***"
+                            safe_data["new_password"] = "***HIDDEN***"
+                            safe_data["confirm_password"] = "***HIDDEN***"
+                            st.json(safe_data)
+                        
+                        # Make API request
+                        response = make_api_request(
+                            "/authentication/auth/change-password/",
+                            method="POST",
+                            data=change_data,
+                            auth_required=True
+                        )
+                        
+                        if response and response.status_code == 200:
+                            try:
+                                data = response.json()
+                                
+                                st.info("📄 **Full Response Structure:**")
+                                st.json(data)
+                                
+                                message = data.get("message", "Password changed successfully!")
+                                st.success(f"✅ {message}")
+                                st.balloons()
+                                
+                                # Option to logout for security
+                                st.info("🔐 **For security, you may want to log in again with your new password.**")
+                                
+                                col_a, col_b = st.columns(2)
+                                with col_a:
+                                    if st.button("🚪 **Logout**", use_container_width=True):
+                                        _logout_user()
+                                        st.session_state.show_change_password = False
+                                        st.rerun()
+                                
+                                with col_b:
+                                    if st.button("✅ **Continue**", use_container_width=True):
+                                        st.session_state.show_change_password = False
+                                        st.rerun()
+                                
+                            except Exception as e:
+                                st.error(f"❌ Error parsing response: {str(e)}")
+                                st.text(f"Raw response: {response.text}")
+                        
+                        else:
+                            st.error("❌ Password change failed")
+                            
+                            if response:
+                                st.error(f"🚨 **HTTP Status:** {response.status_code}")
+                                try:
+                                    error_data = response.json()
+                                    st.error("📄 **Server Response:**")
+                                    st.json(error_data)
+                                    
+                                    # Handle specific error messages (matching your login form style)
+                                    if "current_password" in error_data:
+                                        st.info("💡 **Current password is incorrect**")
+                                    elif "new_password" in error_data:
+                                        st.info(f"💡 **New password error**: {error_data['new_password']}")
+                                    elif "non_field_errors" in error_data:
+                                        st.info(f"💡 **Error**: {error_data['non_field_errors'][0]}")
+                                    elif "detail" in error_data:
+                                        st.info(f"💡 **Server message**: {error_data['detail']}")
+                                    
+                                except:
+                                    st.error(f"📄 **Raw Response:** {response.text}")
+                                
+                                # Troubleshooting (matching your login form style)
+                                st.markdown("""
+                                ### 🔧 **Password Change Troubleshooting:**
+                                
+                                1. **Check Current Password:**
+                                   - Ensure your current password is correct
+                                   - Check if caps lock is on
+                                
+                                2. **New Password Requirements:**
+                                   - Must meet all security requirements above
+                                   - Must be different from current password
+                                
+                                3. **Account Status:**
+                                   - Verify your session is still active
+                                   - Try logging out and back in
+                                """)
+                            
+                            else:
+                                st.error("🌐 **Connection Issue:** Cannot reach server")
+                                st.markdown("""
+                                ### 🔧 **Connection Troubleshooting:**
+                                1. **Backend Status:** Check if Render service is awake
+                                2. **Network:** Verify internet connection  
+                                3. **Endpoint:** Confirm change password endpoint exists
+                                4. **Wait and Retry:** Render free tier can be slow
+                                """)
+            else:
+                missing = []
+                if not current_password: missing.append("Current Password")
+                if not new_password: missing.append("New Password") 
+                if not confirm_password: missing.append("Confirm Password")
+                st.warning(f"⚠️ Please enter: {' and '.join(missing)}")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+
 def show_enhanced_login_form():
-    """Enhanced login form - supports login with username OR email"""
+    """Enhanced login form - supports login with username OR email
+    It also has the change password form.
+    """
+    if st.session_state.get('show_change_password', False):
+        show_change_password_form()
+        return
+
     st.markdown('<div class="auth-container">', unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 3, 1])
@@ -749,7 +970,10 @@ def show_enhanced_login_form():
             with col_a:
                 remember_me = st.checkbox("🔄 Remember me")
             with col_b:
-                st.markdown("*[Forgot password?](#)*")
+                # Change password link.
+                if st.button("🔑 Change Password", key="change_password_link"):
+                    st.session_state.show_change_password = True
+                    st.rerun()
             
             submit = st.form_submit_button("🚀 **Sign In**", use_container_width=True)
         
@@ -839,21 +1063,21 @@ def show_enhanced_login_form():
                                 time.sleep(2)
                                 st.rerun()
                             else:
-                                st.error("❌ Login response missing token")
+                                st.error("Login response missing token")
                                 st.json(data)
                                 
                         except Exception as e:
-                            st.error(f"❌ Error parsing login response: {str(e)}")
+                            st.error(f" Error parsing login response: {str(e)}")
                             st.text(f"Raw response: {response.text}")
                             
                     else:
-                        st.error("❌ Invalid credentials. Please check your login details.")
+                        st.error("Invalid credentials. Please check your login details.")
                         
                         if response:
-                            st.error(f"🚨 **HTTP Status:** {response.status_code}")
+                            st.error(f"**HTTP Status:** {response.status_code}")
                             try:
                                 error_data = response.json()
-                                st.error("📄 **Server Response:**")
+                                st.error("**Server Response:**")
                                 st.json(error_data)
                                 
                                 if "detail" in error_data:
@@ -956,61 +1180,67 @@ def show_enhanced_login_form():
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Optional: Add a quick login test function
-def test_login_credentials():
-    """Quick test function to verify login credentials"""
-    st.markdown("### 🧪 **Test Login Credentials**")
+def _validate_password_strength(password: str) -> tuple[int, list[str]]:
+    """Validate password strength and return score with issues."""
+    issues = []
+    score = 0
     
-    with st.form("test_login_form"):
-        test_identifier = st.text_input("Test Username/Email:", value="qwerty")
-        test_password = st.text_input("Test Password:", type="password", value="#Cantwell")
-        
-        if st.form_submit_button("🔍 **Test Login**"):
-            login_data = {
-                "identifier": test_identifier,
-                "password": test_password
-            }
+    # Length check
+    if len(password) >= 8:
+        score += 25
+    else:
+        issues.append("Must be at least 8 characters long")
+    
+    # Uppercase check
+    if re.search(r'[A-Z]', password):
+        score += 25
+    else:
+        issues.append("Must contain at least one uppercase letter")
+    
+    # Number check
+    if re.search(r'\d', password):
+        score += 25
+    else:
+        issues.append("Must contain at least one number")
+    
+    # Special character check
+    if re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        score += 25
+    else:
+        issues.append("Must contain at least one special character")
+    
+    return score, issues
+
+
+def _validate_passwords(current_password: str, new_password: str, confirm_password: str) -> Dict[str, Any]:
+    """Validate password change form inputs."""
+    
+    # Check if new passwords match
+    if new_password != confirm_password:
+        return {'valid': False, 'message': 'New passwords do not match'}
+    
+    # Check if current and new passwords are different
+    if current_password == new_password:
+        return {'valid': False, 'message': 'New password must be different from current password'}
+    
+    # Check password strength
+    strength_score, strength_issues = _validate_password_strength(new_password)
+    
+    if strength_issues:
+        return {
+            'valid': False, 
+            'message': f"Password requirements not met: {', '.join(strength_issues)}"
+        }
+    
+    return {'valid': True, 'message': 'Validation passed'}
+
+def _logout_user():
+    """Clear user session data to log them out."""
+    # Clear authentication data
+    for key in ['authenticated', 'token', 'refresh_token', 'user_info', 'user_journey', 'user_profile', 'user_recommendations']:
+        if key in st.session_state:
+            del st.session_state[key]
             
-            with st.spinner("Testing login..."):
-                response = make_api_request(
-                    "/authentication/auth/login/",
-                    method="POST",
-                    data=login_data,
-                    auth_required=False
-                )
-                
-                if response:
-                    st.write(f"**HTTP Status:** {response.status_code}")
-                    
-                    if response.status_code == 200:
-                        st.success("✅ Login test successful!")
-                        try:
-                            response_data = response.json()
-                            st.json(response_data)
-                            
-                            # Show what tokens are available
-                            tokens = []
-                            if response_data.get("access"): tokens.append("access")
-                            if response_data.get("access_token"): tokens.append("access_token") 
-                            if response_data.get("token"): tokens.append("token")
-                            if response_data.get("key"): tokens.append("key")
-                            
-                            if tokens:
-                                st.info(f"🔑 **Available tokens:** {', '.join(tokens)}")
-                            else:
-                                st.warning("⚠️ **No tokens found in response**")
-                                
-                        except Exception as e:
-                            st.error(f"Could not parse JSON: {e}")
-                            st.code(response.text)
-                    else:
-                        st.error("❌ Login test failed")
-                        try:
-                            st.json(response.json())
-                        except:
-                            st.code(response.text)
-                else:
-                    st.error("❌ No response from login endpoint")
 
 # Enhanced authentication page that includes the test function
 def show_enhanced_authentication_page():
@@ -1027,7 +1257,7 @@ def show_enhanced_authentication_page():
     """, unsafe_allow_html=True)
     
     # Enhanced tabs with better styling
-    tab1, tab2, tab3, tab4 = st.tabs(["🔐 **Sign In**", "🌟 **Join CinemaHub**", "👁️ **Explore Preview**", "🧪 **Test Login**"])
+    tab1, tab2, tab3 = st.tabs(["🔐 **Sign In**", "🌟 **Join CinemaHub**", "👁️ **Explore Preview**", "🧪 **Test Login**"])
     
     with tab1:
         show_enhanced_login_form()
@@ -1038,8 +1268,6 @@ def show_enhanced_authentication_page():
     with tab3:
         show_enhanced_preview_content()
     
-    with tab4:
-        test_login_credentials()
 
 def show_enhanced_registration_form():
     """Enhanced registration with actual API integration"""
