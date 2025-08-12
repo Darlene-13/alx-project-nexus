@@ -88,6 +88,21 @@ def auth_hub(request):
             'status': 'active'
         },
         {
+            'url': '/authentication/auth/profile/',
+            'description': 'User profile management - View and update user profiles',
+            'status': 'active'
+        },
+        {
+            'url': '/authentication/auth/change-password/',
+            'description': 'Change user password - Update the password for the authenticated user',
+            'status': 'active'
+        },
+        {
+            'url': '/api/v1/auth/users/{id}/',
+            'description': 'User profile management - View and update user profiles by ID',
+            'status': 'active'
+        },
+        {
             'url': '/authentication/auth/debug/',
             'description': 'Debug endpoint - Development and testing utilities',
             'status': 'active'
@@ -95,6 +110,26 @@ def auth_hub(request):
         {
             'url': '/authentication/auth/users/',
             'description': 'User profile management - CRUD operations for user profiles',
+            'status': 'active'
+        },
+        {
+            'url': '/api/v1/auth/users/update-device/',
+            'description': 'User device management - Update user device information',
+            'status': 'active'
+        },
+        {
+            'url': '/api/v1/auth/users/stats/',
+            'description': 'User statistics - Retrieve statistics for a specific user',
+            'status': 'active'
+        },
+        {
+            'url': '/api/v1/auth/search/',
+            'description': 'User search - Search for users by username or email',
+            'status': 'active'
+        },
+        {
+            'url': '/authentication/auth/api-auth/',
+            'description': 'Browsable API login/logout - Provides a browsable interface for authentication',
             'status': 'active'
         },
         {
@@ -117,6 +152,8 @@ def auth_hub(request):
             'description': 'API schema - JSON schema for the authentication API',
             'status': 'active'
         },
+        
+        
     ]
     
     context = {
