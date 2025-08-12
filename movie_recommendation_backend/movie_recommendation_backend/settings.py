@@ -89,6 +89,31 @@ MIDDLEWARE = [
     'apps.analytics.middleware.UserActivityLoggingMiddleware',
 ]
 
+# Allow your Streamlit app to make requests
+CORS_ALLOWED_ORIGINS = [
+    "https://alx-project-nexus-cqkj4zcbr3tmoecty9gxvz.streamlit.app/",
+    "https://alx-project-nexus-y0c5.onrender.com",  # For production
+    "http://localhost:8501",  # For local development
+]
+
+# Or for testing (less secure):
+CORS_ALLOW_ALL_ORIGINS = True
+
+# Allow credentials
+CORS_ALLOW_CREDENTIALS = True
+
+# Allow headers
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 ROOT_URLCONF = 'movie_recommendation_backend.urls'
 
 TEMPLATES = [
