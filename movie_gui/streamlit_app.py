@@ -708,6 +708,10 @@ def show_enhanced_login_form():
                 placeholder="Enter your username",
                 help="Use the username you created during registration"
             )
+            email = st.text_input(
+                "📧 Email (optional)", 
+                placeholder="Enter your email"
+            )
             password = st.text_input(
                 "🔒 Password", 
                 type="password", 
@@ -723,7 +727,7 @@ def show_enhanced_login_form():
             submit = st.form_submit_button("🚀 **Sign In**", use_container_width=True)
         
         if submit:
-            if username and password:
+            if username and email and password:
                 with st.spinner("🔑 Authenticating..."):
                     # Progress bar for better UX
                     progress_bar = st.progress(0)
@@ -733,7 +737,7 @@ def show_enhanced_login_form():
                     
                     # Prepare login data
                     login_data = {
-                        "username": username,
+                        "identifier": username or email,  # Use username or email
                         "password": password
                     }
                     
@@ -1179,6 +1183,8 @@ def show_profile_setup_page():
                     st.rerun()
                 else:
                     st.warning("⚠️ Couldn't save preferences now, but you can set them later in your profile!")
+
+
 def show_completion_step():
     """Step 3: Registration completion with onboarding"""
     st.markdown("### 🎉 Welcome to CineFlow!")
