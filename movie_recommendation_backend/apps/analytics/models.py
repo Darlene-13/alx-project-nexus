@@ -81,12 +81,12 @@ class UserActivityLog(models.Model):
         self.metadata = json.dumps(metadata_dict)
 
     @classmethod
-    def log_activity(cls, action_type, session_id, ip_address, user_agent, source, User=None, movie=None, referer=None, metadata=None):
+    def log_activity(cls, action_type, session_id, ip_address, user_agent, source, user=None, movie=None, referer=None, metadata=None):
         """
         This one logs user activity to the database.
         """
         return cls.objects.create(
-            user=User,
+            user=user,
             session_id=session_id,
             action_type=action_type,
             movie=movie,
@@ -161,7 +161,7 @@ class PopularityMetrics(models.Model):
             total_views=Sum('view_count'),
             total_likes=Sum('like_count'),
             avg_ctr=Avg('click_through_rate'),
-            avg_rating=Avg('avg_rating')
+            average_rating=Avg('average_rating')
         ).order_by('-total_views')[:limit]
     
     @classmethod
