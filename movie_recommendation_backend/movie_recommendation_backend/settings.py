@@ -91,7 +91,7 @@ MIDDLEWARE = [
 
 # Allow your Streamlit app to make requests
 CORS_ALLOWED_ORIGINS = [
-    "https://alx-project-nexus-cqkj4zcbr3tmoecty9gxvz.streamlit.app/",
+    "https://alx-project-nexus-cqkj4zcbr3tmoecty9gxvz.streamlit.app",
     "https://alx-project-nexus-y0c5.onrender.com",  # For production
     "http://localhost:8501",  # For local development
 ]
