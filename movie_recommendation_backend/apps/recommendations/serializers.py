@@ -371,7 +371,6 @@ class ExperimentResultsSerializer(serializers.Serializer):
         return experiment
 
 # USER PROFILE SERIALIZERS (Working with User Model)
-
 class UserProfileSerializer(serializers.ModelSerializer):
     """
     Serializer for user profile data stored in User model.
@@ -395,8 +394,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'id', 'username', 'email',
             
             # Demographics (from User model)
-            'date_of_birth', 'country', 'preferred_language', 'timezone',
-            
+            'date_of_birth', 'country', 'preferred_language', 'preferred_timezone',
+
             # Recommendation preferences (from User model)
             'favorite_genres', 'algorithm_preference', 'diversity_preference',
             'novelty_preference', 'content_rating_preference', 'preferred_decade',
