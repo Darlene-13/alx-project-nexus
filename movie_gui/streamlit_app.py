@@ -694,7 +694,7 @@ def show_authentication_page():
         show_enhanced_preview_content()
 
 def show_enhanced_login_form():
-    """Enhanced login form using actual API endpoints"""
+    """Enhanced login form - supports login with username OR email"""
     st.markdown('<div class="auth-container">', unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 3, 1])
@@ -703,17 +703,14 @@ def show_enhanced_login_form():
         st.markdown("Sign in to continue your movie journey")
         
         with st.form("login_form", clear_on_submit=False):
-            username = st.text_input(
-                "👤 Username", 
-                placeholder="Enter your username",
-                help="Use the username you created during registration"
-            )
-            email = st.text_input(
-                "📧 Email (optional)", 
-                placeholder="Enter your email"
+            # Single identifier field that accepts username OR email
+            identifier = st.text_input(
+                "👤 Username or Email *", 
+                placeholder="Enter your username or email",
+                help="You can use either your username or email address to log in"
             )
             password = st.text_input(
-                "🔒 Password", 
+                "🔒 Password *", 
                 type="password", 
                 placeholder="Enter your password"
             )
@@ -727,7 +724,7 @@ def show_enhanced_login_form():
             submit = st.form_submit_button("🚀 **Sign In**", use_container_width=True)
         
         if submit:
-            if username and email and password:
+            if identifier and password:
                 with st.spinner("🔑 Authenticating..."):
                     # Progress bar for better UX
                     progress_bar = st.progress(0)
@@ -735,14 +732,19 @@ def show_enhanced_login_form():
                         time.sleep(0.01)
                         progress_bar.progress(i + 1)
                     
-                    # Prepare login data
+                    # Determine if identifier is email or username
+                    is_email = '@' in identifier
+                    identifier_type = "email" if is_email else "username"
+                    
+                    # Prepare login data - use identifier as-is
                     login_data = {
-                        "identifier": username or email,  # Use username or email
+                        "identifier": identifier.strip(),
                         "password": password
                     }
                     
                     # Debug login attempt
-                    st.info(f"🔍 **Debug:** Attempting login to `/authentication/auth/login/`")
+                    st.info(f"🔍 **Debug:** Attempting login with {identifier_type}: `{identifier}`")
+                    st.info(f"🔍 **Endpoint:** `/authentication/auth/login/`")
                     with st.expander("📋 Login Data (Debug)", expanded=False):
                         safe_login_data = login_data.copy()
                         safe_login_data["password"] = "***HIDDEN***"
@@ -773,19 +775,32 @@ def show_enhanced_login_form():
                                 data.get("refresh_token")
                             )
                             
+                            user_data = data.get("user", {})
+                            
                             if access_token:
                                 st.session_state.authenticated = True
                                 st.session_state.token = access_token
                                 if refresh_token:
                                     st.session_state.refresh_token = refresh_token
-                                st.session_state.user_info = {"username": username}
+                                
+                                # Store user info - prefer data from response
+                                if user_data:
+                                    st.session_state.user_info = user_data
+                                else:
+                                    st.session_state.user_info = {
+                                        "username": identifier if not is_email else "user",
+                                        "email": identifier if is_email else ""
+                                    }
+                                
                                 st.session_state.user_journey = 'authenticated'
                                 
                                 # Clear cached data to fetch fresh user data
                                 st.session_state.user_profile = None
                                 st.session_state.user_recommendations = None
                                 
-                                st.success("✅ Login successful! Welcome to CineFlow!")
+                                # Show success message with user info
+                                username_display = user_data.get('username', identifier)
+                                st.success(f"✅ Login successful! Welcome back, {username_display}!")
                                 st.balloons()
                                 time.sleep(2)
                                 st.rerun()
@@ -798,7 +813,7 @@ def show_enhanced_login_form():
                             st.text(f"Raw response: {response.text}")
                             
                     else:
-                        st.error("❌ Invalid credentials. Please check your username and password.")
+                        st.error("❌ Invalid credentials. Please check your login details.")
                         
                         if response:
                             st.error(f"🚨 **HTTP Status:** {response.status_code}")
@@ -811,65 +826,186 @@ def show_enhanced_login_form():
                                     st.info(f"💡 **Server message**: {error_data['detail']}")
                                 elif "non_field_errors" in error_data:
                                     st.info(f"💡 **Error**: {error_data['non_field_errors'][0]}")
+                                elif "identifier" in error_data:
+                                    st.info(f"💡 **Identifier error**: {error_data['identifier']}")
+                                elif "password" in error_data:
+                                    st.info(f"💡 **Password error**: {error_data['password']}")
                                     
                             except:
                                 st.error(f"📄 **Raw Response:** {response.text}")
                                 
-                            # Suggest troubleshooting
+                            # Enhanced troubleshooting
                             st.markdown("""
                             ### 🔧 **Login Troubleshooting:**
                             
                             1. **Check Credentials:**
-                               - Ensure username and password are correct
-                               - Username might be case-sensitive
+                               - Ensure username/email and password are correct
+                               - Check if caps lock is on
                                - Make sure account was created successfully
                             
-                            2. **Backend Issues:**
-                               - Login endpoint might expect different field names
-                               - Some backends use 'email' instead of 'username'
-                               - Check if account activation is required
+                            2. **Account Status:**
+                               - Verify account exists in Django admin
+                               - Check if account is active
+                               - Ensure no typos in username/email
                             
-                            3. **Try Alternative Login Format:**
+                            3. **Alternative Login Methods:**
                             """)
                             
-                            # Try email-based login
-                            if st.button("🔄 **Try Email Login**", key="email_login"):
-                                email_login_data = {
-                                    "email": username,  # Try username as email
-                                    "password": password
-                                }
-                                
-                                st.info("🔄 Trying login with email field...")
-                                email_response = make_api_request(
-                                    "/authentication/auth/login/",
-                                    method="POST",
-                                    data=email_login_data,
-                                    auth_required=False
-                                )
-                                
-                                if email_response and email_response.status_code == 200:
-                                    st.success("✅ Email login worked!")
-                                    # Process successful login
-                                    try:
-                                        data = email_response.json()
-                                        access_token = data.get("access") or data.get("token")
-                                        if access_token:
-                                            st.session_state.authenticated = True
-                                            st.session_state.token = access_token
-                                            st.session_state.user_info = {"username": username}
-                                            st.rerun()
-                                    except:
-                                        pass
-                                else:
-                                    st.error("❌ Email login also failed")
+                            # Try alternative formats if the main one fails
+                            if not is_email:
+                                # If they used username, offer to try as email
+                                if st.button("🔄 **Try as Email**", key="try_email"):
+                                    email_login_data = {
+                                        "identifier": f"{identifier}@example.com",  # Add domain if missing
+                                        "password": password
+                                    }
+                                    
+                                    st.info("🔄 Trying with email format...")
+                                    email_response = make_api_request(
+                                        "/authentication/auth/login/",
+                                        method="POST",
+                                        data=email_login_data,
+                                        auth_required=False
+                                    )
+                                    
+                                    if email_response and email_response.status_code == 200:
+                                        st.success("✅ Email format worked!")
+                                        # Process successful login
+                                        try:
+                                            data = email_response.json()
+                                            access_token = (
+                                                data.get("access") or 
+                                                data.get("access_token") or 
+                                                data.get("token")
+                                            )
+                                            if access_token:
+                                                st.session_state.authenticated = True
+                                                st.session_state.token = access_token
+                                                st.session_state.user_info = data.get("user", {"username": identifier})
+                                                st.rerun()
+                                        except:
+                                            pass
+                                    else:
+                                        st.error("❌ Email format also failed")
+                            
+                            # Suggest checking Django admin
+                            st.markdown(f"""
+                            ### 🔍 **Manual Verification:**
+                            1. **Check Django Admin:** {config.api_base_url}/admin/auth/user/
+                            2. **Look for user:** `{identifier}`
+                            3. **Verify account is active and password is correct**
+                            
+                            ### 💡 **Common Issues:**
+                            - **Case sensitivity:** Username might be case-sensitive
+                            - **Account not activated:** Check if email verification is required
+                            - **Wrong endpoint:** Login endpoint might be different
+                            - **Password not hashed:** Registration might have failed to hash password
+                            """)
+                            
                         else:
                             st.error("🌐 **Connection Issue:** Cannot reach login endpoint")
                             
-                        st.info("💡 **Tip**: Make sure you've successfully registered and your caps lock is off!")
+                            st.markdown("""
+                            ### 🔧 **Connection Troubleshooting:**
+                            1. **Backend Status:** Check if Render service is awake
+                            2. **Network:** Verify internet connection
+                            3. **Endpoint:** Confirm `/authentication/auth/login/` exists
+                            4. **Wait and Retry:** Render free tier can be slow
+                            """)
+                            
+                        st.info("💡 **Tip**: You can use either your username OR email address to log in")
             else:
-                st.warning("⚠️ Please enter both username and password.")
+                missing = []
+                if not identifier: missing.append("Username/Email")
+                if not password: missing.append("Password")
+                st.warning(f"⚠️ Please enter: {' and '.join(missing)}")
     
     st.markdown('</div>', unsafe_allow_html=True)
+
+# Optional: Add a quick login test function
+def test_login_credentials():
+    """Quick test function to verify login credentials"""
+    st.markdown("### 🧪 **Test Login Credentials**")
+    
+    with st.form("test_login_form"):
+        test_identifier = st.text_input("Test Username/Email:", value="qwerty")
+        test_password = st.text_input("Test Password:", type="password", value="#Cantwell")
+        
+        if st.form_submit_button("🔍 **Test Login**"):
+            login_data = {
+                "identifier": test_identifier,
+                "password": test_password
+            }
+            
+            with st.spinner("Testing login..."):
+                response = make_api_request(
+                    "/authentication/auth/login/",
+                    method="POST",
+                    data=login_data,
+                    auth_required=False
+                )
+                
+                if response:
+                    st.write(f"**HTTP Status:** {response.status_code}")
+                    
+                    if response.status_code == 200:
+                        st.success("✅ Login test successful!")
+                        try:
+                            response_data = response.json()
+                            st.json(response_data)
+                            
+                            # Show what tokens are available
+                            tokens = []
+                            if response_data.get("access"): tokens.append("access")
+                            if response_data.get("access_token"): tokens.append("access_token") 
+                            if response_data.get("token"): tokens.append("token")
+                            if response_data.get("key"): tokens.append("key")
+                            
+                            if tokens:
+                                st.info(f"🔑 **Available tokens:** {', '.join(tokens)}")
+                            else:
+                                st.warning("⚠️ **No tokens found in response**")
+                                
+                        except Exception as e:
+                            st.error(f"Could not parse JSON: {e}")
+                            st.code(response.text)
+                    else:
+                        st.error("❌ Login test failed")
+                        try:
+                            st.json(response.json())
+                        except:
+                            st.code(response.text)
+                else:
+                    st.error("❌ No response from login endpoint")
+
+# Enhanced authentication page that includes the test function
+def show_enhanced_authentication_page():
+    """Enhanced authentication page with testing capabilities"""
+    
+    # Hero Section
+    st.markdown("""
+    <div class="hero-section">
+        <h1 style="font-size: 3rem; margin-bottom: 1rem; font-weight: 800;">🎬 Welcome to CineFlow</h1>
+        <p style="font-size: 1.3rem; margin-bottom: 2rem; opacity: 0.95;">Discover your next favorite movie with AI-powered recommendations</p>
+        <div style="font-size: 3rem; margin: 1rem 0; opacity: 0.8;">🍿 🎭 ⭐ 🎪 🎨</div>
+        <p style="font-size: 1.1rem; opacity: 0.9;">Join thousands of movie enthusiasts and unlock personalized recommendations!</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Enhanced tabs with better styling
+    tab1, tab2, tab3, tab4 = st.tabs(["🔐 **Sign In**", "🌟 **Join CineFlow**", "👁️ **Explore Preview**", "🧪 **Test Login**"])
+    
+    with tab1:
+        show_enhanced_login_form()
+    
+    with tab2:
+        show_enhanced_registration_form()
+    
+    with tab3:
+        show_enhanced_preview_content()
+    
+    with tab4:
+        test_login_credentials()
 
 def show_enhanced_registration_form():
     """Enhanced registration with actual API integration"""
