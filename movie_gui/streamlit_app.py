@@ -52,14 +52,14 @@ config = Config()
 
 # Page configuration
 st.set_page_config(
-    page_title="🎬 CineFlow - AI Movie Recommendations",
+    page_title="🎬 CinemaHub - AI Movie Recommendations",
     page_icon="🎬",
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
         'Get Help': 'https://github.com/your-repo',
         'Report a bug': 'https://github.com/your-repo/issues',
-        'About': "# CineFlow\nAI-powered movie recommendations with comprehensive analytics!"
+        'About': "# CinemaHub\nAI-powered movie recommendations with comprehensive analytics!"
     }
 )
 
@@ -704,7 +704,7 @@ def show_authentication_page():
     # Hero Section
     st.markdown("""
     <div class="hero-section">
-        <h1 style="font-size: 3rem; margin-bottom: 1rem; font-weight: 800;">🎬 Welcome to CineFlow</h1>
+        <h1 style="font-size: 3rem; margin-bottom: 1rem; font-weight: 800;">🎬 Welcome to CinemaHub</h1>
         <p style="font-size: 1.3rem; margin-bottom: 2rem; opacity: 0.95;">Discover your next favorite movie with AI-powered recommendations</p>
         <div style="font-size: 3rem; margin: 1rem 0; opacity: 0.8;">🍿 🎭 ⭐ 🎪 🎨</div>
         <p style="font-size: 1.1rem; opacity: 0.9;">Join thousands of movie enthusiasts and unlock personalized recommendations!</p>
@@ -712,7 +712,7 @@ def show_authentication_page():
     """, unsafe_allow_html=True)
     
     # Enhanced tabs with better styling
-    tab1, tab2, tab3 = st.tabs(["🔐 **Sign In**", "🌟 **Join CineFlow**", "👁️ **Explore Preview**"])
+    tab1, tab2, tab3 = st.tabs(["🔐 **Sign In**", "🌟 **Join CinemaHub**", "👁️ **Explore Preview**"])
     
     with tab1:
         show_enhanced_login_form()
@@ -1015,7 +1015,7 @@ def show_enhanced_authentication_page():
     # Hero Section
     st.markdown("""
     <div class="hero-section">
-        <h1 style="font-size: 3rem; margin-bottom: 1rem; font-weight: 800;">🎬 Welcome to CineFlow</h1>
+        <h1 style="font-size: 3rem; margin-bottom: 1rem; font-weight: 800;">🎬 Welcome to CinemaHub</h1>
         <p style="font-size: 1.3rem; margin-bottom: 2rem; opacity: 0.95;">Discover your next favorite movie with AI-powered recommendations</p>
         <div style="font-size: 3rem; margin: 1rem 0; opacity: 0.8;">🍿 🎭 ⭐ 🎪 🎨</div>
         <p style="font-size: 1.1rem; opacity: 0.9;">Join thousands of movie enthusiasts and unlock personalized recommendations!</p>
@@ -1023,7 +1023,7 @@ def show_enhanced_authentication_page():
     """, unsafe_allow_html=True)
     
     # Enhanced tabs with better styling
-    tab1, tab2, tab3, tab4 = st.tabs(["🔐 **Sign In**", "🌟 **Join CineFlow**", "👁️ **Explore Preview**", "🧪 **Test Login**"])
+    tab1, tab2, tab3, tab4 = st.tabs(["🔐 **Sign In**", "🌟 **Join CinemaHub**", "👁️ **Explore Preview**", "🧪 **Test Login**"])
     
     with tab1:
         show_enhanced_login_form()
@@ -1043,7 +1043,7 @@ def show_enhanced_registration_form():
     
     col1, col2, col3 = st.columns([1, 3, 1])
     with col2:
-        st.markdown("### 🌟 Join CineFlow Community!")
+        st.markdown("### 🌟 Join CinemaHub Community!")
         st.markdown("Create your account and start discovering amazing movies")
         
         # Registration progress indicator
@@ -1080,7 +1080,7 @@ def show_basic_info_step():
         username = st.text_input(
             "👤 Username *", 
             placeholder="Choose a unique username",
-            help="This will be your unique identifier on CineFlow"
+            help="This will be your unique identifier on CinemaHub"
         )
         first_name = st.text_input("👤 First Name", placeholder="Your first name (optional)")
     
@@ -1146,7 +1146,7 @@ def show_basic_info_step():
                 if last_name:
                     registration_data["last_name"] = last_name
                 
-                with st.spinner("🎬 Creating your CineFlow account..."):
+                with st.spinner("🎬 Creating your CinemaHub account..."):
                     progress_bar = st.progress(0)
                     for i in range(100):
                         time.sleep(0.03)  # Longer for better UX
@@ -1334,7 +1334,7 @@ def show_enhanced_registration_form():
     
     col1, col2, col3 = st.columns([1, 3, 1])
     with col2:
-        st.markdown("### 🌟 Join CineFlow Community!")
+        st.markdown("### 🌟 Join CinemaHub Community!")
         st.markdown("Create your account and start discovering amazing movies")
         
         # Single step registration - no progress indicator needed
@@ -1417,7 +1417,7 @@ def show_profile_setup_page():
 
 def show_completion_step():
     """Step 3: Registration completion with onboarding"""
-    st.markdown("### 🎉 Welcome to CineFlow!")
+    st.markdown("### 🎉 Welcome to CinemaHub!")
     
     st.markdown("""
     <div class="notification-card">
@@ -1517,7 +1517,7 @@ def show_enhanced_preview_content():
         st.info("🎬 Movies coming soon...")
     
     # Feature Highlights using native Streamlit
-    st.markdown("### ✨ Why Choose CineFlow?")
+    st.markdown("### ✨ Why Choose CinemaHub?")
     
     features = [
         ("🤖", "AI-Powered Recommendations", "Advanced machine learning algorithms analyze your preferences to suggest movies you'll love"),
@@ -1668,7 +1668,7 @@ def show_enhanced_sidebar():
         st.markdown("""
         <div style="text-align: center; padding: 2rem 0 1rem 0;">
             <div style="font-size: 3.5rem; margin-bottom: 0.5rem;">🎬</div>
-            <h2 style="margin: 0; color: #2d3748; font-weight: 800;">CineFlow</h2>
+            <h2 style="margin: 0; color: #2d3748; font-weight: 800;">CinemaHub</h2>
             <p style="margin: 0.3rem 0 0 0; color: #667eea; font-size: 0.9rem; font-weight: 500;">AI Movie Companion</p>
         </div>
         """, unsafe_allow_html=True)
@@ -1891,7 +1891,7 @@ def show_preview_sidebar():
         st.markdown("### 🔥 **Featured**")
         st.markdown("""
         <div style="background: white; padding: 1rem; border-radius: 12px; border: 1px solid #e2e8f0;">
-            <div style="font-weight: bold; margin-bottom: 0.5rem; color: #2d3748;">Welcome to CineFlow</div>
+            <div style="font-weight: bold; margin-bottom: 0.5rem; color: #2d3748;">Welcome to CinemaHub</div>
             <div style="font-size: 0.8rem; color: #666;">🎬 Discover amazing movies</div>
         </div>
         """, unsafe_allow_html=True)
@@ -1901,7 +1901,7 @@ def show_preview_sidebar():
     # Call to action
     st.markdown("""
     <div class="hero-section" style="padding: 1.5rem; margin: 1rem 0; font-size: 0.9rem;">
-        <div style="font-weight: bold; margin-bottom: 0.8rem;">🚀 Join CineFlow</div>
+        <div style="font-weight: bold; margin-bottom: 0.8rem;">🚀 Join CinemaHub</div>
         <div style="opacity: 0.9; line-height: 1.4;">Unlock AI-powered recommendations, track your viewing history, and discover your next favorite movie!</div>
     </div>
     """, unsafe_allow_html=True)
@@ -1909,7 +1909,7 @@ def show_preview_sidebar():
 # Enhanced Main Pages
 def show_enhanced_dashboard():
     """Comprehensive dashboard with all API integrations"""
-    st.markdown('<h2 style="color: #2d3748; font-weight: 700; font-size: 2.5rem; margin-bottom: 2rem;">🏠 Your CineFlow Dashboard</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 style="color: #2d3748; font-weight: 700; font-size: 2.5rem; margin-bottom: 2rem;">🏠 Your CinemaHub Dashboard</h2>', unsafe_allow_html=True)
     
     # Fetch all dashboard data
     fetch_user_profile()
@@ -2126,11 +2126,11 @@ def main():
     elif st.session_state.get('api_environment') == "local":
         env_indicator = " 🛠️"
     
-    st.markdown(f'<h1 class="main-header">🎬 CineFlow{env_indicator}</h1>', unsafe_allow_html=True)
+    st.markdown(f'<h1 class="main-header">🎬 CinemaHub{env_indicator}</h1>', unsafe_allow_html=True)
     
     # Check backend connectivity
     if not st.session_state.get('backend_status'):
-        with st.spinner("🔍 Connecting to CineFlow servers..."):
+        with st.spinner("🔍 Connecting to CinemaHub servers..."):
             check_backend_health()
     
     # Show sidebar and get navigation choice
@@ -2162,7 +2162,7 @@ def show_enhanced_connection_error():
         <div style="font-size: 5rem; margin-bottom: 2rem;">🔌</div>
         <h2 style="color: #ef4444; margin-bottom: 1rem; font-weight: 700;">Connection Issues</h2>
         <p style="color: #666; font-size: 1.2rem; margin-bottom: 3rem; line-height: 1.5;">
-            We're having trouble connecting to the CineFlow servers.<br>
+            We're having trouble connecting to the CinemaHub servers.<br>
             This might be due to network issues or server maintenance.
         </p>
     </div>
@@ -2946,7 +2946,7 @@ def show_analytics_page():
 
 def show_analytics_overview():
     """Show overall analytics overview"""
-    st.markdown("### 📊 Your CineFlow Journey")
+    st.markdown("### 📊 Your CinemaHub Journey")
     
     # Fetch analytics data
     response = make_api_request("/analytics/api/v1/activity-logs/analytics_summary/")
@@ -3229,7 +3229,7 @@ def show_activity_analytics():
             hours_df = pd.DataFrame(list(activity_data['peak_hours'].items()), 
                                   columns=['Time', 'Usage %'])
             fig = px.bar(hours_df, x='Time', y='Usage %',
-                        title="When You Use CineFlow Most",
+                        title="When You Use CinemaHub Most",
                         color='Usage %',
                         color_continuous_scale='Blues')
             fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
@@ -3395,7 +3395,7 @@ def show_security_settings():
 
 def show_profile_statistics():
     """Show profile statistics"""
-    st.markdown("### 📊 Your CineFlow Statistics")
+    st.markdown("### 📊 Your CinemaHub Statistics")
     
     profile = st.session_state.user_profile or {}
     
