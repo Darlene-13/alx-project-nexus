@@ -17,7 +17,7 @@ This Movie Recommendation System represents a production-ready backend solution 
 
 
 ### Key Highlights
-- **4 Third-Party API Integrations** (TMDb, Brevo, OMDb, Google Analytics.)
+- **5 Third-Party API Integrations** (TMDb, Brevo, OMDb, Google Analytics, Sentry.)
 - **AI-Powered Recommendation Engine** with collaborative and content-based filtering
 - **Multi-Channel Communication** (Email, Push, In-App notifications)
 - **Real-Time Analytics** and performance monitoring
@@ -61,7 +61,8 @@ This Movie Recommendation System represents a production-ready backend solution 
 ### Third-Party Integrations
 - **Movie Data:** TMDb API, OMDb API
 - **Email Service:** Brevo
-- **Analytics:** Google Analytics API
+- **Analytics:** Google Analytics API'
+- **Monitoring:** Sentry
 - **Documentation:** Swagger/OpenAPI 3.0
 
 ### Development & Testing
@@ -287,13 +288,39 @@ pytest tests/test_performance.py -v
 
 ---
 
+## 📊 Performance Monitoring
+
+### Monitoring Stack
+- **Application Performance:** Sentry APM
+- **Database Queries:** Django Silk profiling
+- **Custom Metrics:** Redis-based counters
+- **User Analytics:** Google Analytics integration
+- **Error Tracking:** Sentry error monitoring
+
+### Key Metrics Tracked
+- **Response Times:** API endpoint performance
+- **Database Performance:** Query optimization
+- **Cache Hit Rates:** Redis effectiveness
+- **User Engagement:** Feature usage patterns
+- **Recommendation Accuracy:** ML algorithm performance
+- **Notification Delivery:** Email/push success rates
+
+### Performance Targets
+- **API Response Time:** < 200ms (95th percentile)
+- **Database Query Time:** < 50ms (average)
+- **Cache Hit Rate:** > 85%
+- **Uptime:** 99.9%
+- **Error Rate:** < 0.1%
+
+---
+
+
 ## 🔐 Security Features
 
 ### Authentication & Authorization
 - **JWT Tokens:** Stateless authentication
 - **Refresh Tokens:** Secure token renewal
 - **Role-Based Access:** Admin, user, premium roles
-- **OAuth Integration:** Google, Facebook login
 
 ### Rate Limiting
 ```python
@@ -353,11 +380,7 @@ docker-compose up -d --build
 ```
 
 ### Cloud Platform Deployment
-- **Heroku:** Single-click deployment with Procfile
-- **AWS:** ECS/EKS deployment configurations
-- **Google Cloud:** Cloud Run deployment
-- **Digital Ocean:** App Platform compatibility
-
+- **Render:** Single-click deployment with Procfile
 ---
 
 ## 📈 Scaling Strategy
@@ -405,7 +428,7 @@ docker-compose up -d --build
 ## 🏆 Project Achievements
 
 ### Technical Excellence
-✅ **6 Third-Party API Integrations** - Enterprise-level connectivity
+✅ **5 Third-Party API Integrations** - Enterprise-level connectivity
 ✅ **95%+ Test Coverage** - Comprehensive quality assurance
 ✅ **Sub-200ms Response Times** - Optimized performance
 ✅ **Production-Ready Security** - Rate limiting, authentication

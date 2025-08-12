@@ -416,7 +416,7 @@ def init_session_state():
     for key, default_value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = default_value
-            
+
 # Enhanced API Helper Functions
 def make_api_request(endpoint: str, method: str = "GET", data: dict = None, 
                     auth_required: bool = True, timeout: int = 15) -> Optional[requests.Response]:
@@ -634,17 +634,18 @@ def fetch_user_recommendations():
             # Fail gracefully
             st.session_state.user_recommendations = {"results": []}
 def fetch_user_profile():
-    """Fetch complete user profile with error handling"""
-    if st.session_state.authenticated and st.session_state.user_profile is None:
+    """Fetch complete user profile with enhanced error handling"""
+    if not st.session_state.get('authenticated'):
+        return
+        
+    if st.session_state.get('user_profile') is None:
         try:
             response = make_api_request("/recommendations/v1/users/me/")
             if response and response.status_code == 200:
                 st.session_state.user_profile = response.json()
             else:
-                # Set empty profile instead of None
                 st.session_state.user_profile = {}
         except Exception as e:
-            # Fail gracefully
             st.session_state.user_profile = {}
 
 def fetch_genres():
@@ -655,32 +656,41 @@ def fetch_genres():
             st.session_state.genres = response.json()
 
 def fetch_user_notifications():
-    """Fetch user notifications with error handling"""
-    if st.session_state.authenticated and st.session_state.notifications is None:
+    """Fetch user notifications with enhanced error handling"""
+    if not st.session_state.get('authenticated'):
+        return
+        
+    if st.session_state.get('notifications') is None:
         try:
             response = make_api_request("/notifications/api/v1/inapp/recent/")
             if response and response.status_code == 200:
                 st.session_state.notifications = response.json()
             else:
-                # Set empty structure instead of None to prevent AttributeError
                 st.session_state.notifications = {"results": []}
         except Exception as e:
-            # Fail gracefully - set empty structure
             st.session_state.notifications = {"results": []}
 
+
 def logout():
-    """Enhanced logout with API call"""
-    if st.session_state.token:
-        # Call logout endpoint
-        make_api_request("/authentication/auth/logout/", method="POST")
+    """Enhanced logout with safe cleanup"""
+    try:
+        if st.session_state.get('token'):
+            # Try to call logout endpoint
+            make_api_request("/authentication/auth/logout/", method="POST")
+    except Exception as e:
+        # Continue with logout even if API call fails
+        pass
     
-    # Clear all user-related session state
+    # Clear all user-related session state safely
     user_keys = ['authenticated', 'token', 'refresh_token', 'user_info', 'user_profile', 
                  'user_recommendations', 'user_interactions', 'notifications']
     for key in user_keys:
-        st.session_state[key] = None
+        if key in st.session_state:
+            if key == 'authenticated':
+                st.session_state[key] = False
+            else:
+                st.session_state[key] = None
     
-    st.session_state.authenticated = False
     st.session_state.user_journey = 'returning_visitor'
     
     st.success("👋 Successfully logged out! See you next time!")
@@ -1652,7 +1662,7 @@ def calculate_password_strength(password):
 
 # Enhanced Sidebar
 def show_enhanced_sidebar():
-    """Enhanced sidebar with comprehensive navigation"""
+    """Enhanced sidebar with guaranteed string return"""
     with st.sidebar:
         # Beautiful header
         st.markdown("""
@@ -1671,11 +1681,12 @@ def show_enhanced_sidebar():
         st.markdown("---")
         
         # User section or preview
-        if st.session_state.authenticated:
+        if st.session_state.get('authenticated', False):
             return show_authenticated_sidebar()
         else:
             show_preview_sidebar()
-            return "🔐 Authentication"
+            return "🔐 Authentication"  # Always return a string
+
 
 def show_enhanced_connection_status():
     """Enhanced connection status with detailed information"""
@@ -1734,86 +1745,97 @@ def show_enhanced_connection_status():
 
 def show_authenticated_sidebar():
     """Enhanced sidebar for authenticated users - FIXED VERSION"""
-    # Fetch user profile
-    fetch_user_profile()
-    fetch_user_notifications()
     
-    user = st.session_state.user_info.get('username', 'User') if st.session_state.user_info else 'User'
-    profile = st.session_state.user_profile or {}
-    
-    # User welcome card
-    st.markdown(f"""
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 15px; text-align: center; margin-bottom: 1rem;">
-        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">👤</div>
-        <div style="font-weight: bold; font-size: 1.1rem; margin-bottom: 0.3rem;">Welcome back!</div>
-        <div style="opacity: 0.9;">{user}</div>
-        <div style="font-size: 0.8rem; opacity: 0.8; margin-top: 0.5rem;">
-            🎬 {profile.get('movies_rated', 0)} rated • 🎯 {profile.get('recommendations_received', 0)} recommendations
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Quick stats
-    if profile:
-        st.markdown("**🔥 Your Activity**")
-        activity_data = [
-            ("⭐", "Movies Rated", profile.get('movies_rated', 0)),
-            ("👁️", "Movies Viewed", profile.get('movies_viewed', 0)),
-            ("🎯", "Recommendations", profile.get('recommendations_received', 0))
-        ]
+    try:
+        # Fetch user profile safely
+        fetch_user_profile()
+        fetch_user_notifications()
         
-        for icon, label, value in activity_data:
-            st.markdown(f"""
-            <div style="display: flex; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #e2e8f0;">
-                <span style="font-size: 1.3rem; margin-right: 0.8rem;">{icon}</span>
-                <div style="flex: 1;">
-                    <div style="font-size: 0.8rem; color: #666;">{label}</div>
-                    <div style="font-weight: bold; color: #2d3748;">{value}</div>
-                </div>
+        # Safe access to user info
+        user_info = st.session_state.get('user_info', {})
+        user = user_info.get('username', 'User') if user_info else 'User'
+        profile = st.session_state.get('user_profile', {}) or {}
+        
+        # User welcome card
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 15px; text-align: center; margin-bottom: 1rem;">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">👤</div>
+            <div style="font-weight: bold; font-size: 1.1rem; margin-bottom: 0.3rem;">Welcome back!</div>
+            <div style="opacity: 0.9;">{user}</div>
+            <div style="font-size: 0.8rem; opacity: 0.8; margin-top: 0.5rem;">
+                🎬 {profile.get('movies_rated', 0)} rated • 🎯 {profile.get('recommendations_received', 0)} recommendations
             </div>
-            """, unsafe_allow_html=True)
-    
-    # FIXED: Safe notifications handling
-    notifications_data = st.session_state.notifications
-    if notifications_data and isinstance(notifications_data, dict):
-        notifications = notifications_data.get('results', [])
-        if notifications and len(notifications) > 0:
-            st.markdown("**🔔 Recent Notifications**")
-            for notif in notifications[:2]:
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Quick stats
+        if profile:
+            st.markdown("**🔥 Your Activity**")
+            activity_data = [
+                ("⭐", "Movies Rated", profile.get('movies_rated', 0)),
+                ("👁️", "Movies Viewed", profile.get('movies_viewed', 0)),
+                ("🎯", "Recommendations", profile.get('recommendations_received', 0))
+            ]
+            
+            for icon, label, value in activity_data:
                 st.markdown(f"""
-                <div style="background: #fef3c7; padding: 0.8rem; border-radius: 8px; margin: 0.5rem 0; border-left: 3px solid #f59e0b;">
-                    <div style="font-size: 0.85rem; font-weight: 500;">{notif.get('title', 'Notification')}</div>
-                    <div style="font-size: 0.75rem; color: #666; margin-top: 0.2rem;">{notif.get('created_at', '')[:10]}</div>
+                <div style="display: flex; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #e2e8f0;">
+                    <span style="font-size: 1.3rem; margin-right: 0.8rem;">{icon}</span>
+                    <div style="flex: 1;">
+                        <div style="font-size: 0.8rem; color: #666;">{label}</div>
+                        <div style="font-weight: bold; color: #2d3748;">{value}</div>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
-    else:
-        # Handle case where notifications is None or empty
-        if st.session_state.authenticated:
-            st.markdown("**🔔 Notifications**")
-            st.info("No new notifications")
-    
-    # Logout button
-    st.markdown("---")
-    if st.button("🚪 **Sign Out**", use_container_width=True):
-        logout()
-    
-    st.markdown("---")
-    
-    # Navigation menu
-    nav_options = [
-        ("🏠", "Dashboard"),
-        ("🎬", "Movies"),
-        ("🎯", "Recommendations"),
-        ("📊", "Analytics"),
-        ("👤", "Profile"),
-        ("🔔", "Notifications")
-    ]
-    
-    selected = st.selectbox(
-        "📍 **Navigate to:**",
-        [f"{icon} {label}" for icon, label in nav_options],
-        format_func=lambda x: x
-    )
+        
+        # FIXED: Safe notifications handling
+        notifications_data = st.session_state.get('notifications')
+        if notifications_data and isinstance(notifications_data, dict):
+            notifications = notifications_data.get('results', [])
+            if notifications and len(notifications) > 0:
+                st.markdown("**🔔 Recent Notifications**")
+                for notif in notifications[:2]:
+                    title = notif.get('title', 'Notification')
+                    created_at = notif.get('created_at', '')[:10]
+                    st.markdown(f"""
+                    <div style="background: #fef3c7; padding: 0.8rem; border-radius: 8px; margin: 0.5rem 0; border-left: 3px solid #f59e0b;">
+                        <div style="font-size: 0.85rem; font-weight: 500;">{title}</div>
+                        <div style="font-size: 0.75rem; color: #666; margin-top: 0.2rem;">{created_at}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+        
+        # Logout button
+        st.markdown("---")
+        if st.button("🚪 **Sign Out**", use_container_width=True):
+            logout()
+        
+        st.markdown("---")
+        
+        # Navigation menu with default selection
+        nav_options = [
+            ("🏠", "Dashboard"),
+            ("🎬", "Movies"),
+            ("🎯", "Recommendations"),
+            ("📊", "Analytics"),
+            ("👤", "Profile"),
+            ("🔔", "Notifications")
+        ]
+        
+        # FIXED: Always provide a default and ensure string return
+        selected = st.selectbox(
+            "📍 **Navigate to:**",
+            [f"{icon} {label}" for icon, label in nav_options],
+            index=0,  # Default to first option (Dashboard)
+            format_func=lambda x: x
+        )
+        
+        # Ensure we always return a string
+        return selected if selected else "🏠 Dashboard"
+        
+    except Exception as e:
+        # If anything fails in the sidebar, return a safe default
+        st.error(f"Sidebar error: {str(e)}")
+        return "🏠 Dashboard"
     
 
 def show_preview_sidebar():
@@ -2086,45 +2108,51 @@ def show_movie_details(movie):
 
 # Main Application Flow
 def main():
-    """Enhanced main application entry point"""
+    """Enhanced main application entry point - FIXED VERSION"""
     # Initialize everything
     init_session_state()
     load_custom_css()
     
     # Check for page redirects
+    page = None
     if hasattr(st.session_state, 'page_redirect'):
         page = st.session_state.page_redirect
         del st.session_state.page_redirect
-    else:
-        page = None
     
     # Beautiful main header
     env_indicator = ""
-    if st.session_state.api_environment == "production":
+    if st.session_state.get('api_environment') == "production":
         env_indicator = " 🌐"
-    elif st.session_state.api_environment == "local":
+    elif st.session_state.get('api_environment') == "local":
         env_indicator = " 🛠️"
     
     st.markdown(f'<h1 class="main-header">🎬 CineFlow{env_indicator}</h1>', unsafe_allow_html=True)
     
     # Check backend connectivity
-    if not st.session_state.backend_status:
+    if not st.session_state.get('backend_status'):
         with st.spinner("🔍 Connecting to CineFlow servers..."):
             check_backend_health()
     
     # Show sidebar and get navigation choice
     if not page:
-        page = show_enhanced_sidebar()
+        try:
+            page = show_enhanced_sidebar()
+        except Exception as e:
+            st.error(f"Sidebar error: {str(e)}")
+            page = "🏠 Dashboard"  # Safe fallback
     
     # Handle demo mode or connection issues
-    if st.session_state.backend_status == "connection_error" and not st.session_state.demo_mode:
+    if st.session_state.get('backend_status') == "connection_error" and not st.session_state.get('demo_mode'):
         show_enhanced_connection_error()
         return
     
     # Route to appropriate page
-    if not st.session_state.authenticated:
+    if not st.session_state.get('authenticated', False):
         show_authentication_page()
     else:
+        # FIXED: Always pass a valid string to route_authenticated_pages
+        if not page or not isinstance(page, str):
+            page = "🏠 Dashboard"
         route_authenticated_pages(page)
 
 def show_enhanced_connection_error():
@@ -2197,8 +2225,15 @@ def show_enhanced_connection_error():
             time.sleep(1)
             st.rerun()
 
+
 def route_authenticated_pages(page: str):
-    """Route to appropriate authenticated pages"""
+    """Route to appropriate authenticated pages - FIXED VERSION"""
+    
+    # Handle case where page might be None or not a string
+    if not page or not isinstance(page, str):
+        # Default to Dashboard if page is invalid
+        page = "🏠 Dashboard"
+    
     if "Dashboard" in page:
         show_enhanced_dashboard()
     elif "Movies" in page:
@@ -2211,6 +2246,9 @@ def route_authenticated_pages(page: str):
         show_profile_page()
     elif "Notifications" in page:
         show_notifications_page()
+    else:
+        # Fallback to dashboard for any unrecognized page
+        show_enhanced_dashboard()
 
 # Additional page implementations
 def show_movies_management_page():
