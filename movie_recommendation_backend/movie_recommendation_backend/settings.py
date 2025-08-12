@@ -242,6 +242,9 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20
 }
 
+# Skip auto update
+AUTO_UPDATE_METRICS = False  # Set to False during development
+FORCE_METRIC_RECALCULATION = False  # Set to False during development
 # Email settings for Brevo (Sendinblue)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp-relay.brevo.com'

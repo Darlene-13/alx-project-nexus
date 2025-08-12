@@ -169,7 +169,16 @@ class PopularityMetrics(models.Model):
         """
         Update or create daily metrics for a movie
         Called by background tasks or signals
+        
+        Respects AUTO_UPDATE_METRICS setting to prevent overriding seeded data
         """
+        from django.conf import settings
+        
+        # Check if auto-updates are disabled (useful during development/testing)
+        if not getattr(settings, 'AUTO_UPDATE_METRICS', True):
+            print(f"⚠️  Skipping metric update for {movie.title} - AUTO_UPDATE_METRICS is disabled")
+            return None
+        
         if date is None:
             date = timezone.now().date()
         
@@ -186,30 +195,144 @@ class PopularityMetrics(models.Model):
             }
         )
         
-        # Calculate metrics from activity logs for this day
-        from django.db.models import Count, Avg
+        # If metric already exists and auto-update is enabled, recalculate
+        # If created new, always calculate
+        if created or getattr(settings, 'FORCE_METRIC_RECALCULATION', False):
+            print(f"📊 {'Creating' if created else 'Updating'} metrics for {movie.title} on {date}")
+            
+            # Calculate metrics from activity logs for this day
+            from django.db.models import Count, Avg
+            
+            activities = UserActivityLog.objects.filter(
+                movie=movie,
+                timestamp__date=date
+            )
+            
+            # Store original values for comparison
+            original_views = metric.view_count
+            
+            # Update view count
+            metric.view_count = activities.filter(action_type='movie_view').count()
+            
+            # Update like count (from favorite_add actions)
+            metric.like_count = activities.filter(action_type='favorite_add').count()
+            
+            # Update rating metrics
+            ratings = activities.filter(action_type='rating_submit')
+            metric.rating_count = ratings.count()
+            
+            # Calculate average rating from metadata
+            if metric.rating_count > 0:
+                rating_values = []
+                for rating_activity in ratings:
+                    try:
+                        metadata = json.loads(rating_activity.metadata) if rating_activity.metadata else {}
+                        rating_value = metadata.get('rating_value')
+                        if rating_value:
+                            rating_values.append(float(rating_value))
+                    except (json.JSONDecodeError, ValueError, TypeError):
+                        pass
+                
+                if rating_values:
+                    metric.average_rating = round(sum(rating_values) / len(rating_values), 1)
+                else:
+                    metric.average_rating = 0.0
+            else:
+                metric.average_rating = 0.0
+            
+            # Update recommendation metrics
+            recommendations = activities.filter(action_type='recommendation_click')
+            metric.recommendation_count = recommendations.count()
+            
+            # Calculate CTR (recommendations clicked / recommendations shown)
+            # For now, use a simplified calculation
+            if metric.view_count > 0:
+                metric.click_through_rate = round(
+                    (metric.recommendation_count / metric.view_count) * 100, 2
+                )
+            else:
+                metric.click_through_rate = 0.00
+            
+            # Log significant changes for debugging
+            if not created and original_views != metric.view_count:
+                print(f"📈 Views changed for {movie.title}: {original_views} → {metric.view_count}")
+            
+            metric.save()
+            
+            print(f"✅ Updated metrics for {movie.title}: {metric.view_count} views, {metric.like_count} likes, {metric.rating_count} ratings")
+            
+        else:
+            print(f"📊 Skipping update for {movie.title} on {date} - metric exists and auto-update enabled")
         
-        activities = UserActivityLog.objects.filter(
-            movie=movie,
-            timestamp__date=date
-        )
-        
-        # Update view count
-        metric.view_count = activities.filter(action_type='movie_view').count()
-        
-        # Update rating metrics
-        ratings = activities.filter(action_type='rating_submit')
-        metric.rating_count = ratings.count()
-        
-        # Update recommendation metrics
-        recommendations = activities.filter(action_type='recommendation_click')
-        metric.recommendation_count = recommendations.count()
-        
-        # Calculate CTR (recommendations clicked / recommendations shown)
-        # This would need additional tracking of recommendation impressions
-        
-        metric.save()
         return metric
+
+    # Enhanced version with force update option
+    @classmethod
+    def force_update_daily_metrics(cls, movie, date=None):
+        """
+        Force update metrics regardless of AUTO_UPDATE_METRICS setting.
+        Useful for admin actions or manual updates.
+        """
+        from django.conf import settings
+        
+        # Temporarily override the setting
+        original_setting = getattr(settings, 'AUTO_UPDATE_METRICS', True)
+        original_force = getattr(settings, 'FORCE_METRIC_RECALCULATION', False)
+        
+        # Force the update
+        settings.AUTO_UPDATE_METRICS = True
+        settings.FORCE_METRIC_RECALCULATION = True
+        
+        try:
+            result = cls.update_daily_metrics(movie, date)
+            print(f"🔄 Force updated metrics for {movie.title}")
+            return result
+        finally:
+            # Restore original settings
+            settings.AUTO_UPDATE_METRICS = original_setting
+            settings.FORCE_METRIC_RECALCULATION = original_force
+
+    # Batch update method for admin actions
+    @classmethod
+    def batch_update_metrics(cls, movies=None, date=None, force=False):
+        """
+        Update metrics for multiple movies.
+        
+        Args:
+            movies: QuerySet of movies to update (default: all movies)
+            date: Date to update metrics for (default: today)
+            force: Whether to force update regardless of settings
+        """
+        from apps.movies.models import Movie
+        
+        if movies is None:
+            movies = Movie.objects.all()
+        
+        if date is None:
+            date = timezone.now().date()
+        
+        updated_count = 0
+        skipped_count = 0
+        
+        print(f"📊 Batch updating metrics for {movies.count()} movies on {date}")
+        
+        for movie in movies:
+            if force:
+                result = cls.force_update_daily_metrics(movie, date)
+            else:
+                result = cls.update_daily_metrics(movie, date)
+            
+            if result:
+                updated_count += 1
+            else:
+                skipped_count += 1
+            
+            # Progress indicator for large batches
+            if (updated_count + skipped_count) % 10 == 0:
+                print(f"   → Processed {updated_count + skipped_count} movies...")
+        
+        print(f"✅ Batch update complete: {updated_count} updated, {skipped_count} skipped")
+        return updated_count, skipped_count
 
 #Manager for common queries
 class UserActivityLogManager(models.Manager):
