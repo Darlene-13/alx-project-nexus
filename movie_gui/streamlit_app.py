@@ -906,7 +906,7 @@ def show_enhanced_registration_form():
                 show_completion_step()
 
 def show_basic_info_step():
-    """Step 1: Basic information - authentication fields only"""
+    """Step 1: Basic information - using correct endpoint"""
     st.markdown("#### 🔹 Create Your Account")
     
     col_a, col_b = st.columns(2)
@@ -961,8 +961,6 @@ def show_basic_info_step():
         </div>
         """, unsafe_allow_html=True)
     
-    # Terms and conditions
-    st.markdown("#### 📜 Terms & Conditions")
     agree_terms = st.checkbox("I agree to the Terms of Service and Privacy Policy")
     
     next_button = st.form_submit_button("✅ **Create Account**", use_container_width=True)
@@ -970,37 +968,34 @@ def show_basic_info_step():
     if next_button:
         if all([username, email, password, password_confirm]) and agree_terms:
             if password == password_confirm and len(password) >= 8:
-                # Build ONLY authentication data - no profile preferences
                 registration_data = {
                     "username": username,
                     "email": email.lower().strip(),
                     "password": password,
-                    "password_confirm": password_confirm,  # Required by your Django backend
+                    "password_confirm": password_confirm,
                 }
                 
-                # Add only basic optional fields that are part of User model
                 if first_name:
                     registration_data["first_name"] = first_name
                 if last_name:
                     registration_data["last_name"] = last_name
                 
-                # Submit registration immediately - no second step needed
                 with st.spinner("🎬 Creating your CineFlow account..."):
                     progress_bar = st.progress(0)
                     for i in range(100):
                         time.sleep(0.02)
                         progress_bar.progress(i + 1)
                     
-                    # Debug: Show what data we're sending
+                    # CORRECT ENDPOINT: /authentication/auth/register/
                     st.info(f"🔍 **Sending to:** `/authentication/auth/register/`")
-                    with st.expander("📋 Registration Data (Debug)", expanded=False):
+                    with st.expander("📋 Registration Data", expanded=False):
                         safe_data = registration_data.copy()
                         safe_data["password"] = "***HIDDEN***"
                         safe_data["password_confirm"] = "***HIDDEN***"
                         st.json(safe_data)
                     
                     response = make_api_request(
-                        "/authentication/auth/register/",
+                        "/authentication/auth/register/",  # ← CORRECT FULL PATH
                         method="POST",
                         data=registration_data,
                         auth_required=False,
@@ -1010,66 +1005,40 @@ def show_basic_info_step():
                     if response and response.status_code in [200, 201]:
                         st.success("🎉 Account created successfully!")
                         
-                        # Try to get user info from response
+                        # Extract tokens from response (like Postman shows)
                         try:
                             response_data = response.json()
-                            if 'user' in response_data:
-                                st.info(f"✅ Welcome {response_data['user'].get('username', username)}!")
-                            elif 'username' in response_data:
-                                st.info(f"✅ Welcome {response_data['username']}!")
+                            
+                            # Get access token
+                            access_token = response_data.get('access_token')
+                            refresh_token = response_data.get('refresh_token')
+                            user_data = response_data.get('user', {})
+                            
+                            st.info(f"✅ Welcome {user_data.get('username', username)}!")
+                            
+                            if access_token:
+                                st.success("🔑 Authentication tokens received!")
+                                # Optionally auto-login the user
+                                st.session_state.authenticated = True
+                                st.session_state.token = access_token
+                                st.session_state.refresh_token = refresh_token
+                                st.session_state.user_info = user_data
+                                
+                                st.markdown("### 🎯 Account Created & Logged In!")
+                                st.balloons()
+                                time.sleep(2)
+                                st.rerun()
                             else:
-                                st.info(f"✅ Welcome {username}!")
-                        except:
-                            st.info(f"✅ Welcome {username}!")
+                                st.markdown("### 🎯 Account Created! Please sign in.")
+                                
+                        except Exception as e:
+                            st.warning(f"Account created but couldn't parse response: {e}")
                         
-                        # Show next steps
-                        st.markdown("""
-                        ### 🎯 What's Next?
-                        
-                        1. **Sign in** with your new credentials
-                        2. **Complete your profile** with movie preferences
-                        3. **Start rating movies** to get personalized recommendations
-                        4. **Discover** amazing movies tailored just for you!
-                        """)
-                        
-                        st.balloons()
-                        time.sleep(3)
-                        
-                        # Reset registration and go back to login
+                        # Reset form
                         st.session_state.registration_progress = 0
-                        st.session_state.registration_data = {}
-                        st.info("🔄 Redirecting to login...")
-                        time.sleep(1)
+                        time.sleep(2)
                         st.rerun()
                         
-                    elif response and response.status_code == 400:
-                        # Handle validation errors
-                        try:
-                            error_data = response.json()
-                            st.error("❌ Registration failed - Validation errors:")
-                            
-                            # Parse specific field errors
-                            for field, errors in error_data.items():
-                                if isinstance(errors, list):
-                                    for error in errors:
-                                        st.error(f"**{field}**: {error}")
-                                else:
-                                    st.error(f"**{field}**: {errors}")
-                            
-                            # Show common fixes
-                            st.markdown("""
-                            ### 🔧 **Common Issues:**
-                            
-                            - **Username**: Must be unique, 3-150 characters, letters/numbers/underscore only
-                            - **Email**: Must be unique and valid format
-                            - **Password**: Check Django's password requirements (usually 8+ chars, not too common)
-                            
-                            **💡 Try different username/email if they're already taken**
-                            """)
-                            
-                        except Exception as e:
-                            st.error(f"❌ Registration failed: {response.text}")
-                            
                     else:
                         st.error(f"❌ Registration failed with status {response.status_code if response else 'No response'}")
                         if response:
