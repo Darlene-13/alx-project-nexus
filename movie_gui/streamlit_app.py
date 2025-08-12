@@ -3161,6 +3161,20 @@ def show_movies_management_page():
     with tab5:
         show_add_movie_form()
 
+def fetch_genres():
+    """Fetch available genres from API"""
+    if 'genres' not in st.session_state or st.session_state.genres is None:
+        try:
+            response = make_api_request("/movies/api/genres/", auth_required=False)
+            if response and response.status_code == 200:
+                genres_data = response.json()
+                st.session_state.genres = genres_data
+            else:
+                st.session_state.genres = None
+        except Exception as e:
+            st.session_state.genres = None
+            
+
 def show_movie_discovery():
     """Advanced movie discovery with filters"""
     st.markdown("### 🔍 Discover Your Next Favorite Movie")
