@@ -791,18 +791,22 @@ def show_enhanced_login_form():
                     if response and response.status_code == 200:
                         try:
                             data = response.json()
+
+                            st.info(" **Full Response Structure:")
+                            st.json(data)
+
+                            # Handle Django backend's nested token structure.
+                            user_data = data.get("user", {})
+                            tokens_data = data.get("tokens", {})
+                            message = data.get("message", "")
                             
                             # Handle different token response formats
                             access_token = (
-                                data.get("access") or 
-                                data.get("access_token") or 
-                                data.get("token") or
-                                data.get("key")  # Some APIs use 'key'
+                                tokens_data.get("access_token") 
                             )
                             
                             refresh_token = (
-                                data.get("refresh") or 
-                                data.get("refresh_token")
+                                tokens_data.get("refresh_token")
                             )
                             
                             user_data = data.get("user", {})
