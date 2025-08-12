@@ -1637,7 +1637,7 @@ def show_profile_setup_page():
                 else:
                     st.warning("⚠️ Couldn't save preferences now, but you can set them later in your profile!")
 
-def show_preferences_step():
+#def show_preferences_step():
 
 def show_completion_step():
     """Step 3: Registration completion with onboarding"""
