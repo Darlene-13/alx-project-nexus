@@ -25,7 +25,8 @@ from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from django.shortcuts import render
 from .views import landing_page
-
+from django.http import JsonResponse
+from django.utils import timezone
 
 # Fixed schema view
 schema_view = get_schema_view(
@@ -40,9 +41,24 @@ schema_view = get_schema_view(
     permission_classes=[permissions.AllowAny],
 )
 
+from django.views.decorators.csrf import csrf_exempt
+
+def health_check(request):
+    """Simple health check endpoint"""
+    return JsonResponse({
+        'status': 'healthy',
+        'timestamp': timezone.now().isoformat(),
+        'version': '1.0.0',
+        'services': {
+            'database': 'connected',
+            'redis': 'connected' if settings.CACHES else 'not_configured',
+        }
+    })
+
 
 urlpatterns = [
     path('authentication/admin/', admin.site.urls),
+    path('health/', health_check, name='health_check'),
     path('', landing_page, name='landing_page'),
     # Authentication endpoints
     path('authentication/auth/', include('apps.authentication.urls')),

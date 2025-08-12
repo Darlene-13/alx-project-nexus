@@ -384,24 +384,24 @@ def load_custom_css():
     
     st.markdown(css, unsafe_allow_html=True)
 
-# Initialize session state with comprehensive tracking
+
 def init_session_state():
-    """Initialize all session state variables"""
+    """Initialize all session state variables with safe defaults"""
     defaults = {
         'authenticated': False,
         'token': None,
         'refresh_token': None,
-        'user_info': None,
-        'user_profile': None,
+        'user_info': {},  # ← Change from None to empty dict
+        'user_profile': {},  # ← Change from None to empty dict
         'backend_status': None,
         'api_environment': None,
-        'popular_movies': None,
-        'movie_stats': None,
-        'user_recommendations': None,
-        'user_interactions': None,
-        'notifications': None,
-        'analytics_data': None,
-        'genres': None,
+        'popular_movies': {"results": []},  # ← Change from None to empty structure
+        'movie_stats': {},  # ← Change from None to empty dict
+        'user_recommendations': {"results": []},  # ← Change from None to empty structure
+        'user_interactions': {"results": []},  # ← Change from None to empty structure
+        'notifications': {"results": []},  # ← Change from None to empty structure
+        'analytics_data': {},  # ← Change from None to empty dict
+        'genres': {"results": []},  # ← Change from None to empty structure
         'selected_genres': [],
         'demo_mode': False,
         'user_journey': 'first_visit',
@@ -409,14 +409,14 @@ def init_session_state():
         'registration_progress': 0,
         'connection_attempts': 0,
         'last_api_call': None,
-        'trending_movies': None,
-        'recommendation_performance': None
+        'trending_movies': {"results": []},  # ← Change from None to empty structure
+        'recommendation_performance': {}  # ← Change from None to empty dict
     }
     
     for key, default_value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = default_value
-
+            
 # Enhanced API Helper Functions
 def make_api_request(endpoint: str, method: str = "GET", data: dict = None, 
                     auth_required: bool = True, timeout: int = 15) -> Optional[requests.Response]:
@@ -621,18 +621,31 @@ def fetch_trending_movies():
             st.session_state.trending_movies = {"results": []}
 
 def fetch_user_recommendations():
-    """Fetch user's personalized recommendations"""
+    """Fetch user's personalized recommendations with error handling"""
     if st.session_state.authenticated and st.session_state.user_recommendations is None:
-        response = make_api_request("/recommendations/v1/recommendations/personalized/")
-        if response and response.status_code == 200:
-            st.session_state.user_recommendations = response.json()
-
+        try:
+            response = make_api_request("/recommendations/v1/recommendations/personalized/")
+            if response and response.status_code == 200:
+                st.session_state.user_recommendations = response.json()
+            else:
+                # Set empty structure instead of None
+                st.session_state.user_recommendations = {"results": []}
+        except Exception as e:
+            # Fail gracefully
+            st.session_state.user_recommendations = {"results": []}
 def fetch_user_profile():
-    """Fetch complete user profile"""
+    """Fetch complete user profile with error handling"""
     if st.session_state.authenticated and st.session_state.user_profile is None:
-        response = make_api_request("/recommendations/v1/users/me/")
-        if response and response.status_code == 200:
-            st.session_state.user_profile = response.json()
+        try:
+            response = make_api_request("/recommendations/v1/users/me/")
+            if response and response.status_code == 200:
+                st.session_state.user_profile = response.json()
+            else:
+                # Set empty profile instead of None
+                st.session_state.user_profile = {}
+        except Exception as e:
+            # Fail gracefully
+            st.session_state.user_profile = {}
 
 def fetch_genres():
     """Fetch available genres"""
@@ -642,11 +655,18 @@ def fetch_genres():
             st.session_state.genres = response.json()
 
 def fetch_user_notifications():
-    """Fetch user notifications"""
+    """Fetch user notifications with error handling"""
     if st.session_state.authenticated and st.session_state.notifications is None:
-        response = make_api_request("/notifications/api/v1/inapp/recent/")
-        if response and response.status_code == 200:
-            st.session_state.notifications = response.json()
+        try:
+            response = make_api_request("/notifications/api/v1/inapp/recent/")
+            if response and response.status_code == 200:
+                st.session_state.notifications = response.json()
+            else:
+                # Set empty structure instead of None to prevent AttributeError
+                st.session_state.notifications = {"results": []}
+        except Exception as e:
+            # Fail gracefully - set empty structure
+            st.session_state.notifications = {"results": []}
 
 def logout():
     """Enhanced logout with API call"""
@@ -1424,7 +1444,7 @@ def show_completion_step():
         st.rerun()
 
 def show_enhanced_preview_content():
-    """Enhanced preview with live data integration and error handling"""
+    """Enhanced preview with FIXED movie card display"""
     
     # Fetch all preview data safely
     fetch_popular_movies()
@@ -1435,27 +1455,38 @@ def show_enhanced_preview_content():
     st.markdown("### 📊 Platform Overview")
     stats = st.session_state.movie_stats or {}
     
-    # Create beautiful metrics grid
-    metric_cols = st.columns(4)
-    metrics = [
-        ("🎬", "Movies", stats.get('total_movies', 100), "+5 this week"),
-        ("👥", "Users", stats.get('total_users', 1247), "+23 today"),
-        ("⭐", "Ratings", stats.get('total_ratings', 15643), "+156 today"),
-        ("🎯", "Recommendations", stats.get('total_recommendations', 48921), "+1.2K today")
-    ]
+    # Create beautiful metrics grid using native Streamlit
+    col1, col2, col3, col4 = st.columns(4)
     
-    for i, (icon, label, value, delta) in enumerate(metrics):
-        with metric_cols[i]:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div style="font-size: 2.5rem; margin-bottom: 0.8rem;">{icon}</div>
-                <div style="font-size: 2rem; font-weight: bold; color: #667eea; margin-bottom: 0.3rem;">{value:,}</div>
-                <div style="color: #666; font-size: 0.9rem; margin-bottom: 0.5rem;">{label}</div>
-                <div style="font-size: 0.8rem; color: #10b981; font-weight: 500;">📈 {delta}</div>
-            </div>
-            """, unsafe_allow_html=True)
+    with col1:
+        st.metric(
+            label="🎬 Movies",
+            value=f"{stats.get('total_movies', 100):,}",
+            delta="+5 this week"
+        )
     
-    # Popular Movies Showcase with safe access
+    with col2:
+        st.metric(
+            label="👥 Users", 
+            value=f"{stats.get('total_users', 52):,}",
+            delta="+23 today"
+        )
+    
+    with col3:
+        st.metric(
+            label="⭐ Ratings",
+            value=f"{stats.get('total_ratings', 15643):,}",
+            delta="+156 today"
+        )
+    
+    with col4:
+        st.metric(
+            label="🎯 Recommendations",
+            value=f"{stats.get('total_recommendations', 48921):,}",
+            delta="+1.2K today"
+        )
+    
+    # Popular Movies Showcase with FIXED display
     st.markdown("### 🔥 Popular Movies Right Now")
     
     try:
@@ -1463,134 +1494,150 @@ def show_enhanced_preview_content():
             movies = st.session_state.popular_movies.get('results', [])
             
             if movies and len(movies) > 0:
-                # Display movies in a beautiful grid
-                for i in range(0, min(len(movies), 6), 2):
-                    cols = st.columns(2)
-                    for j, col in enumerate(cols):
-                        if i + j < len(movies):
-                            movie = movies[i + j]
-                            with col:
-                                display_enhanced_movie_card(movie, show_interactions=False)
+                # Display movies using FIXED function
+                for movie in movies[:4]:  # Show first 4 movies
+                    display_enhanced_movie_card(movie, show_interactions=False)
+                    st.markdown("---")  # Separator
             else:
                 st.info("🎬 Loading popular movies...")
         else:
             st.info("🎬 Loading popular movies...")
     except Exception as e:
+        st.error(f"Error loading movies: {e}")
         st.info("🎬 Movies coming soon...")
     
-    # Feature Highlights
+    # Feature Highlights using native Streamlit
     st.markdown("### ✨ Why Choose CineFlow?")
     
     features = [
-        ("🤖", "AI-Powered Recommendations", "Advanced machine learning algorithms analyze your preferences to suggest movies you'll love", "#4facfe"),
-        ("🔍", "Smart Discovery", "Explore movies by genre, mood, decade, or even specific themes with our intelligent search", "#667eea"),
-        ("📊", "Personal Analytics", "Track your viewing habits, discover patterns, and see how your taste evolves over time", "#764ba2"),
-        ("⭐", "Community Ratings", "Join a community of movie enthusiasts and discover hidden gems through collective wisdom", "#fa709a"),
-        ("🎭", "Comprehensive Catalog", "Access detailed information about thousands of movies across all genres and eras", "#4ade80"),
-        ("📱", "Seamless Experience", "Enjoy a beautiful, responsive interface that works perfectly on any device", "#3b82f6")
+        ("🤖", "AI-Powered Recommendations", "Advanced machine learning algorithms analyze your preferences to suggest movies you'll love"),
+        ("🔍", "Smart Discovery", "Explore movies by genre, mood, decade, or even specific themes with our intelligent search"),
+        ("📊", "Personal Analytics", "Track your viewing habits, discover patterns, and see how your taste evolves over time"),
+        ("⭐", "Community Ratings", "Join a community of movie enthusiasts and discover hidden gems through collective wisdom"),
     ]
     
-    # Create feature grid
+    # Display features in columns
     for i in range(0, len(features), 2):
-        feature_cols = st.columns(2)
-        for j, col in enumerate(feature_cols):
-            if i + j < len(features):
-                icon, title, desc, color = features[i + j]
-                with col:
-                    st.markdown(f"""
-                    <div class="feature-card">
-                        <div style="display: flex; align-items: flex-start; gap: 1rem;">
-                            <div style="font-size: 2.5rem; color: {color};">{icon}</div>
-                            <div>
-                                <h4 style="color: #2d3748; margin-bottom: 0.8rem; font-weight: 600;">{title}</h4>
-                                <p style="color: #666; font-size: 0.95rem; line-height: 1.5; margin: 0;">{desc}</p>
-                            </div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-    
-    # Trending Section with safe access
-    try:
-        if st.session_state.trending_movies and isinstance(st.session_state.trending_movies, dict):
-            trending = st.session_state.trending_movies.get('results', [])
-            if trending and len(trending) > 0:
-                st.markdown("### 📈 Trending This Week")
-                for movie in trending[:3]:
-                    st.markdown(f"""
-                    <div class="recommendation-card">
-                        <h4 style="margin-bottom: 0.5rem;">🔥 {movie.get('title', 'Unknown')}</h4>
-                        <p style="margin: 0; color: #666;">📊 Trending score: {movie.get('trending_score', 'N/A')}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-    except Exception as e:
-        # Silent fail for trending section
-        pass
+        col_left, col_right = st.columns(2)
+        
+        # Left feature
+        if i < len(features):
+            icon, title, desc = features[i]
+            with col_left:
+                st.markdown(f"### {icon} {title}")
+                st.write(desc)
+        
+        # Right feature
+        if i + 1 < len(features):
+            icon, title, desc = features[i + 1]
+            with col_right:
+                st.markdown(f"### {icon} {title}")
+                st.write(desc)
     
     # Final Call to Action
+    st.markdown("---")
+    st.markdown("### 🚀 Ready to Start Your Movie Journey?")
     st.markdown("""
-    <div class="hero-section" style="margin-top: 3rem; padding: 3rem 2rem;">
-        <h3 style="margin-bottom: 1.5rem; font-size: 2rem;">🚀 Ready to Start Your Movie Journey?</h3>
-        <p style="margin-bottom: 2rem; font-size: 1.2rem; opacity: 0.95;">
-            Join thousands of movie lovers and discover your next favorite film with AI-powered recommendations!
-        </p>
-        <div style="font-size: 1rem; opacity: 0.9; margin-top: 1rem;">
-            ✨ Free to join • 🎬 Instant recommendations • 🔍 Advanced search • 📊 Personal analytics
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    Join thousands of movie lovers and discover your next favorite film with AI-powered recommendations!
+    
+    ✨ **Free to join** • 🎬 **Instant recommendations** • 🔍 **Advanced search** • 📊 **Personal analytics**
+    """)
 
 def display_enhanced_movie_card(movie, show_interactions=True):
-    """Display a beautiful, interactive movie card"""
+    """Display a beautiful, interactive movie card - FIXED VERSION"""
+    
+    # Safely get movie data
+    title = movie.get('title', 'Unknown Title')
     rating = movie.get('tmdb_rating', 0)
-    stars_filled = "⭐" * int(rating)
-    stars_empty = "☆" * (10 - int(rating))
+    release_date = movie.get('release_date', 'Unknown')
+    overview = movie.get('overview', 'No description available')
+    popularity_score = movie.get('popularity_score', 0)
+    views = movie.get('views', 0)
+    like_count = movie.get('like_count', 0)
+    poster_path = movie.get('poster_path')
     
-    poster_url = None
-    if movie.get('poster_path'):
-        poster_url = f"https://image.tmdb.org/t/p/w300{movie['poster_path']}"
+    # Create stars display
+    stars_filled = int(rating) if rating else 0
+    stars_display = "⭐" * min(stars_filled, 5)  # Max 5 stars for display
     
-    st.markdown(f"""
-    <div class="movie-card">
-        <div style="display: flex; gap: 1.5rem;">
-            <div style="flex-shrink: 0;">
-                {f'<img src="{poster_url}" class="movie-poster">' if poster_url else '<div style="width: 120px; height: 180px; background: linear-gradient(45deg, #667eea, #764ba2); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; font-size: 2.5rem;">🎬</div>'}
-            </div>
-            <div style="flex: 1;">
-                <h3 style="margin-bottom: 0.8rem; color: #2d3748; font-weight: 700;">{movie.get('title', 'Unknown Title')}</h3>
-                <div style="margin-bottom: 0.8rem;">
-                    <span class="rating-stars">{stars_filled[:5]}</span>
-                    <span style="margin-left: 0.5rem; font-weight: bold; color: #667eea;">{rating}/10</span>
-                </div>
-                <div style="margin-bottom: 0.8rem; font-size: 0.9rem; color: #666;">
-                    <span style="margin-right: 1rem;">📅 {movie.get('release_date', 'Unknown')}</span>
-                    <span style="margin-right: 1rem;">🔥 {movie.get('popularity_score', 0):.1f}</span>
-                    {'<span style="margin-right: 1rem;">👁️ ' + str(movie.get('views', 0)) + '</span>' if movie.get('views') else ''}
-                    {'<span>❤️ ' + str(movie.get('like_count', 0)) + '</span>' if movie.get('like_count') else ''}
-                </div>
-                <p style="font-size: 0.9rem; color: #666; line-height: 1.5; margin-bottom: 1rem;">
-                    {movie.get('overview', 'No description available')[:150]}{'...' if len(movie.get('overview', '')) > 150 else ''}
-                </p>
-                {'<div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">' + ''.join([f'<span class="genre-tag">{genre}</span>' for genre in movie.get('genres', [])[:3]]) + '</div>' if movie.get('genres') else ''}
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    # Create poster display
+    if poster_path:
+        poster_url = f"https://image.tmdb.org/t/p/w300{poster_path}"
+        poster_html = f'<img src="{poster_url}" style="width: 120px; height: 180px; object-fit: cover; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">'
+    else:
+        poster_html = '''
+        <div style="width: 120px; height: 180px; background: linear-gradient(45deg, #667eea, #764ba2); 
+                    border-radius: 12px; display: flex; align-items: center; justify-content: center; 
+                    color: white; font-size: 2.5rem;">🎬</div>
+        '''
     
-    # Interactive buttons for authenticated users
-    if show_interactions and st.session_state.authenticated:
-        button_cols = st.columns(4)
-        with button_cols[0]:
-            if st.button("⭐ Rate", key=f"rate_{movie.get('id')}", help="Rate this movie"):
-                show_rating_modal(movie)
-        with button_cols[1]:
-            if st.button("👁️ View", key=f"view_{movie.get('id')}", help="Mark as viewed"):
-                increment_movie_views(movie.get('id'))
-        with button_cols[2]:
-            if st.button("❤️ Like", key=f"like_{movie.get('id')}", help="Like this movie"):
-                increment_movie_likes(movie.get('id'))
-        with button_cols[3]:
-            if st.button("ℹ️ Details", key=f"details_{movie.get('id')}", help="View full details"):
-                show_movie_details(movie)
+    # Truncate overview
+    overview_truncated = overview[:150] + "..." if len(overview) > 150 else overview
+    
+    # Create the movie card using st.container and st.columns for better layout
+    with st.container():
+        # Use native Streamlit components instead of raw HTML
+        col1, col2 = st.columns([1, 3])
+        
+        with col1:
+            # Display poster using HTML component
+            st.markdown(poster_html, unsafe_allow_html=True)
+        
+        with col2:
+            # Use Streamlit native components for text
+            st.markdown(f"### {title}")
+            
+            # Rating display
+            rating_col1, rating_col2 = st.columns([1, 2])
+            with rating_col1:
+                st.markdown(f"**{stars_display}**")
+            with rating_col2:
+                st.markdown(f"**{rating}/10**")
+            
+            # Movie info
+            info_text = f"""
+            📅 **Release:** {release_date}  
+            🔥 **Popularity:** {popularity_score:.1f}  
+            👁️ **Views:** {views:,}  
+            ❤️ **Likes:** {like_count:,}
+            """
+            st.markdown(info_text)
+            
+            # Overview
+            st.markdown(f"**📝 Overview:**")
+            st.write(overview_truncated)
+            
+            # Genres (if available)
+            genres = movie.get('genres', [])
+            if genres:
+                genre_tags = " ".join([f"`{genre}`" for genre in genres[:3]])
+                st.markdown(f"**🎭 Genres:** {genre_tags}")
+        
+        # Interactive buttons for authenticated users
+        if show_interactions and st.session_state.get('authenticated', False):
+            st.markdown("---")
+            button_cols = st.columns(4)
+            
+            movie_id = movie.get('id')
+            
+            with button_cols[0]:
+                if st.button("⭐ Rate", key=f"rate_{movie_id}", help="Rate this movie"):
+                    show_rating_modal(movie)
+            
+            with button_cols[1]:
+                if st.button("👁️ View", key=f"view_{movie_id}", help="Mark as viewed"):
+                    increment_movie_views(movie_id)
+            
+            with button_cols[2]:
+                if st.button("❤️ Like", key=f"like_{movie_id}", help="Like this movie"):
+                    increment_movie_likes(movie_id)
+            
+            with button_cols[3]:
+                if st.button("ℹ️ Details", key=f"details_{movie_id}", help="View full details"):
+                    show_movie_details(movie)
+        
+        # Add some spacing
+        st.markdown("<br>", unsafe_allow_html=True)
 
 def calculate_password_strength(password):
     """Calculate password strength (0-2)"""
@@ -1686,12 +1733,12 @@ def show_enhanced_connection_status():
         """, unsafe_allow_html=True)
 
 def show_authenticated_sidebar():
-    """Enhanced sidebar for authenticated users"""
+    """Enhanced sidebar for authenticated users - FIXED VERSION"""
     # Fetch user profile
     fetch_user_profile()
     fetch_user_notifications()
     
-    user = st.session_state.user_info.get('username', 'User')
+    user = st.session_state.user_info.get('username', 'User') if st.session_state.user_info else 'User'
     profile = st.session_state.user_profile or {}
     
     # User welcome card
@@ -1726,10 +1773,11 @@ def show_authenticated_sidebar():
             </div>
             """, unsafe_allow_html=True)
     
-    # Notifications preview
-    if st.session_state.notifications:
-        notifications = st.session_state.notifications.get('results', [])
-        if notifications:
+    # FIXED: Safe notifications handling
+    notifications_data = st.session_state.notifications
+    if notifications_data and isinstance(notifications_data, dict):
+        notifications = notifications_data.get('results', [])
+        if notifications and len(notifications) > 0:
             st.markdown("**🔔 Recent Notifications**")
             for notif in notifications[:2]:
                 st.markdown(f"""
@@ -1738,6 +1786,11 @@ def show_authenticated_sidebar():
                     <div style="font-size: 0.75rem; color: #666; margin-top: 0.2rem;">{notif.get('created_at', '')[:10]}</div>
                 </div>
                 """, unsafe_allow_html=True)
+    else:
+        # Handle case where notifications is None or empty
+        if st.session_state.authenticated:
+            st.markdown("**🔔 Notifications**")
+            st.info("No new notifications")
     
     # Logout button
     st.markdown("---")
@@ -1762,7 +1815,6 @@ def show_authenticated_sidebar():
         format_func=lambda x: x
     )
     
-    return selected
 
 def show_preview_sidebar():
     """Enhanced sidebar preview for anonymous users"""
