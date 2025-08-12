@@ -1,4 +1,7 @@
-# recommendations/views.py
+"""
+TThis file contains the views for the movie recommendation backend.
+It includes endpoints for user interactions, recommendations, experiments, and analytics.
+"""
 
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
@@ -54,6 +57,9 @@ def recommendations_hub(request):
     """
     Recommendation system hub view.
     Lists all major endpoints for personalization, experiments, analytics, and utilities.
+    
+    Endpoint: GET /recommendations/hub/
+    Example: curl -X GET "http://localhost:8000/recommendations/hub/"
     """
 
     endpoints_by_section = {
@@ -286,6 +292,8 @@ class UserMovieInteractionViewSet(
     
     Provides CRUD operations, analytics, and bulk operations for user interactions.
     Users can only access their own interactions.
+    
+    Base URL: /recommendations/v1/interactions/
     """
     queryset = UserMovieInteraction.objects.all()
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
@@ -324,6 +332,43 @@ class UserMovieInteractionViewSet(
         
         return queryset
 
+    def list(self, request, *args, **kwargs):
+        """
+        List user's movie interactions
+        
+        Endpoint: GET /recommendations/v1/interactions/
+        Example: curl -H "Authorization: Bearer <token>" "http://localhost:8000/recommendations/v1/interactions/?page=1&page_size=10"
+        
+        Query Parameters:
+        - page: Page number (default: 1)
+        - page_size: Items per page (default: 20, max: 100)
+        - interaction_type: Filter by type (like, dislike, watchlist, etc.)
+        - rating: Filter by rating
+        - ordering: Sort by field (-timestamp, rating, etc.)
+        """
+        return super().list(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+        """
+        Create a new movie interaction
+        
+        Endpoint: POST /recommendations/v1/interactions/
+        Example: 
+        curl -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+        "http://localhost:8000/recommendations/v1/interactions/" \
+        -d '{"movie": 123, "interaction_type": "like", "rating": 4.5}'
+        """
+        return super().create(request, *args, **kwargs)
+
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Get interaction details
+        
+        Endpoint: GET /recommendations/v1/interactions/{id}/
+        Example: curl -H "Authorization: Bearer <token>" "http://localhost:8000/recommendations/v1/interactions/456/"
+        """
+        return super().retrieve(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         """Set user when creating interaction"""
         # Check if user already has this interaction type for this movie
@@ -357,7 +402,17 @@ class UserMovieInteractionViewSet(
 
     @action(detail=False, methods=['get'])
     def my_interactions(self, request):
-        """Get current user's interactions with summary stats"""
+        """
+        Get current user's interactions with summary stats
+        
+        Endpoint: GET /recommendations/v1/interactions/my_interactions/
+        Example: curl -H "Authorization: Bearer <token>" "http://localhost:8000/recommendations/v1/interactions/my_interactions/"
+        
+        Returns:
+        - Statistics (total, positive interactions, avg rating)
+        - Recent interactions (last 10)
+        - Preferred genres based on interactions
+        """
         cache_key = self.get_cache_key('user_interactions_summary', request.user.id)
         cached_data = self.get_cached_data(cache_key)
         
@@ -394,7 +449,15 @@ class UserMovieInteractionViewSet(
 
     @action(detail=False, methods=['post'])
     def bulk_create(self, request):
-        """Create multiple interactions at once"""
+        """
+        Create multiple interactions at once
+        
+        Endpoint: POST /recommendations/v1/interactions/bulk_create/
+        Example: 
+        curl -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+        "http://localhost:8000/recommendations/v1/interactions/bulk_create/" \
+        -d '[{"movie": 123, "interaction_type": "like"}, {"movie": 124, "interaction_type": "dislike"}]'
+        """
         if not isinstance(request.data, list):
             return Response(
                 {'error': 'Expected a list of interactions'}, 
@@ -424,7 +487,15 @@ class UserMovieInteractionViewSet(
 
     @action(detail=True, methods=['patch'])
     def update_feedback(self, request, pk=None):
-        """Update feedback for an interaction"""
+        """
+        Update feedback for an interaction
+        
+        Endpoint: PATCH /recommendations/v1/interactions/{id}/update_feedback/
+        Example: 
+        curl -X PATCH -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+        "http://localhost:8000/recommendations/v1/interactions/456/update_feedback/" \
+        -d '{"feedback_type": "positive", "feedback_comment": "Great movie!"}'
+        """
         interaction = self.get_object()
         
         feedback_type = request.data.get('feedback_type')
@@ -446,7 +517,14 @@ class UserMovieInteractionViewSet(
 
     @action(detail=False, methods=['get'])
     def analytics(self, request):
-        """Get interaction analytics for the current user"""
+        """
+        Get interaction analytics for the current user
+        
+        Endpoint: GET /recommendations/v1/interactions/analytics/
+        Example: curl -H "Authorization: Bearer <token>" "http://localhost:8000/recommendations/v1/interactions/analytics/"
+        
+        Returns time-based analytics (7, 30, 90 days) and genre preferences
+        """
         cache_key = self.get_cache_key('user_interaction_analytics', request.user.id)
         cached_data = self.get_cached_data(cache_key)
         
@@ -511,6 +589,11 @@ class UserRecommendationViewSet(
     
     Read-only viewset that provides personalized movie recommendations.
     Includes A/B testing integration and click tracking.
+    
+    🎯 PRIMARY ENDPOINT FOR GENRE-BASED PERSONALIZATION:
+    GET /recommendations/v1/recommendations/personalized/
+    
+    Base URL: /recommendations/v1/recommendations/
     """
     queryset = UserRecommendations.objects.all()
     permission_classes = [permissions.IsAuthenticated]
@@ -546,7 +629,18 @@ class UserRecommendationViewSet(
         return queryset
 
     def list(self, request, *args, **kwargs):
-        """Get recommendations with A/B testing integration"""
+        """
+        Get recommendations with A/B testing integration
+        
+        Endpoint: GET /recommendations/v1/recommendations/
+        Example: curl -H "Authorization: Bearer <token>" "http://localhost:8000/recommendations/v1/recommendations/?page=1&page_size=10"
+        
+        Query Parameters:
+        - page: Page number
+        - page_size: Items per page  
+        - include_clicked: Include already clicked recommendations (default: false)
+        - algorithm: Filter by algorithm type
+        """
         # Check if user is in an active experiment
         active_experiment = RecommendationExperiment.get_active_experiment()
         algorithm_filter = None
@@ -583,9 +677,25 @@ class UserRecommendationViewSet(
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Get recommendation details
+        
+        Endpoint: GET /recommendations/v1/recommendations/{id}/
+        Example: curl -H "Authorization: Bearer <token>" "http://localhost:8000/recommendations/v1/recommendations/789/"
+        """
+        return super().retrieve(request, *args, **kwargs)
+
     @action(detail=True, methods=['post'])
     def click(self, request, pk=None):
-        """Mark a recommendation as clicked"""
+        """
+        Mark a recommendation as clicked
+        
+        Endpoint: POST /recommendations/v1/recommendations/{id}/click/
+        Example: 
+        curl -X POST -H "Authorization: Bearer <token>" \
+        "http://localhost:8000/recommendations/v1/recommendations/789/click/"
+        """
         recommendation = self.get_object()
         
         if recommendation.clicked:
@@ -607,7 +717,15 @@ class UserRecommendationViewSet(
 
     @action(detail=False, methods=['post'])
     def bulk_click(self, request):
-        """Mark multiple recommendations as clicked"""
+        """
+        Mark multiple recommendations as clicked
+        
+        Endpoint: POST /recommendations/v1/recommendations/bulk_click/
+        Example: 
+        curl -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+        "http://localhost:8000/recommendations/v1/recommendations/bulk_click/" \
+        -d '{"recommendation_ids": [789, 790, 791]}'
+        """
         recommendation_ids = request.data.get('recommendation_ids', [])
         
         if not recommendation_ids:
@@ -633,7 +751,34 @@ class UserRecommendationViewSet(
 
     @action(detail=False, methods=['get'])
     def personalized(self, request):
-        """Get personalized recommendations based on user preferences"""
+        """
+        🎯 MAIN FUNCTION FOR GENRE-BASED PERSONALIZED RECOMMENDATIONS
+        
+        Get personalized recommendations based on user's favorite genres (JSON array)
+        
+        Endpoint: GET /recommendations/v1/recommendations/personalized/
+        Example: 
+        curl -H "Authorization: Bearer <token>" \
+        "http://localhost:8000/recommendations/v1/recommendations/personalized/?limit=20&refresh=true"
+        
+        Query Parameters:
+        - limit: Number of recommendations (default: 20)
+        - refresh: Force refresh cache (default: false)
+        
+        This function uses the user's favorite_genres field (JSON array) to filter recommendations:
+        - Extracts genre IDs from user.favorite_genres JSON array
+        - Filters movies by matching genres
+        - Applies content rating and diversity preferences
+        - Returns personalized recommendations with context
+        
+        Expected favorite_genres format:
+        [
+            {"genre_id": 28, "weight": 0.8},  # Action
+            {"genre_id": 35, "weight": 0.6},  # Comedy  
+            {"genre_id": 18, "weight": 0.9}   # Drama
+        ]
+        or simply: [28, 35, 18]
+        """
         user = request.user
         
         cache_key = self.get_cache_key('personalized_recommendations', user.id)
@@ -644,11 +789,11 @@ class UserRecommendationViewSet(
         
         queryset = self.get_queryset()
         
-        # Apply personalization filters based on user preferences
+        # 🎯 MAIN GENRE FILTERING LOGIC - Uses favorite_genres JSON array
         favorite_genres = getattr(user, 'favorite_genres', [])
         
         if favorite_genres:
-            # Extract genre IDs from favorite_genres
+            # Extract genre IDs from favorite_genres JSON array
             genre_ids = []
             for genre_item in favorite_genres:
                 if isinstance(genre_item, dict):
@@ -657,6 +802,7 @@ class UserRecommendationViewSet(
                     genre_ids.append(genre_item)
             
             if genre_ids:
+                # Filter recommendations by user's favorite genres
                 queryset = queryset.filter(movie__genres__in=genre_ids).distinct()
         
         # Apply content rating filter
@@ -682,8 +828,10 @@ class UserRecommendationViewSet(
             'recommendations': serializer.data,
             'personalization_context': {
                 'has_preferences': bool(favorite_genres),
+                'favorite_genre_ids': [item.get('genre_id') if isinstance(item, dict) else item for item in favorite_genres],
                 'diversity_level': diversity_pref,
-                'total_recommendations': len(serializer.data)
+                'total_recommendations': len(serializer.data),
+                'content_rating_filter': content_rating
             },
             'generated_at': timezone.now()
         }
@@ -702,7 +850,14 @@ class UserRecommendationViewSet(
 
     @action(detail=False, methods=['get'])
     def performance(self, request):
-        """Get recommendation performance metrics for the current user"""
+        """
+        Get recommendation performance metrics for the current user
+        
+        Endpoint: GET /recommendations/v1/recommendations/performance/
+        Example: curl -H "Authorization: Bearer <token>" "http://localhost:8000/recommendations/v1/recommendations/performance/"
+        
+        Returns performance metrics by algorithm including click-through rates
+        """
         cache_key = self.get_cache_key('user_recommendation_performance', request.user.id)
         cached_data = self.get_cached_data(cache_key)
         
@@ -750,6 +905,8 @@ class RecommendationExperimentViewSet(viewsets.ModelViewSet):
     
     Admin-only viewset for creating and managing recommendation experiments.
     Provides experiment lifecycle management and statistical analysis.
+    
+    Base URL: /recommendations/v1/experiments/
     """
     queryset = RecommendationExperiment.objects.all()
     permission_classes = [permissions.IsAuthenticated, IsAdminOrReadOnly]
@@ -766,13 +923,42 @@ class RecommendationExperimentViewSet(viewsets.ModelViewSet):
         else:
             return RecommendationExperimentDetailSerializer
 
+    def list(self, request, *args, **kwargs):
+        """
+        List all experiments
+        
+        Endpoint: GET /recommendations/v1/experiments/
+        Example: curl -H "Authorization: Bearer <admin_token>" "http://localhost:8000/recommendations/v1/experiments/"
+        """
+        return super().list(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+        """
+        Create a new experiment
+        
+        Endpoint: POST /recommendations/v1/experiments/
+        Example: 
+        curl -X POST -H "Authorization: Bearer <admin_token>" -H "Content-Type: application/json" \
+        "http://localhost:8000/recommendations/v1/experiments/" \
+        -d '{"name": "Genre Algorithm Test", "algorithm_a": "collaborative", "algorithm_b": "content_based"}'
+        """
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         """Set creator when creating experiment"""
         serializer.save(created_by=self.request.user)
 
     @action(detail=True, methods=['post'])
     def stop(self, request, pk=None):
-        """Stop an active experiment"""
+        """
+        Stop an active experiment
+        
+        Endpoint: POST /recommendations/v1/experiments/{id}/stop/
+        Example: 
+        curl -X POST -H "Authorization: Bearer <admin_token>" -H "Content-Type: application/json" \
+        "http://localhost:8000/recommendations/v1/experiments/123/stop/" \
+        -d '{"reason": "Significant results achieved"}'
+        """
         experiment = self.get_object()
         
         if not experiment.is_active:
@@ -794,7 +980,15 @@ class RecommendationExperimentViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def update_results(self, request, pk=None):
-        """Update experiment statistical results"""
+        """
+        Update experiment statistical results
+        
+        Endpoint: POST /recommendations/v1/experiments/{id}/update_results/
+        Example: 
+        curl -X POST -H "Authorization: Bearer <admin_token>" -H "Content-Type: application/json" \
+        "http://localhost:8000/recommendations/v1/experiments/123/update_results/" \
+        -d '{"conversion_rate_a": 0.15, "conversion_rate_b": 0.18, "statistical_significance": 0.95}'
+        """
         experiment = self.get_object()
         
         serializer = ExperimentResultsSerializer(data=request.data)
@@ -811,7 +1005,12 @@ class RecommendationExperimentViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def metrics(self, request, pk=None):
-        """Get detailed experiment metrics"""
+        """
+        Get detailed experiment metrics
+        
+        Endpoint: GET /recommendations/v1/experiments/{id}/metrics/
+        Example: curl -H "Authorization: Bearer <admin_token>" "http://localhost:8000/recommendations/v1/experiments/123/metrics/"
+        """
         experiment = self.get_object()
         
         try:
@@ -831,7 +1030,12 @@ class RecommendationExperimentViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def active(self, request):
-        """Get currently active experiment"""
+        """
+        Get currently active experiment
+        
+        Endpoint: GET /recommendations/v1/experiments/active/
+        Example: curl -H "Authorization: Bearer <admin_token>" "http://localhost:8000/recommendations/v1/experiments/active/"
+        """
         active_experiment = RecommendationExperiment.get_active_experiment()
         
         if active_experiment:
@@ -848,19 +1052,46 @@ class UserProfileViewSet(viewsets.ViewSet):
     
     Works directly with User model fields - no separate UserProfile model.
     Handles user onboarding, preference management, and cold start data collection.
+    
+    🎯 MANAGES USER'S FAVORITE_GENRES JSON ARRAY FOR PERSONALIZATION
+    
+    Base URL: /recommendations/v1/users/
     """
     permission_classes = [permissions.IsAuthenticated]
 
     @action(detail=False, methods=['get'])
     def me(self, request):
-        """Get current user's profile/preferences"""
+        """
+        Get current user's profile/preferences
+        
+        Endpoint: GET /recommendations/v1/users/me/
+        Example: curl -H "Authorization: Bearer <token>" "http://localhost:8000/recommendations/v1/users/me/"
+        
+        Returns user profile including favorite_genres JSON array
+        """
         user = request.user
         serializer = UserProfileSerializer(user, context={'request': request})
         return Response(serializer.data)
 
     @action(detail=False, methods=['patch'])
     def update_preferences(self, request):
-        """Update current user's recommendation preferences"""
+        """
+        🎯 UPDATE USER'S FAVORITE_GENRES AND OTHER PREFERENCES
+        
+        Update current user's recommendation preferences including favorite genres
+        
+        Endpoint: PATCH /recommendations/v1/users/update_preferences/
+        Example: 
+        curl -X PATCH -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+        "http://localhost:8000/recommendations/v1/users/update_preferences/" \
+        -d '{"favorite_genres": [{"genre_id": 28, "weight": 0.8}, {"genre_id": 35, "weight": 0.6}], "diversity_preference": 0.7}'
+        
+        Request body can include:
+        - favorite_genres: JSON array of genre preferences
+        - content_rating_preference: Preferred content rating
+        - diversity_preference: Float between 0-1
+        - novelty_preference: Float between 0-1
+        """
         user = request.user
         
         serializer = UserProfileSerializer(
@@ -882,7 +1113,22 @@ class UserProfileViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['post'])
     def onboarding(self, request):
-        """Handle user onboarding process"""
+        """
+        🎯 HANDLE USER ONBOARDING - SETS INITIAL FAVORITE_GENRES
+        
+        Handle user onboarding process including setting favorite genres
+        
+        Endpoint: POST /recommendations/v1/users/onboarding/
+        Example: 
+        curl -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+        "http://localhost:8000/recommendations/v1/users/onboarding/" \
+        -d '{
+            "favorite_genres": [28, 35, 18], 
+            "content_rating_preference": "PG-13",
+            "country": "US",
+            "date_of_birth": "1990-01-01"
+        }'
+        """
         user = request.user
         
         if getattr(user, 'onboarding_completed', False):
@@ -918,7 +1164,19 @@ class UserProfileViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['post'])
     def add_genre_preference(self, request):
-        """Add or update a genre preference"""
+        """
+        🎯 ADD/UPDATE INDIVIDUAL GENRE PREFERENCE IN FAVORITE_GENRES ARRAY
+        
+        Add or update a single genre preference in the favorite_genres JSON array
+        
+        Endpoint: POST /recommendations/v1/users/add_genre_preference/
+        Example: 
+        curl -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+        "http://localhost:8000/recommendations/v1/users/add_genre_preference/" \
+        -d '{"genre_id": 28, "weight": 0.9}'
+        
+        This updates the user's favorite_genres array by adding/updating the specified genre
+        """
         user = request.user
         
         serializer = GenrePreferenceSerializer(data=request.data)
@@ -937,7 +1195,14 @@ class UserProfileViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'])
     def recommendation_context(self, request):
-        """Get user's recommendation context for ML algorithms"""
+        """
+        Get user's recommendation context for ML algorithms
+        
+        Endpoint: GET /recommendations/v1/users/recommendation_context/
+        Example: curl -H "Authorization: Bearer <token>" "http://localhost:8000/recommendations/v1/users/recommendation_context/"
+        
+        Returns context data used by recommendation algorithms including favorite genres
+        """
         user = request.user
         
         # Build context from User model
@@ -1002,7 +1267,16 @@ class UserProfileViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['post'])
     def reset_preferences(self, request):
-        """Reset user preferences and restart onboarding"""
+        """
+        Reset user preferences and restart onboarding
+        
+        Endpoint: POST /recommendations/v1/users/reset_preferences/
+        Example: 
+        curl -X POST -H "Authorization: Bearer <token>" \
+        "http://localhost:8000/recommendations/v1/users/reset_preferences/"
+        
+        Clears all user preferences including favorite_genres and resets onboarding status
+        """
         user = request.user
         
         # Reset preference fields on User model
@@ -1057,12 +1331,21 @@ class AnalyticsViewSet(viewsets.ViewSet):
     
     Provides dashboard data, performance metrics, and system insights.
     Admin-only access for sensitive analytics data.
+    
+    Base URL: /recommendations/v1/analytics/
     """
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     @action(detail=False, methods=['get'])
     def dashboard(self, request):
-        """Get dashboard analytics data"""
+        """
+        Get dashboard analytics data
+        
+        Endpoint: GET /recommendations/v1/analytics/dashboard/
+        Example: curl -H "Authorization: Bearer <admin_token>" "http://localhost:8000/recommendations/v1/analytics/dashboard/?refresh=true"
+        
+        Returns comprehensive dashboard metrics for admin overview
+        """
         cache_key = 'analytics_dashboard'
         cached_data = cache.get(cache_key)
         
@@ -1124,7 +1407,12 @@ class AnalyticsViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'])
     def algorithm_performance(self, request):
-        """Get performance comparison of different algorithms"""
+        """
+        Get performance comparison of different algorithms
+        
+        Endpoint: GET /recommendations/v1/analytics/algorithm_performance/
+        Example: curl -H "Authorization: Bearer <admin_token>" "http://localhost:8000/recommendations/v1/analytics/algorithm_performance/"
+        """
         algorithms = UserRecommendations.objects.values_list('algorithm', flat=True).distinct()
         
         performance_data = []
@@ -1139,7 +1427,12 @@ class AnalyticsViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'])
     def user_segmentation(self, request):
-        """Get user segmentation analytics"""
+        """
+        Get user segmentation analytics
+        
+        Endpoint: GET /recommendations/v1/analytics/user_segmentation/
+        Example: curl -H "Authorization: Bearer <admin_token>" "http://localhost:8000/recommendations/v1/analytics/user_segmentation/"
+        """
         # Age group distribution (from User.date_of_birth)
         users_with_age = User.objects.exclude(date_of_birth__isnull=True)
         age_groups = {'teen': 0, 'young_adult': 0, 'adult': 0, 'senior': 0}
@@ -1193,12 +1486,22 @@ class RecommendationUtilityViewSet(viewsets.ViewSet):
     Utility endpoints for recommendation system management.
     
     Provides maintenance, health checks, and administrative utilities.
+    
+    Base URL: /recommendations/v1/utils/
     """
     permission_classes = [permissions.IsAuthenticated]
 
     @action(detail=False, methods=['post'])
     def generate_recommendations(self, request):
-        """Trigger recommendation generation for current user"""
+        """
+        Trigger recommendation generation for current user
+        
+        Endpoint: POST /recommendations/v1/utils/generate_recommendations/
+        Example: 
+        curl -X POST -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+        "http://localhost:8000/recommendations/v1/utils/generate_recommendations/" \
+        -d '{"algorithm": "collaborative_filtering", "limit": 20}'
+        """
         if not request.user.is_authenticated:
             return Response(
                 {'error': 'Authentication required'},
@@ -1233,7 +1536,12 @@ class RecommendationUtilityViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'])
     def health(self, request):
-        """Health check endpoint"""
+        """
+        Health check endpoint
+        
+        Endpoint: GET /recommendations/v1/utils/health/
+        Example: curl "http://localhost:8000/recommendations/v1/utils/health/"
+        """
         try:
             # Test database connectivity
             user_count = User.objects.count()
