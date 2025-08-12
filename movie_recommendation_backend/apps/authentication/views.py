@@ -4,8 +4,6 @@ Authentication views for the movie recommendation backend
 This file contains the API views for the user authentication system and profile management. 
 It uses DRF and class based views for clean and readable code structure.
 The views handle, http requests, authentication, data validation, business logic execution and logging and monitoring
-
-
 """
 
 import json
@@ -51,115 +49,88 @@ logger = logging.getLogger(__name__)
 #Logger for user activity
 activity_logger = logging.getLogger('user_activity')
 
-# WEB INTERFACE VIEWS (Add this section at the very top after imports)
+# WEB INTERFACE VIEWS
 def auth_hub(request):
     """Authentication app hub showing all available endpoints"""
     
-    # Define your actual authentication endpoints with correct URLs
-    auth_endpoints = [
-        {
-            'url': '/authentication/auth/register/',
-            'description': 'User registration endpoint - Create new user accounts',
-            'status': 'active'
-        },
-        {
-            'url': '/authentication/auth/login/',
-            'description': 'User login endpoint - Authenticate users and get tokens',
-            'status': 'active'
-        },
-        {
-            'url': '/authentication/auth/logout/',
-            'description': 'User logout endpoint - Invalidate user sessions',
-            'status': 'active'
-        },
-        {
-            'url': '/authentication/auth/token/refresh/',
-            'description': 'JWT token refresh - Get new access token using refresh token',
-            'status': 'active'
-        },
-        {
-            'url': '/authentication/auth/token/verify/',
-            'description': 'JWT token verification - Verify and obtain token pair',
-            'status': 'active'
-        },
-        {
-            'url': '/authentication/auth/search/',
-            'description': 'User search endpoint - Search for users in the system',
-            'status': 'active'
-        },
-        {
-            'url': '/authentication/auth/profile/',
-            'description': 'User profile management - View and update user profiles',
-            'status': 'active'
-        },
-        {
-            'url': '/authentication/auth/change-password/',
-            'description': 'Change user password - Update the password for the authenticated user',
-            'status': 'active'
-        },
-        {
-            'url': '/api/v1/auth/users/{id}/',
-            'description': 'User profile management - View and update user profiles by ID',
-            'status': 'active'
-        },
-        {
-            'url': '/authentication/auth/debug/',
-            'description': 'Debug endpoint - Development and testing utilities',
-            'status': 'active'
-        },
-        {
-            'url': '/authentication/auth/users/',
-            'description': 'User profile management - CRUD operations for user profiles',
-            'status': 'active'
-        },
-        {
-            'url': '/api/v1/auth/users/update-device/',
-            'description': 'User device management - Update user device information',
-            'status': 'active'
-        },
-        {
-            'url': '/api/v1/auth/users/stats/',
-            'description': 'User statistics - Retrieve statistics for a specific user',
-            'status': 'active'
-        },
-        {
-            'url': '/api/v1/auth/search/',
-            'description': 'User search - Search for users by username or email',
-            'status': 'active'
-        },
-        {
-            'url': '/authentication/auth/api-auth/',
-            'description': 'Browsable API login/logout - Provides a browsable interface for authentication',
-            'status': 'active'
-        },
-        {
-            'url': '/authentication/auth/admin/',
-            'description': 'Django admin interface - Administrative user management',
-            'status': 'active'
-        },
-        {
-            'url': '/authentication/api/docs/',
-            'description': 'API documentation - Swagger UI for exploring API endpoints',
-            'status': 'active'
-        },
-        {
-            'url': '/authentication/api/redoc/',
-            'description': 'API documentation - ReDoc UI for exploring API endpoints',
-            'status': 'active'
-        },
-        {
-            'url': '/authentication/api/schema/',
-            'description': 'API schema - JSON schema for the authentication API',
-            'status': 'active'
-        },
+    # CORRECTED endpoints that match your actual URL patterns
+    endpoints_by_section = {
+        "🔐 AUTHENTICATION": [
+            {"method": "POST", "url": "/authentication/auth/register/", "description": "🆕 User registration - Create new account", "status": "✅ Active"},
+            {"method": "POST", "url": "/authentication/auth/login/", "description": "🔑 User login - Get JWT tokens", "status": "✅ Active"},
+            {"method": "POST", "url": "/authentication/auth/logout/", "description": "🚪 User logout - End session", "status": "✅ Active"},
+            {"method": "POST", "url": "/authentication/auth/token/refresh/", "description": "🔄 Refresh JWT token", "status": "✅ Active"},
+            {"method": "POST", "url": "/authentication/auth/token/verify/", "description": "✅ Verify JWT token", "status": "✅ Active"},
+        ],
         
+        "👤 USER PROFILE MANAGEMENT": [
+            {"method": "GET", "url": "/authentication/auth/users/", "description": "👥 List users / Get current profile", "status": "✅ Active"},
+            {"method": "GET", "url": "/authentication/auth/users/{id}/", "description": "🔍 Get specific user profile", "status": "✅ Active"},
+            {"method": "PUT", "url": "/authentication/auth/users/{id}/", "description": "✏️ Update user profile (full)", "status": "✅ Active"},
+            {"method": "PATCH", "url": "/authentication/auth/users/{id}/", "description": "📝 Update user profile (partial)", "status": "✅ Active"},
+            {"method": "DELETE", "url": "/authentication/auth/users/{id}/", "description": "🗑️ Deactivate user account", "status": "✅ Active"},
+        ],
         
-    ]
+        "🔧 USER ACTIONS": [
+            {"method": "POST", "url": "/authentication/auth/users/change-password/", "description": "🔒 Change password", "status": "✅ Active"},
+            {"method": "POST", "url": "/authentication/auth/users/update-device/", "description": "📱 Update device info", "status": "✅ Active"},
+            {"method": "GET", "url": "/authentication/auth/users/stats/", "description": "📊 Get user statistics", "status": "✅ Active"},
+        ],
+        
+        "🔍 UTILITY ENDPOINTS": [
+            {"method": "GET", "url": "/authentication/auth/search/", "description": "🔎 Search users", "status": "✅ Active"},
+            {"method": "GET", "url": "/authentication/auth/debug/", "description": "🐛 Debug info (dev only)", "status": "🟡 Dev Only"},
+        ],
+        
+        "📘 API DOCUMENTATION": [
+            {"method": "GET", "url": "/authentication/api/docs/", "description": "📖 Swagger UI documentation", "status": "✅ Active"},
+            {"method": "GET", "url": "/authentication/api/redoc/", "description": "📋 ReDoc documentation", "status": "✅ Active"},
+            {"method": "GET", "url": "/authentication/api/schema/", "description": "📄 JSON API schema", "status": "✅ Active"},
+        ],
+        
+        "🌐 WEB INTERFACE": [
+            {"method": "GET", "url": "/authentication/", "description": "🏠 Authentication hub (this page)", "status": "✅ Active"},
+            {"method": "GET", "url": "/authentication/auth/api-auth/", "description": "🌐 Browsable API login", "status": "✅ Active"},
+            {"method": "GET", "url": "/authentication/admin/", "description": "⚙️ Django admin interface", "status": "✅ Active"},
+        ]
+    }
+    
+    # Flatten endpoints for template
+    flat_endpoints = []
+    for section_name, section_endpoints in endpoints_by_section.items():
+        for endpoint in section_endpoints:
+            endpoint['section'] = section_name
+            flat_endpoints.append(endpoint)
+    
+    # Add usage examples
+    usage_examples = {
+        "🔑 Login Flow": [
+            "1. POST /authentication/auth/register/ - Create account",
+            "2. POST /authentication/auth/login/ - Get tokens", 
+            "3. GET /authentication/auth/users/ - Get your profile (with token)",
+            "4. PATCH /authentication/auth/users/{your_id}/ - Update profile"
+        ],
+        "📱 Profile Management": [
+            "1. GET /authentication/auth/users/ - See your profile",
+            "2. POST /authentication/auth/users/change-password/ - Change password",
+            "3. POST /authentication/auth/users/update-device/ - Update device info",
+            "4. GET /authentication/auth/users/stats/ - View your stats"
+        ],
+        "🔍 Search & Discovery": [
+            "1. GET /authentication/auth/search/?q=john - Search users",
+            "2. GET /authentication/auth/users/{id}/ - View other profiles",
+            "3. GET /authentication/auth/debug/ - Debug info (dev)"
+        ]
+    }
     
     context = {
-        'endpoints': auth_endpoints,
-        'app_name': 'Authentication API',
-        'app_description': 'RESTful JWT-based authentication system with user management'
+        'app_name': '🔐 Authentication API Hub',
+        'app_description': 'JWT-based authentication system with comprehensive user management',
+        'endpoints_by_section': endpoints_by_section,
+        'flat_endpoints': flat_endpoints,
+        'usage_examples': usage_examples,
+        'total_endpoints': len(flat_endpoints),
+        'base_url': '/authentication/auth/',
     }
     
     return render(request, 'authentication/auth_hub.html', context)
@@ -220,7 +191,7 @@ class UserRegistrationView(APIView):
     View for user registration.
     
     HTTP methods: POST
-    URL: /api/v1/auth/register/
+    URL: /authentication/auth/register/
     Permissions: AllowAny
     """
     
@@ -230,7 +201,7 @@ class UserRegistrationView(APIView):
         """
         Handle User registration, returns the user profile data.
         """
-        logger.info("User registration request received.")  # Fixed typo
+        logger.info("User registration request received.")
         
         serializer = UserRegistrationSerializer(data=request.data)
         
@@ -243,7 +214,7 @@ class UserRegistrationView(APIView):
                     
                     # Update last login with timestamp
                     user.last_login = timezone.now()
-                    user.save()  # Don't forget to save!
+                    user.save()
                     
                     # Log successful registration
                     log_user_action(
@@ -255,7 +226,8 @@ class UserRegistrationView(APIView):
                             'ip_address': get_client_ip(request),
                             'favorite_genres_count': len(safe_json_loads(user.favorite_genres, [])),
                             'created_at': user.date_joined.isoformat(),
-                        }
+                        },
+                        request=request
                     )
                     
                     # 🚀 SEND WELCOME EMAIL ASYNCHRONOUSLY
@@ -266,7 +238,7 @@ class UserRegistrationView(APIView):
                         # Don't fail registration if email fails
                         logger.error(f"Failed to queue welcome email for {user.username}: {email_error}")
                     
-                    # Prepare response data  # Fixed typo
+                    # Prepare response data
                     user_data = UserProfileSerializer(user).data
                     
                     logger.info(f"User {user.username} registered successfully.")
@@ -280,7 +252,7 @@ class UserRegistrationView(APIView):
             except ValidationError as e:
                 logger.error(f"Registration failed for {request.data.get('username', 'unknown')}: {str(e)}")
                 return Response({
-                    'error': 'Registration failed due to server error.'  # Fixed typo (removed extra dot)
+                    'error': 'Registration failed due to server error.'
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
         else:
@@ -301,13 +273,11 @@ class UserRegistrationView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
 
-
-
 class UserLoginView(APIView):
     """
     View for user login.
-    HTTP methods:POST
-    URL: /api/v1/auth/login/
+    HTTP methods: POST
+    URL: /authentication/auth/login/
     """
     permission_classes = [AllowAny]
 
@@ -331,9 +301,10 @@ class UserLoginView(APIView):
                 access_token = str(refresh.access_token)
                 
                 # Update last login timestamp
-                last_login = timezone.now()
+                user.last_login = timezone.now()
+                user.save()
                 
-                #Log sucessful login
+                # Log successful login
                 log_user_action(
                     user=user,
                     action='User Login',
@@ -341,7 +312,7 @@ class UserLoginView(APIView):
                         'username': user.username,
                         'email': user.email,
                         'ip_address': get_client_ip(request),
-                        'last_login': last_login.isoformat(),
+                        'last_login': user.last_login.isoformat(),
                     },
                     request=request
                 )
@@ -353,10 +324,12 @@ class UserLoginView(APIView):
                 return Response({
                     'user': user_data,
                     'tokens': {
-                    'access_token': access_token,
-                    'refresh_token': str(refresh),
-                    }, 'message': 'Welcome back, {}'.format(user.username)
+                        'access_token': access_token,
+                        'refresh_token': str(refresh),
+                    },
+                    'message': f'Welcome back, {user.username}'
                 }, status=status.HTTP_200_OK)
+                
             except Exception as e:
                 logger.error(f"Login failed for {request.data.get('username', 'unknown')}: {str(e)}")
                 return Response({
@@ -364,9 +337,8 @@ class UserLoginView(APIView):
                     'details': str(e) if settings.DEBUG else 'Please try again'
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:
-
             # Log failed login attempt
-            identifier = request.data.get('identifier', 'unknown')
+            identifier = request.data.get('username', 'unknown')
             logger.warning(f"Login failed for {identifier}: {serializer.errors} - {get_client_ip(request)}")
             log_user_action(
                 user=None,
@@ -378,17 +350,17 @@ class UserLoginView(APIView):
                 },
                 request=request
             )
-            return Response(
-                {
-                    'error': 'Invalid credentials provided.',
-                    'details': serializer.errors
-                }, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({
+                'error': 'Invalid credentials provided.',
+                'details': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
 class UserLogoutView(APIView):
     """
     View for the user logout.
     HTTP methods: POST
-    URL: /api/v1/auth/logout/
+    URL: /authentication/auth/logout/
     """
 
     permission_classes = [IsAuthenticated]
@@ -425,78 +397,120 @@ class UserLogoutView(APIView):
 
 class UserProfileViewSet(ModelViewSet):
     """
-    Viewset for user profile management.
-
+    ViewSet for user profile management.
+    
     HTTP methods: GET, PUT, PATCH, DELETE
-    URL: /api/v1/auth/profile/
+    URL: /authentication/auth/users/
     """
+    permission_classes = [IsAuthenticated]
+    
     def get_queryset(self):
         """
-        Return the queryset of the user profile.
+        Return the queryset based on user permissions.
         """
-        return User.objects.filter(id=self.request.user.id)
+        if self.request.user.is_staff:
+            return User.objects.all()
+        else:
+            # Regular users can only access their own profile
+            return User.objects.filter(id=self.request.user.id)
     
     def get_object(self):
-        """ 
-        Returns the user profile object for the current user.
         """
-        return self.request.user
+        Get user object with permission checking.
+        """
+        obj = super().get_object()
+        
+        # Users can only access their own profile unless they're staff
+        if not self.request.user.is_staff and obj.id != self.request.user.id:
+            raise PermissionDenied("You can only access your own profile")
+        
+        return obj
     
     def get_serializer_class(self):
         """
-        Returns the different serializer classe based on the action."""
-
+        Returns the different serializer class based on the action.
+        """
         if self.action in ['update', 'partial_update']:
             return UserUpdateSerializer
         elif self.action == 'change_password':
             return PasswordChangeSerializer
-        elif self.action == 'get_stats':
+        elif self.action == 'update_device':
             return UserDeviceSerializer
+        elif self.action == 'user_stats':
+            return UserStatsSerializer
         return UserProfileSerializer
 
     def list(self, request):
         """
-        Handle GET request to retrieve the user profile.
+        Handle GET request to retrieve user profiles.
+        For regular users, returns their own profile.
+        For staff users, returns list of all users.
         """
-        serializer = self.get_serializer(request.user)
-        log_user_action(
-            user=request.user,
-            action='User Profile Viewed',
-            details={
-                'username': request.user.username,
-                'email': request.user.email,
-                'ip_address': get_client_ip(request),
-                'last_login': request.user.last_login.isoformat() if request.user.last_login else None,
-            },
-            request=request
-        )
-        logger.info(f"User {request.user.username} profile viewed.")
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        if request.user.is_staff:
+            # Staff can see all users
+            users = self.get_queryset()
+            serializer = UserMinimalSerializer(users, many=True)
+            
+            log_user_action(
+                user=request.user,
+                action='User List Viewed',
+                details={'user_count': len(users), 'is_staff': True},
+                request=request
+            )
+            
+            return Response({
+                'users': serializer.data,
+                'count': len(serializer.data),
+                'message': 'User list retrieved successfully'
+            }, status=status.HTTP_200_OK)
+        else:
+            # Regular users get their own profile
+            serializer = self.get_serializer(request.user)
+            
+            log_user_action(
+                user=request.user,
+                action='User Profile Viewed',
+                details={
+                    'username': request.user.username,
+                    'email': request.user.email,
+                    'method': 'list_endpoint'
+                },
+                request=request
+            )
+            
+            return Response(serializer.data, status=status.HTTP_200_OK)
     
     def retrieve(self, request, pk=None):
         """
-        Handle GET request to retrieve the user profile.
+        Handle GET request to retrieve a specific user profile.
         """
-
-        if pk and str(pk) != str(request.user.id):
-            logger.warning(f"Unauthorized access attempt to user profile {pk} by {request.user.username}.")
-            return Response(
-                {'error': 'You do not have permission to access this profile.'},
-                status=status.HTTP_403_FORBIDDEN
+        try:
+            user = self.get_object()
+            serializer = self.get_serializer(user)  # 🔧 FIXED: was get_serializer_class
+            
+            log_user_action(
+                user=request.user,
+                action='User Profile Viewed',
+                details={
+                    'viewed_user_id': user.id,
+                    'viewed_username': user.username,
+                    'is_self': user.id == request.user.id
+                },
+                request=request
             )
-        serializer = self.get_serializer_class(request.user)
-        log_user_action(
-            user=request.user,
-            action='User Profile Viewed',
-            details={
-                'username': request.user.username,
-                'email': request.user.email,
-                'ip_address': get_client_ip(request),
-                'last_login': request.user.last_login.isoformat() if request.user.last_login else None,
-            },
-            request=request
-        )
-        return Response(serializer.data, status=status.HTTP_200_OK)
+            
+            return Response(serializer.data, status=status.HTTP_200_OK)
+            
+        except PermissionDenied as e:
+            logger.warning(f"Unauthorized access attempt to user profile {pk} by {request.user.username}.")
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_403_FORBIDDEN)
+        except Exception as e:
+            logger.error(f"Profile retrieval failed: {str(e)}")
+            return Response({
+                'error': 'Failed to retrieve profile'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def update(self, request, pk=None):
         """
@@ -518,61 +532,68 @@ class UserProfileViewSet(ModelViewSet):
             request: HTTP request
             partial: Whether this is a partial update (PATCH vs PUT)
         """
-        serializer = self.get_serializer(
-            request.user, 
-            data=request.data, 
-            partial=partial
-        )
-        
-        if serializer.is_valid():
-            try:
+        try:
+            user = self.get_object()
+            serializer = self.get_serializer(
+                user, 
+                data=request.data, 
+                partial=partial
+            )
+            
+            if serializer.is_valid():
                 with transaction.atomic():
-                    user = serializer.save()
+                    updated_user = serializer.save()
                     
                     # Log profile update
                     log_user_action(
-                        user=user,
-                        action='PROFILE_UPDATED',
+                        user=request.user,
+                        action='Profile Updated',
                         details={
+                            'updated_user_id': updated_user.id,
                             'updated_fields': list(request.data.keys()),
                             'partial': partial
                         },
                         request=request
                     )
                     
-                    logger.info(f"User {user.username} updated their profile")
+                    logger.info(f"User {updated_user.username} profile updated")
                     
                     # Return updated profile data
-                    response_serializer = UserProfileSerializer(user)
+                    response_serializer = UserProfileSerializer(updated_user)
                     return Response({
                         'user': response_serializer.data,
                         'message': 'Profile updated successfully'
                     }, status=status.HTTP_200_OK)
-            except Exception as e:
-                logger.error(f"Profile update failed for {request.user.username}: {str(e)}")
+            
+            else:
+                logger.warning(f"Profile update validation failed for {request.user.username}: {serializer.errors}")
                 return Response({
-                    'error': 'Profile update failed',
-                    'details': str(e) if settings.DEBUG else 'Please try again'
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        else:
-            logger.warning(f"Profile update validation failed for {request.user.username}: {serializer.errors}")
+                    'error': 'Validation failed',
+                    'details': serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except PermissionDenied as e:
             return Response({
-                'error': 'Validation failed',
-                'details': serializer.errors
-            }, status=status.HTTP_400_BAD_REQUEST)
+                'error': str(e)
+            }, status=status.HTTP_403_FORBIDDEN)
+        except Exception as e:
+            logger.error(f"Profile update failed for {request.user.username}: {str(e)}")
+            return Response({
+                'error': 'Profile update failed',
+                'details': str(e) if settings.DEBUG else 'Please try again'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def destroy(self, request, pk=None):
         """
         Deactivate user account (soft delete).
         
-        DELETE /api/v1/auth/users/{id}/
+        DELETE /authentication/auth/users/{id}/
         
         We don't actually delete the user, just deactivate the account.
         """
-        user = request.user
-        
         try:
+            user = self.get_object()
+            
             with transaction.atomic():
                 # Deactivate instead of deleting (for data integrity)
                 user.is_active = False
@@ -580,9 +601,12 @@ class UserProfileViewSet(ModelViewSet):
                 
                 # Log account deactivation
                 log_user_action(
-                    user=user,
-                    action='ACCOUNT_DEACTIVATED',
-                    details={'reason': 'user_request'},
+                    user=request.user,
+                    action='Account Deactivated',
+                    details={
+                        'deactivated_user_id': user.id,
+                        'reason': 'user_request'
+                    },
                     request=request
                 )
                 
@@ -592,24 +616,25 @@ class UserProfileViewSet(ModelViewSet):
                     'message': 'Account deactivated successfully. You can reactivate by contacting support.'
                 }, status=status.HTTP_200_OK)
                 
+        except PermissionDenied as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_403_FORBIDDEN)
         except Exception as e:
-            logger.error(f"Account deactivation failed for {user.username}: {str(e)}")
+            logger.error(f"Account deactivation failed for {request.user.username}: {str(e)}")
             return Response({
                 'error': 'Account deactivation failed',
                 'details': str(e) if settings.DEBUG else 'Please contact support'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-
 
     # CUSTOM ACTIONS (Additional endpoints within the ViewSet)
-
     
     @action(detail=False, methods=['post'], url_path='change-password')
     def change_password(self, request):
         """
         Change user password.
         
-        POST /api/v1/auth/users/change-password/
+        POST /authentication/auth/users/change-password/
         
         Expected Input:
         {
@@ -618,7 +643,7 @@ class UserProfileViewSet(ModelViewSet):
             "new_password_confirm": "newpassword123"
         }
         """
-        serializer = self.get_serializer(
+        serializer = PasswordChangeSerializer(
             data=request.data,
             context={'request': request}
         )
@@ -631,7 +656,7 @@ class UserProfileViewSet(ModelViewSet):
                     # Log password change
                     log_user_action(
                         user=user,
-                        action='PASSWORD_CHANGED',
+                        action='Password Changed',
                         request=request
                     )
                     
@@ -660,7 +685,7 @@ class UserProfileViewSet(ModelViewSet):
         """
         Update device information for push notifications.
         
-        POST /api/v1/auth/users/update-device/
+        POST /authentication/auth/users/update-device/
         
         Expected Input:
         {
@@ -668,7 +693,7 @@ class UserProfileViewSet(ModelViewSet):
             "device_type": "ios"
         }
         """
-        serializer = self.get_serializer(
+        serializer = UserDeviceSerializer(
             request.user,
             data=request.data,
             partial=True
@@ -681,7 +706,7 @@ class UserProfileViewSet(ModelViewSet):
                 # Log device update
                 log_user_action(
                     user=user,
-                    action='DEVICE_UPDATED',
+                    action='Device Updated',
                     details={
                         'device_type': user.device_type,
                         'has_token': bool(user.device_token)
@@ -695,7 +720,8 @@ class UserProfileViewSet(ModelViewSet):
                     'message': 'Device information updated successfully',
                     'device_type': user.device_type,
                     'has_device_token': bool(user.device_token)
-                }, status=status.HTTP_200_OK)                
+                }, status=status.HTTP_200_OK)
+                
             except Exception as e:
                 logger.error(f"Device update failed for {request.user.username}: {str(e)}")
                 return Response({
@@ -714,21 +740,36 @@ class UserProfileViewSet(ModelViewSet):
         """
         Get user statistics.
         
-        GET /api/v1/auth/users/stats/
+        GET /authentication/auth/users/stats/
         
         Returns statistics about user activity, preferences, etc.
         """
         user = request.user
         
         try:
-            # Calculate user statistics
-            # (These would come from the user_movie_interactions table when we build it)
+            # Calculate user statistics from analytics if available
+            try:
+                from apps.analytics.models import UserActivityLog
+                total_activities = UserActivityLog.objects.filter(user=user).count()
+                movie_views = UserActivityLog.objects.filter(user=user, action_type='movie_view').count()
+                ratings_given = UserActivityLog.objects.filter(user=user, action_type='rating_submit').count()
+                favorites_added = UserActivityLog.objects.filter(user=user, action_type='favorite_add').count()
+            except ImportError:
+                # Fallback if analytics app is not available
+                total_activities = 0
+                movie_views = 0
+                ratings_given = 0
+                favorites_added = 0
+            
             stats_data = {
-                'total_interactions': 0,  # Will be calculated from interactions
-                'favorite_movies_count': 0,  # Will be calculated from favorites
-                'ratings_given': 0,  # Will be calculated from ratings
+                'total_interactions': total_activities,
+                'movie_views': movie_views,
+                'ratings_given': ratings_given,
+                'favorites_added': favorites_added,
                 'account_age_days': (timezone.now().date() - user.date_joined.date()).days,
                 'is_active_user': user.last_login and user.last_login > timezone.now() - timedelta(days=30),
+                'favorite_genres_count': len(safe_json_loads(user.favorite_genres, [])),
+                'is_premium': getattr(user, 'is_premium', False),
             }
             
             serializer = UserStatsSerializer(data=stats_data)
@@ -737,7 +778,7 @@ class UserProfileViewSet(ModelViewSet):
             # Log stats viewing
             log_user_action(
                 user=user,
-                action='STATS_VIEWED',
+                action='Stats Viewed',
                 request=request
             )
             
@@ -753,14 +794,12 @@ class UserProfileViewSet(ModelViewSet):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-
 # UTILITY VIEWS
-
 class UserSearchView(APIView):
     """
     API view to search for users (for admin purposes or social features).
     
-    GET /api/v1/auth/search/?q=john
+    GET /authentication/auth/search/?q=john
     
     Note: This might be restricted based on your privacy requirements.
     """
@@ -792,14 +831,18 @@ class UserSearchView(APIView):
             # Log search action
             log_user_action(
                 user=request.user,
-                action='USER_SEARCH',
+                action='User Search',
                 details={'query': query, 'results_count': len(users)},
                 request=request
             )
             
+            logger.info(f"User {request.user.username} searched for '{query}' - {len(users)} results")
+            
             return Response({
                 'results': serializer.data,
-                'count': len(users)
+                'count': len(users),
+                'query': query,
+                'message': f'Found {len(users)} users matching "{query}"'
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
@@ -809,13 +852,14 @@ class UserSearchView(APIView):
                 'details': str(e) if settings.DEBUG else 'Please try again'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 # DEBUGGING AND DEVELOPMENT VIEWS
 
 class UserDebugView(APIView):
     """
     Debug view for development (should be disabled in production).
     
-    GET /api/v1/auth/debug/
+    GET /authentication/auth/debug/
     """
     
     permission_classes = [IsAuthenticated]
@@ -825,7 +869,6 @@ class UserDebugView(APIView):
         Return debug information about the current user.
         """
         # Only allow in DEBUG mode
-        from django.conf import settings
         if not settings.DEBUG:
             return Response({
                 'error': 'Debug endpoints are disabled in production'
@@ -833,27 +876,118 @@ class UserDebugView(APIView):
         
         user = request.user
         
-        debug_data = {
-            'user_id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'is_staff': user.is_staff,
-            'is_superuser': user.is_superuser,
-            'date_joined': user.date_joined,
-            'last_login': user.last_login,
-            'favorite_genres': user.favorite_genres_list,
-            'device_info': {
-                'device_type': user.device_type,
-                'has_token': bool(user.device_token),
-                'can_receive_push': user.has_device_for_push()
+        try:
+            debug_data = {
+                'user_info': {
+                    'user_id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'is_staff': user.is_staff,
+                    'is_superuser': user.is_superuser,
+                    'is_active': user.is_active,
+                    'date_joined': user.date_joined,
+                    'last_login': user.last_login,
+                },
+                'profile_info': {
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'phone_number': getattr(user, 'phone_number', None),
+                    'country': getattr(user, 'country', None),
+                    'preferred_language': getattr(user, 'preferred_language', None),
+                    'favorite_genres': safe_json_loads(getattr(user, 'favorite_genres', None), []),
+                    'is_premium': getattr(user, 'is_premium', False),
+                },
+                'device_info': {
+                    'device_type': getattr(user, 'device_type', None),
+                    'has_device_token': bool(getattr(user, 'device_token', None)),
+                },
+                'request_info': {
+                    'ip_address': get_client_ip(request),
+                    'user_agent': request.META.get('HTTP_USER_AGENT', ''),
+                    'method': request.method,
+                    'path': request.path,
+                    'timestamp': timezone.now().isoformat(),
+                },
+                'system_info': {
+                    'django_debug': settings.DEBUG,
+                    'timezone': str(timezone.get_current_timezone()),
+                    'language_code': getattr(settings, 'LANGUAGE_CODE', 'en'),
+                }
+            }
+            
+            # Add analytics info if available
+            try:
+                from apps.analytics.models import UserActivityLog
+                recent_activities = UserActivityLog.objects.filter(
+                    user=user
+                ).order_by('-timestamp')[:5].values(
+                    'action_type', 'timestamp', 'source'
+                )
+                debug_data['recent_activities'] = list(recent_activities)
+            except ImportError:
+                debug_data['recent_activities'] = 'Analytics app not available'
+            
+            # Log debug access
+            log_user_action(
+                user=user,
+                action='Debug Info Accessed',
+                details={'accessed_sections': list(debug_data.keys())},
+                request=request
+            )
+            
+            logger.info(f"Debug info accessed by {user.username}")
+
+            return Response({
+                'debug_data': debug_data,
+                'message': 'Debug information retrieved successfully',
+                'warning': 'This endpoint is only available in DEBUG mode'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Debug info retrieval failed for {user.username}: {str(e)}")
+            return Response({
+                'error': 'Failed to retrieve debug information',
+                'details': str(e) if settings.DEBUG else 'Please try again'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# HELPER VIEW FOR PROFILE ACCESS GUIDANCE
+
+class UserProfileHelpView(APIView):
+    """
+    Helper view that explains how to access user profile endpoints
+    GET /authentication/auth/profile-help/
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        """Provide help for profile access"""
+        help_info = {
+            "message": "User Profile Access Guide",
+            "your_profile": {
+                "description": "To access your own profile, use the users endpoint",
+                "endpoints": {
+                    "GET /authentication/auth/users/": "List users (shows your profile if authenticated)",
+                    "GET /authentication/auth/users/{your_id}/": "Get your specific profile", 
+                    "PATCH /authentication/auth/users/{your_id}/": "Update your profile",
+                }
             },
-            'request_info': {
-                'ip_address': get_client_ip(request),
-                'user_agent': request.META.get('HTTP_USER_AGENT', ''),
-                'method': request.method,
+            "authentication": {
+                "description": "Include your JWT token in the Authorization header",
+                "header": "Authorization: Bearer your_jwt_token_here",
+                "how_to_get_token": "POST to /authentication/auth/login/ with username/password"
+            },
+            "current_user_info": {
+                "authenticated": request.user.is_authenticated,
+                "user_id": request.user.id if request.user.is_authenticated else None,
+                "username": request.user.username if request.user.is_authenticated else None,
+            } if request.user else {"authenticated": False},
+            "quick_links": {
+                "login": "/authentication/auth/login/",
+                "register": "/authentication/auth/register/", 
+                "your_profile": f"/authentication/auth/users/{request.user.id}/" if request.user.is_authenticated else "/authentication/auth/users/",
+                "documentation": "/authentication/api/docs/"
             }
         }
         
-        logger.info(f"Debug info accessed by {user.username}")
-
-        return Response(debug_data, status=status.HTTP_200_OK)
+        return Response(help_info, status=status.HTTP_200_OK)
