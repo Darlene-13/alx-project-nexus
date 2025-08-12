@@ -10,7 +10,7 @@ import time
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-
+import re
 # Enhanced Configuration with production and local support
 class Config:
     def __init__(self):
@@ -1257,7 +1257,7 @@ def show_enhanced_authentication_page():
     """, unsafe_allow_html=True)
     
     # Enhanced tabs with better styling
-    tab1, tab2, tab3 = st.tabs(["🔐 **Sign In**", "🌟 **Join CinemaHub**", "👁️ **Explore Preview**", "🧪 **Test Login**"])
+    tab1, tab2, tab3 = st.tabs(["🔐 **Sign In**", "🌟 **Join CinemaHub**", "👁️ **Explore Preview**"])
     
     with tab1:
         show_enhanced_login_form()
