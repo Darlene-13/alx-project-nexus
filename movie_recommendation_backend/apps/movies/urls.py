@@ -25,10 +25,10 @@ urlpatterns = [
     path('', movie_hub, name='movie-hub'),
    
     # API v1 endpoints - clean structure
-    path('api/v1/', include(router.urls)),  # Creates: /movies/api/v1/movies/, /movies/api/v1/genres/
-    path('api/v1/search/', MovieSearchView.as_view(), name='movie-search'),
-    path('api/v1/recommendations/', MovieRecommendationView.as_view(), name='movie-recommendations'),
-    path('api/v1/analytics/', MovieAnalyticsView.as_view(), name='movie-analytics'),
+    path('api/', include(router.urls)),  # Creates: /movies/api/v1/movies/, /movies/api/v1/genres/
+    path('api/search/', MovieSearchView.as_view(), name='movie-search'),
+    path('api/recommendations/', MovieRecommendationView.as_view(), name='movie-recommendations'),
+    path('api/analytics/', MovieAnalyticsView.as_view(), name='movie-analytics'),
 ]
 
 """

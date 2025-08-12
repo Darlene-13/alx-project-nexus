@@ -181,7 +181,7 @@ class UserActivityLogAdmin(admin.ModelAdmin):
         FALLBACK: Shows "Anonymous" with distinct styling for logged-out users.
         """
         if obj.user:
-            url = reverse('admin:auth_user_change', args=[obj.user.id])
+            url = reverse('admin:authentication_user_change', args=[obj.user.id])
             return format_html(
                 '<a href="{}" title="View user details">{}</a>', 
                 url, 

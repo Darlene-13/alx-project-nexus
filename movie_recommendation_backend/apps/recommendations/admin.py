@@ -40,7 +40,7 @@ class BaseRecommendationAdmin(admin.ModelAdmin):
     def user_link(self, obj):
         """Create clickable link to user admin"""
         if obj.user:
-            url = reverse('admin:auth_user_change', args=[obj.user.id])
+            url = reverse('admin:authentication_user_change', args=[obj.user.id])
             return format_html('<a href="{}">{}</a>', url, obj.user.username)
         return '-'
     user_link.short_description = 'User'

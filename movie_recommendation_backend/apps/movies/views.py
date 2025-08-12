@@ -13,12 +13,13 @@ from rest_framework.pagination import PageNumberPagination
 
 
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Q, F, Count, Avg
+from django.db.models import Q, F, Count, Avg, Sum
 from django.shortcuts import get_object_or_404, render
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.core.cache import cache
 from django.db import models
+from django.contrib.auth import get_user_model
 
 from .models import Movie, Genre, MovieGenre
 from .serializers import (
@@ -36,38 +37,38 @@ def movie_hub(request):
 
     endpoints_by_section = {
         "🎬 MOVIES": [
-            {"method": "GET",    "url": "/movies/api/v1/movies/",                  "description": "List all movies",       "status": "✅ Active"},
-            {"method": "POST",   "url": "/movies/api/v1/movies/",                  "description": "Create a new movie",     "status": "✅ Active"},
-            {"method": "GET",    "url": "/movies/api/v1/movies/{pk}/",            "description": "Retrieve movie details", "status": "✅ Active"},
-            {"method": "PUT",    "url": "/movies/api/v1/movies/{pk}/",            "description": "Update movie",           "status": "✅ Active"},
-            {"method": "PATCH",  "url": "/movies/api/v1/movies/{pk}/",            "description": "Partial update",         "status": "✅ Active"},
-            {"method": "DELETE", "url": "/movies/api/v1/movies/{pk}/",            "description": "Delete movie",           "status": "✅ Active"},
+            {"method": "GET",    "url": "/movies/api/movies/",                  "description": "List all movies",       "status": "✅ Active"},
+            {"method": "POST",   "url": "/movies/api/movies/",                  "description": "Create a new movie",     "status": "✅ Active"},
+            {"method": "GET",    "url": "/movies/api/movies/{pk}/",            "description": "Retrieve movie details", "status": "✅ Active"},
+            {"method": "PUT",    "url": "/movies/api/movies/{pk}/",            "description": "Update movie",           "status": "✅ Active"},
+            {"method": "PATCH",  "url": "/movies/api/movies/{pk}/",            "description": "Partial update",         "status": "✅ Active"},
+            {"method": "DELETE", "url": "/movies/api/movies/{pk}/",            "description": "Delete movie",           "status": "✅ Active"},
         ],
         "🎯 MOVIE CUSTOM ACTIONS": [
-            {"method": "GET",    "url": "/movies/api/v1/movies/popular/",                     "description": "Popular movies",       "status": "✅ Active"},
-            {"method": "GET",    "url": "/movies/api/v1/movies/top_rated/",                   "description": "Top-rated movies",     "status": "✅ Active"},
-            {"method": "GET",    "url": "/movies/api/v1/movies/recent/",                      "description": "Recently released",    "status": "✅ Active"},
-            {"method": "GET",    "url": "/movies/api/v1/movies/by_genre/?genre=Action",       "description": "Movies by genre",      "status": "✅ Active"},
-            {"method": "GET",    "url": "/movies/api/v1/movies/stats/",                       "description": "Movie stats",          "status": "✅ Active"},
-            {"method": "POST",   "url": "/movies/api/v1/movies/{pk}/increment_views/",        "description": "Increment views",      "status": "✅ Active"},
-            {"method": "POST",   "url": "/movies/api/v1/movies/{pk}/increment_likes/",        "description": "Increment likes",      "status": "✅ Active"},
-            {"method": "GET",    "url": "/movies/api/v1/movies/{pk}/similar/",                "description": "Similar movies",       "status": "✅ Active"},
+            {"method": "GET",    "url": "/movies/api/movies/popular/",                     "description": "Popular movies",       "status": "✅ Active"},
+            {"method": "GET",    "url": "/movies/api/movies/top_rated/",                   "description": "Top-rated movies",     "status": "✅ Active"},
+            {"method": "GET",    "url": "/movies/api/movies/recent/",                      "description": "Recently released",    "status": "✅ Active"},
+            {"method": "GET",    "url": "/movies/api/movies/by_genre/",       "description": "Movies by genre",      "status": "✅ Active"},
+            {"method": "GET",    "url": "/movies/api/movies/stats/",                       "description": "Movie stats",          "status": "✅ Active"},
+            {"method": "POST",   "url": "/movies/api/movies/{pk}/increment_views/",        "description": "Increment views",      "status": "✅ Active"},
+            {"method": "POST",   "url": "/movies/api/movies/{pk}/increment_likes/",        "description": "Increment likes",      "status": "✅ Active"},
+            {"method": "GET",    "url": "/movies/api/movies/{pk}/similar/",                "description": "Similar movies",       "status": "✅ Active"},
         ],
         "📚 GENRES": [
-            {"method": "GET",    "url": "/movies/api/v1/genres/",                  "description": "List genres",             "status": "✅ Active"},
-            {"method": "POST",   "url": "/movies/api/v1/genres/",                  "description": "Create genre",            "status": "✅ Active"},
-            {"method": "GET",    "url": "/movies/api/v1/genres/{pk}/",            "description": "Genre details",           "status": "✅ Active"},
-            {"method": "PUT",    "url": "/movies/api/v1/genres/{pk}/",            "description": "Update genre",            "status": "✅ Active"},
-            {"method": "PATCH",  "url": "/movies/api/v1/genres/{pk}/",            "description": "Partial update",          "status": "✅ Active"},
-            {"method": "DELETE", "url": "/movies/api/v1/genres/{pk}/",            "description": "Delete genre",            "status": "✅ Active"},
-            {"method": "GET",    "url": "/movies/api/v1/genres/{pk}/movies/",     "description": "Movies in genre",         "status": "✅ Active"},
+            {"method": "GET",    "url": "/movies/api/genres/",                  "description": "List genres",             "status": "✅ Active"},
+            {"method": "POST",   "url": "/movies/api/genres/",                  "description": "Create genre",            "status": "✅ Active"},
+            {"method": "GET",    "url": "/movies/api/genres/{pk}/",            "description": "Genre details",           "status": "✅ Active"},
+            {"method": "PUT",    "url": "/movies/api/genres/{pk}/",            "description": "Update genre",            "status": "✅ Active"},
+            {"method": "PATCH",  "url": "/movies/api/genres/{pk}/",            "description": "Partial update",          "status": "✅ Active"},
+            {"method": "DELETE", "url": "/movies/api/genres/{pk}/",            "description": "Delete genre",            "status": "✅ Active"},
+            {"method": "GET",    "url": "/movies/api/genres/{pk}/movies/",     "description": "Movies in genre",         "status": "✅ Active"},
         ],
         "🔎 SEARCH & RECOMMENDATIONS": [
-            {"method": "GET", "url": "/movies/api/v1/search/?q=batman",             "description": "Advanced search",         "status": "✅ Active"},
-            {"method": "GET", "url": "/movies/api/v1/recommendations/?type=popular","description": "Recommendations",         "status": "✅ Active"},
+            {"method": "GET", "url": "/movies/api/search/?q=batman",             "description": "Advanced search",         "status": "✅ Active"},
+            {"method": "GET", "url": "/movies/api/recommendations/?type=popular","description": "Recommendations",         "status": "✅ Active"},
         ],
         "📊 ANALYTICS": [
-            {"method": "GET", "url": "/movies/api/v1/analytics/",                  "description": "Analytics overview",      "status": "✅ Active"},
+            {"method": "GET", "url": "/movies/api/analytics/",                  "description": "Analytics overview",      "status": "✅ Active"},
         ],
         "📘 API DOCUMENTATION": [
             {"method": "GET", "url": "/movies/docs/",   "description": "Swagger UI",   "status": "✅ Active"},
@@ -147,7 +148,7 @@ class MovieViewSet(viewsets.ModelViewSet):
         Get popular movies based on popularity score.
         Example: /api/movies/popular/?limit=10
         """
-        limit = request.query_params.get('limit', 10)
+        limit = int(request.query_params.get('limit', 10))
         movies = self.get_queryset().order_by('-popularity_score')[:limit]
         serializer = self.get_serializer(movies, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -158,23 +159,38 @@ class MovieViewSet(viewsets.ModelViewSet):
         Get top-rated movies based on TMDB rating.
         Example: /api/movies/top_rated/?min_rating=7.0&limit=10
         """
-        min_rating = float(request.query_params.get('min_rating', 7.0))
-        limit = request.query_params.get('limit', 10)
+        try:
+            min_rating = float(request.query_params.get('min_rating', 7.0))
+            limit = int(request.query_params.get('limit', 10)) # Convert the limit to an integer for int to int comparison.
+            # Setting reasonable limits for min_rating and limit
+            limit = min(limit,100)
+        except(ValueError, TypeError):
+            return Response({"detail": "Invalid rating or limit parameter."}, status=status.HTTP_400_BAD_REQUEST)
+            
         movies = self.get_queryset().filter(tmdb_rating__gte=min_rating).order_by('-tmdb_rating')[:limit]
         serializer = self.get_serializer(movies, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
-
     @action(detail=False, methods=['get'])
     def recent(self, request):
         """
         Get recent movies based on release date.
         Example: /api/movies/recent/?limit=10
         """
-        limit = request.query_params.get('limit', 10)
+        try:
+            limit = int(request.query_params.get('limit', 10))
+            # Optional: Add reasonable bounds
+            limit = min(limit, 100)  # Cap at 100 movies max
+        except (ValueError, TypeError):
+            return Response(
+                {'error': 'Invalid limit parameter'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         movies = self.get_queryset().order_by('-release_date')[:limit]
         serializer = self.get_serializer(movies, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
     
     @action(detail=False, methods=['get'])
     def by_genre(self, request):
@@ -185,8 +201,12 @@ class MovieViewSet(viewsets.ModelViewSet):
         genre_name = request.query_params.get('genre')
         if not genre_name:
             return Response({"detail": "Genre name is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            limit = int(request.query_params.get('limit', 10))
+        except (ValueError, TypeError):
+            return Response({"detail": "Invalid limit parameter."}, status=status.HTTP_400_BAD_REQUEST)
 
-        limit = request.query_params.get('limit', 10)
         movies = self.get_queryset().filter(genres__name=genre_name).order_by('-release_date')[:limit]
         serializer = self.get_serializer(movies, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -225,8 +245,15 @@ class MovieViewSet(viewsets.ModelViewSet):
         Get similar movies based on genres.
         Example: /api/movies/{id}/similar/
         """
-        movie = self.get_object()
-        limit = int(request.query_params.get('limit', 10))
+        try:
+            movie = self.get_object()
+            limit = int(request.query_params.get('limit', 10))
+        except (ValueError, TypeError):
+            return Response(
+                {'error': 'Invalid limit parameter'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         similar_movies = (
             Movie.objects.filter(genres__in=movie.genres.all()).exclude(id=movie.id).
             annotate(genre_matches=Count('genres')).order_by('-genre_matches', '-tmdb_rating').
@@ -236,23 +263,45 @@ class MovieViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 
-
     @action(detail=False, methods=['get'])
     def stats(self, request):
         """
-        Get the statistics of movies.
+        Get total platform statistics that showcase scale and activity.
         Example: /api/movies/stats/
         """
+        from datetime import datetime, timedelta
+        from django.contrib.auth import get_user_model
+        
+        # Date calculations
+        month_ago = datetime.now() - timedelta(days=30)
+        
+        # Core totals that showcase platform scale
         stats = {
+            # Content totals
             'total_movies': Movie.objects.count(),
-            'avg_rating': Movie.objects.aggregate(avg=Avg('tmdb_rating'))['avg'],
-            'total_views': Movie.objects.aggregate(total=models.Sum('views'))['total'] or 0,  # Fixed: added "or 0"
-            'total_likes': Movie.objects.aggregate(total=models.Sum('like_count'))['total'] or 0,  # Added this
-            'top_genres': list(Genre.objects.annotate(
-                movie_count=Count('movies')
-            ).order_by('-movie_count')[:10]
-            .values('name', 'movie_count'))  # Fixed: moved outside annotate
+            'total_views': Movie.objects.aggregate(total=Sum('views'))['total'] or 0,
+            'total_likes': Movie.objects.aggregate(total=Sum('like_count'))['total'] or 0,
+            
+            # Quality indicator
+            'avg_rating': round(Movie.objects.aggregate(avg=Avg('tmdb_rating'))['avg'] or 0, 1),
+            
+            # Growth indicator
+            'recent_additions': Movie.objects.filter(created_at__gte=month_ago).count(),
         }
+        
+        try:
+            User = get_user_model()
+            stats['total_users'] = User.objects.count()
+        except:
+            pass
+        
+        # Add recommendation totals if Recommendation model exists
+        try:
+            from apps.recommendations.models import UserMovieInteraction
+            stats['total_recommendations'] = UserMovieInteraction.objects.count()
+        except:
+            pass
+        
         return Response(stats, status=status.HTTP_200_OK)
 
 
@@ -278,23 +327,15 @@ class GenreViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return GenreDetailSerializer
         return GenreSerializer
-
+    
     @action(detail=True, methods=['get'])
-    def movies(self, request, pk=None):
+    def get_movies(self, request, pk=None):
         """
-        Gets all movies associated with a certain genre.
+        Get all movies in a specific genre.
         Example: /api/genres/{id}/movies/
         """
         genre = self.get_object()
-        movies = genre.movies.all()
-
-        # Apply pagination
-        paginator = StandardResultsPagination()
-        page = paginator.paginate_queryset(movies, request)
-        if page is not None:
-            serializer = MovieListSerializer(page, many=True)
-            return paginator.get_paginated_response(serializer.data)
-        
+        movies = genre.movies.all().order_by('-release_date')
         serializer = MovieListSerializer(movies, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

@@ -28,7 +28,7 @@ from .views import landing_page
 from django.http import JsonResponse
 from django.utils import timezone
 
-# Fixed schema view
+# Schema view for API documentation
 schema_view = get_schema_view(
     openapi.Info(
         title="Movie Recommendation API",
