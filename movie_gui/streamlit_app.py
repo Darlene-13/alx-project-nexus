@@ -952,7 +952,11 @@ def show_enhanced_login_form():
     with col2:
         st.markdown("### 🔐 Welcome Back!")
         st.markdown("Sign in to continue your movie journey")
-        
+
+        if st.button("🔑 Change Password", key="change_password_link"):
+            st.session_state.show_change_password = True
+            st.rerun()
+
         with st.form("login_form", clear_on_submit=False):
             # Single identifier field that accepts username OR email
             identifier = st.text_input(
@@ -970,11 +974,7 @@ def show_enhanced_login_form():
             with col_a:
                 remember_me = st.checkbox("🔄 Remember me")
             with col_b:
-                # Change password link.
-                if st.button("🔑 Change Password", key="change_password_link"):
-                    st.session_state.show_change_password = True
-                    st.rerun()
-            
+                st.markdown("*Need to change password? Use button above*")
             submit = st.form_submit_button("🚀 **Sign In**", use_container_width=True)
         
         if submit:
