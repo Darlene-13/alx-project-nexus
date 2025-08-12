@@ -496,7 +496,7 @@ def fetch_popular_movies():
     """Fetch popular movies with enhanced error handling"""
     if st.session_state.popular_movies is None:
         try:
-            response = make_api_request("/movies/api/v1/movies/popular/", auth_required=False)
+            response = make_api_request("/movies/api/movies/popular/", auth_required=False)
             if response and response.status_code == 200:
                 data = response.json()
                 # Ensure we have the right structure
@@ -579,7 +579,7 @@ def fetch_movie_stats():
     """Fetch comprehensive movie statistics with error handling"""
     if st.session_state.movie_stats is None:
         try:
-            response = make_api_request("/movies/api/v1/movies/stats/", auth_required=False)
+            response = make_api_request("/movies/api/movies/stats/", auth_required=False)
             if response and response.status_code == 200:
                 data = response.json()
                 # Ensure we have a valid dictionary
@@ -662,7 +662,7 @@ def fetch_user_profile():
 def fetch_genres():
     """Fetch available genres"""
     if st.session_state.genres is None:
-        response = make_api_request("/movies/api/v1/genres/", auth_required=False)
+        response = make_api_request("/movies/api/genres/", auth_required=False)
         if response and response.status_code == 200:
             st.session_state.genres = response.json()
 
@@ -1518,18 +1518,13 @@ def show_basic_info_step():
                         
                         1. **Check if user was created anyway:**
                            - Visit Django admin: `{}/admin/auth/user/`
-                           - Look for username: `{}`
-                           - Sometimes user is created but response times out
                         
                         2. **CORS Issues:**
-                           - Open browser console (F12)
                            - Look for CORS errors
                            - Check if Django CORS settings allow your domain
                         
                         3. **Network/Render Issues:**
                            - Render free tier can be slow/unreliable
-                           - Try waiting and registering again
-                           - First request after sleep can take 60+ seconds
                         
                         4. **Try manual verification:**
                         """.format(config.api_base_url, username))
@@ -1555,10 +1550,6 @@ def show_basic_info_step():
             if not agree_terms: missing.append("Terms agreement")
             
             st.warning(f"⚠️ Please complete: {', '.join(missing)}")
-
-def show_preferences_step():
-    """This function is no longer needed - preferences will be set in user profile later"""
-    pass
 
 def show_enhanced_registration_form():
     """Simplified registration with just authentication"""
@@ -1646,6 +1637,7 @@ def show_profile_setup_page():
                 else:
                     st.warning("⚠️ Couldn't save preferences now, but you can set them later in your profile!")
 
+def show_preferences_step():
 
 def show_completion_step():
     """Step 3: Registration completion with onboarding"""
@@ -2284,7 +2276,7 @@ def show_enhanced_dashboard():
 # Movie interaction functions
 def increment_movie_views(movie_id):
     """Increment movie views using API"""
-    response = make_api_request(f"/movies/api/v1/movies/{movie_id}/increment_views/", method="POST")
+    response = make_api_request(f"/movies/api/movies/{movie_id}/increment_views/", method="POST")
     if response and response.status_code == 200:
         st.success("👁️ Marked as viewed!")
     else:
@@ -2292,7 +2284,7 @@ def increment_movie_views(movie_id):
 
 def increment_movie_likes(movie_id):
     """Increment movie likes using API"""
-    response = make_api_request(f"/movies/api/v1/movies/{movie_id}/increment_likes/", method="POST")
+    response = make_api_request(f"/movies/api/movies/{movie_id}/increment_likes/", method="POST")
     if response and response.status_code == 200:
         st.success("❤️ Liked!")
     else:
@@ -2547,18 +2539,18 @@ def show_movie_discovery():
     if st.button("🔍 **Search Movies**", use_container_width=True) or search_query:
         # Build API endpoint based on filters
         if content_type == "Popular":
-            endpoint = "/movies/api/v1/movies/popular/"
+            endpoint = "/movies/api/movies/popular/"
         elif content_type == "Top Rated":
-            endpoint = "/movies/api/v1/movies/top_rated/"
+            endpoint = "/movies/api/movies/top_rated/"
         elif content_type == "Recent":
-            endpoint = "/movies/api/v1/movies/recent/"
+            endpoint = "/movies/api/movies/recent/"
         else:
-            endpoint = "/movies/api/v1/movies/"
+            endpoint = "/movies/api/movies/"
         
         # Add query parameters
         params = []
         if search_query:
-            endpoint = "/movies/api/v1/search/"
+            endpoint = "/movies/api/search/"
             params.append(f"q={search_query}")
         if selected_genre != "All Genres":
             params.append(f"genre={selected_genre}")
@@ -2606,7 +2598,7 @@ def show_all_movies():
     
     # Fetch movies
     with st.spinner("📚 Loading movies..."):
-        response = make_api_request(f"/movies/api/v1/movies/?page={page}&limit={per_page}")
+        response = make_api_request(f"/movies/api/movies/?page={page}&limit={per_page}")
         if response and response.status_code == 200:
             data = response.json()
             movies = data.get('results', [])
@@ -2796,7 +2788,7 @@ def show_add_movie_form():
                 }
                 
                 with st.spinner("🎬 Adding movie to collection..."):
-                    response = make_api_request("/movies/api/v1/movies/", method="POST", data=movie_data)
+                    response = make_api_request("/movies/api/movies/", method="POST", data=movie_data)
                     if response and response.status_code in [200, 201]:
                         st.success("✅ Movie added successfully!")
                         st.balloons()
@@ -3281,7 +3273,7 @@ def show_movie_analytics():
     st.markdown("### 🎬 Movie Collection Analytics")
     
     # Fetch movie analytics
-    response = make_api_request("/movies/api/v1/analytics/")
+    response = make_api_request("/movies/api/analytics/")
     if response and response.status_code == 200:
         movie_analytics = response.json()
     else:
