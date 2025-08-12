@@ -301,7 +301,7 @@ class UserMovieInteractionViewSet(
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = UserInteractionFilter
     search_fields = ['movie__title', 'movie__original_title', 'feedback_comment']
-    ordering_fields = ['timestamp', 'rating', 'engagement_weight']
+    ordering_fields = ['timestamp', 'rating']
     ordering = ['-timestamp']
     
     # Performance optimization
@@ -420,13 +420,23 @@ class UserMovieInteractionViewSet(
             return Response(cached_data)
         
         queryset = self.get_queryset()
+
+        stats = queryset.aggregate(
+            total_interactions=Count('id'),
+            positive_interactions=Count('id', filter=Q(is_positive_computed=True)),
+            average_rating=Avg('rating'),
+            total_engagement=Count('id', filter=Q(
+                Q(interaction_type__in=['favorite', 'watchlist', 'like']) |  # High engagement types
+                Q(rating__gte=4.0)  # High ratings
+            ))
+)
         
         # Calculate summary statistics
         stats = queryset.aggregate(
             total_interactions=Count('id'),
             positive_interactions=Count('id', filter=Q(is_positive_computed=True)),
             average_rating=Avg('rating'),
-            total_engagement=Count('id', filter=Q(engagement_weight__gt=0))
+            total_engagement=Count('id', filter=Q(rating__isnull=False))  # Count interactions with ratings
         )
         
         # Get recent interactions
