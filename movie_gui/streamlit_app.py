@@ -1042,7 +1042,7 @@ def show_enhanced_registration_form():
                 show_completion_step()
 
 def show_basic_info_step():
-    """Step 1: Basic information - using correct endpoint"""
+    """Registration with proper 201 handling"""
     st.markdown("#### 🔹 Create Your Account")
     
     col_a, col_b = st.columns(2)
@@ -1119,10 +1119,9 @@ def show_basic_info_step():
                 with st.spinner("🎬 Creating your CineFlow account..."):
                     progress_bar = st.progress(0)
                     for i in range(100):
-                        time.sleep(0.02)
+                        time.sleep(0.03)  # Longer for better UX
                         progress_bar.progress(i + 1)
                     
-                    # CORRECT ENDPOINT: /authentication/auth/register/
                     st.info(f"🔍 **Sending to:** `/authentication/auth/register/`")
                     with st.expander("📋 Registration Data", expanded=False):
                         safe_data = registration_data.copy()
@@ -1130,59 +1129,155 @@ def show_basic_info_step():
                         safe_data["password_confirm"] = "***HIDDEN***"
                         st.json(safe_data)
                     
+                    # Make the request with longer timeout
+                    start_time = time.time()
                     response = make_api_request(
-                        "/authentication/auth/register/",  # ← CORRECT FULL PATH
+                        "/authentication/auth/register/",
                         method="POST",
                         data=registration_data,
                         auth_required=False,
-                        timeout=20
+                        timeout=45  # Longer timeout for Render
                     )
+                    end_time = time.time()
                     
-                    if response and response.status_code in [200, 201]:
-                        st.success("🎉 Account created successfully!")
+                    duration = end_time - start_time
+                    st.info(f"⏱️ **Request took:** {duration:.2f} seconds")
+                    
+                    if response is not None:
+                        st.info(f"📊 **HTTP Status:** {response.status_code}")
                         
-                        # Extract tokens from response (like Postman shows)
-                        try:
-                            response_data = response.json()
+                        # PROPERLY HANDLE 201 CREATED (your backend's correct response)
+                        if response.status_code == 201:  # ← THIS IS THE KEY FIX
+                            st.success("🎉 Account created successfully!")
                             
-                            # Get access token
-                            access_token = response_data.get('access_token')
-                            refresh_token = response_data.get('refresh_token')
-                            user_data = response_data.get('user', {})
-                            
-                            st.info(f"✅ Welcome {user_data.get('username', username)}!")
-                            
-                            if access_token:
-                                st.success("🔑 Authentication tokens received!")
-                                # Optionally auto-login the user
-                                st.session_state.authenticated = True
-                                st.session_state.token = access_token
-                                st.session_state.refresh_token = refresh_token
-                                st.session_state.user_info = user_data
+                            try:
+                                response_data = response.json()
+                                st.markdown("**📄 Registration Response:**")
                                 
-                                st.markdown("### 🎯 Account Created & Logged In!")
-                                st.balloons()
-                                time.sleep(2)
-                                st.rerun()
-                            else:
-                                st.markdown("### 🎯 Account Created! Please sign in.")
+                                # Extract user data and tokens from your Django response
+                                user_data = response_data.get('user', {})
+                                access_token = response_data.get('access_token')
+                                refresh_token = response_data.get('refresh_token')
+                                message = response_data.get('message', '')
                                 
-                        except Exception as e:
-                            st.warning(f"Account created but couldn't parse response: {e}")
-                        
-                        # Reset form
-                        st.session_state.registration_progress = 0
-                        time.sleep(2)
-                        st.rerun()
-                        
-                    else:
-                        st.error(f"❌ Registration failed with status {response.status_code if response else 'No response'}")
-                        if response:
+                                # Show success details
+                                username_display = user_data.get('username', username)
+                                email_display = user_data.get('email', email)
+                                
+                                st.info(f"✅ Welcome {username_display}! ({email_display})")
+                                if message:
+                                    st.info(f"📧 {message}")
+                                
+                                # Auto-login the user with tokens
+                                if access_token:
+                                    st.session_state.authenticated = True
+                                    st.session_state.token = access_token
+                                    st.session_state.refresh_token = refresh_token
+                                    st.session_state.user_info = user_data
+                                    
+                                    st.success("🔐 **Automatically logged in!**")
+                                    st.balloons()
+                                    
+                                    # Optional: Show what's next
+                                    st.markdown("""
+                                    ### 🎯 **You're all set!**
+                                    - ✅ Account created
+                                    - ✅ Automatically logged in  
+                                    - ✅ Welcome email sent
+                                    - 🎬 Ready to discover movies!
+                                    """)
+                                    
+                                    time.sleep(3)
+                                    st.rerun()
+                                else:
+                                    st.warning("⚠️ Account created but no tokens received. Please sign in manually.")
+                                    
+                            except Exception as e:
+                                st.warning(f"Account created but couldn't parse response: {e}")
+                                st.code(response.text)
+                                st.info("✅ **Account was created successfully!** Try signing in now.")
+                            
+                        elif response.status_code == 200:
+                            # Some backends return 200 instead of 201
+                            st.success("🎉 Account created successfully!")
+                            try:
+                                response_data = response.json()
+                                st.json(response_data)
+                            except:
+                                st.code(response.text)
+                                
+                        elif response.status_code == 400:
+                            # Validation errors from your Django view
+                            st.error("❌ Registration failed - Validation errors:")
                             try:
                                 error_data = response.json()
-                                st.json(error_data)
+                                
+                                # Handle your Django error response format
+                                if 'details' in error_data:
+                                    # Your Django view returns errors in 'details'
+                                    for field, errors in error_data['details'].items():
+                                        if isinstance(errors, list):
+                                            for error in errors:
+                                                st.error(f"**{field}**: {error}")
+                                        else:
+                                            st.error(f"**{field}**: {errors}")
+                                elif 'error' in error_data:
+                                    st.error(f"**Error**: {error_data['error']}")
+                                else:
+                                    st.json(error_data)
+                                    
+                            except Exception as e:
+                                st.error(f"Registration failed: {response.text}")
+                                
+                        elif response.status_code == 500:
+                            st.error("❌ Server error during registration")
+                            try:
+                                error_data = response.json()
+                                if 'error' in error_data:
+                                    st.error(f"**Server Error**: {error_data['error']}")
+                                else:
+                                    st.json(error_data)
                             except:
-                                st.text(f"Response: {response.text}")
+                                st.error("Internal server error occurred")
+                                
+                        else:
+                            st.warning(f"🤔 Unexpected status code: {response.status_code}")
+                            st.code(response.text)
+                            
+                            # Check if user was created anyway
+                            st.info("🔍 **User might have been created anyway. Check Django admin or try logging in.**")
+                    
+                    else:
+                        st.error("❌ No response received from server")
+                        
+                        # Comprehensive troubleshooting
+                        st.markdown("""
+                        ### 🔧 **Troubleshooting Steps:**
+                        
+                        1. **Check if user was created anyway:**
+                           - Visit Django admin: `{}/admin/auth/user/`
+                           - Look for username: `{}`
+                           - Sometimes user is created but response times out
+                        
+                        2. **CORS Issues:**
+                           - Open browser console (F12)
+                           - Look for CORS errors
+                           - Check if Django CORS settings allow your domain
+                        
+                        3. **Network/Render Issues:**
+                           - Render free tier can be slow/unreliable
+                           - Try waiting and registering again
+                           - First request after sleep can take 60+ seconds
+                        
+                        4. **Try manual verification:**
+                        """.format(config.api_base_url, username))
+                        
+                        # Manual check button
+                        if st.button("🔍 **Check if User Exists**"):
+                            st.info(f"**Manual Check:**")
+                            st.markdown(f"1. Visit: {config.api_base_url}/admin/auth/user/")
+                            st.markdown(f"2. Search for: `{username}`")
+                            st.markdown(f"3. If found, try logging in")
                         
             else:
                 if password != password_confirm:
