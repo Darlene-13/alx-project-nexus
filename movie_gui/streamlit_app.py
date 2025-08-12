@@ -902,8 +902,8 @@ def show_enhanced_registration_form():
                 show_completion_step()
 
 def show_basic_info_step():
-    """Step 1: Basic information matching your User model"""
-    st.markdown("#### 🔹 Basic Information")
+    """Step 1: Basic information - authentication fields only"""
+    st.markdown("#### 🔹 Create Your Account")
     
     col_a, col_b = st.columns(2)
     with col_a:
@@ -912,8 +912,7 @@ def show_basic_info_step():
             placeholder="Choose a unique username",
             help="This will be your unique identifier on CineFlow"
         )
-        first_name = st.text_input("👤 First Name", placeholder="Your first name")
-        phone_number = st.text_input("📱 Phone Number", placeholder="+1234567890 (optional)")
+        first_name = st.text_input("👤 First Name", placeholder="Your first name (optional)")
     
     with col_b:
         email = st.text_input(
@@ -921,167 +920,7 @@ def show_basic_info_step():
             placeholder="your.email@example.com",
             help="Must be unique - we'll use this for important updates"
         )
-        last_name = st.text_input("👤 Last Name", placeholder="Your last name")
-        date_of_birth = st.date_input("📅 Date of Birth", value=None, help="Optional - helps with age-appropriate recommendations")
-    
-    # Additional profile fields
-    col_e, col_f = st.columns(2)
-    with col_e:
-        country = st.text_input("🌍 Country", placeholder="Your country (optional)")
-        preferred_language = st.selectbox("🗣️ Preferred Language", 
-            options=[
-                ("en", "English"),
-                ("es", "Spanish"), 
-                ("fr", "French"),
-                ("de", "German"),
-                ("zh", "Chinese"),
-                ("ja", "Japanese"),
-                ("ru", "Russian"),
-                ("it", "Italian"),
-                ("pt", "Portuguese"),
-                ("hi", "Hindi"),
-                ("ar", "Arabic"),
-                ("ko", "Korean")
-            ],
-            format_func=lambda x: x[1],
-            index=0
-        )
-    
-    with col_f:
-        bio = st.text_area("📝 Bio", placeholder="Tell us about your movie preferences... (optional)", height=60)
-        device_type = st.selectbox("📱 Device Type",
-            options=[("", "Select Device"), ("web", "Web"), ("android", "Android"), ("ios", "iOS")],
-            format_func=lambda x: x[1] if x[1] else "Select Device"
-        )
-    
-    st.markdown("#### 🔒 Security")
-    col_c, col_d = st.columns(2)
-    with col_c:
-        password = st.text_input(
-            "🔒 Password *", 
-            type="password", 
-            placeholder="Minimum 8 characters",
-            help="Use a strong password with letters, numbers, and symbols"
-        )
-    with col_d:
-        confirm_password = st.text_input(
-            "🔒 Confirm Password *", 
-            type="password", 
-            placeholder="Repeat your password"
-        )
-    
-    # Password strength indicator
-    if password:
-        strength = calculate_password_strength(password)
-        strength_colors = ["#ef4444", "#f59e0b", "#10b981"]
-        strength_texts = ["Weak", "Medium", "Strong"]
-        
-        color = strength_colors[min(strength, 2)]
-        text = strength_texts[min(strength, 2)]
-        
-        st.markdown(f"""
-        <div style="margin: 0.5rem 0;">
-            <small>Password Strength: </small>
-            <span style="color: {color}; font-weight: bold;">{text}</span>
-            <div style="width: 100%; height: 6px; background: #e5e7eb; border-radius: 3px; margin-top: 6px;">
-                <div style="width: {(strength + 1) * 33.33}%; height: 100%; background: {color}; border-radius: 3px; transition: width 0.3s;"></div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    next_button = st.form_submit_button("➡️ **Next: Movie Preferences**", use_container_width=True)
-    
-    if next_button:
-        if all([username, email, password, confirm_password]):
-            if password == confirm_password and len(password) >= 8:
-                # Build registration data matching your User model
-                registration_data = {
-                    "username": username,
-                    "email": email.lower().strip(),
-                    "password": password,
-                }
-                
-                # Add optional fields only if provided
-                if first_name:
-                    registration_data["first_name"] = first_name
-                if last_name:
-                    registration_data["last_name"] = last_name
-                if phone_number:
-                    registration_data["phone_number"] = phone_number
-                if date_of_birth:
-                    registration_data["date_of_birth"] = date_of_birth.isoformat()
-                if country:
-                    registration_data["country"] = country
-                if bio:
-                    registration_data["bio"] = bio
-                if preferred_language:
-                    registration_data["preferred_language"] = preferred_language[0]
-                if device_type and device_type[0]:
-                    registration_data["device_type"] = device_type[0]
-                
-                st.session_state.registration_data = registration_data
-                st.session_state.registration_progress = 1
-                st.rerun()
-            else:
-                if password != confirm_password:
-                    st.error("❌ Passwords don't match!")
-                else:
-                    st.error("❌ Password must be at least 8 characters long!")
-        else:
-            st.warning("⚠️ Please fill in all required fields (marked with *).")
-
-def show_basic_info_step():
-    """Step 1: Basic information matching your User model"""
-    st.markdown("#### 🔹 Basic Information")
-    
-    col_a, col_b = st.columns(2)
-    with col_a:
-        username = st.text_input(
-            "👤 Username *", 
-            placeholder="Choose a unique username",
-            help="This will be your unique identifier on CineFlow"
-        )
-        first_name = st.text_input("👤 First Name", placeholder="Your first name")
-        phone_number = st.text_input("📱 Phone Number", placeholder="+1234567890 (optional)")
-    
-    with col_b:
-        email = st.text_input(
-            "📧 Email *", 
-            placeholder="your.email@example.com",
-            help="Must be unique - we'll use this for important updates"
-        )
-        last_name = st.text_input("👤 Last Name", placeholder="Your last name")
-        date_of_birth = st.date_input("📅 Date of Birth", value=None, help="Optional - helps with age-appropriate recommendations")
-    
-    # Additional profile fields
-    col_e, col_f = st.columns(2)
-    with col_e:
-        country = st.text_input("🌍 Country", placeholder="Your country (optional)")
-        preferred_language = st.selectbox("🗣️ Preferred Language", 
-            options=[
-                ("en", "English"),
-                ("es", "Spanish"), 
-                ("fr", "French"),
-                ("de", "German"),
-                ("zh", "Chinese"),
-                ("ja", "Japanese"),
-                ("ru", "Russian"),
-                ("it", "Italian"),
-                ("pt", "Portuguese"),
-                ("hi", "Hindi"),
-                ("ar", "Arabic"),
-                ("ko", "Korean")
-            ],
-            format_func=lambda x: x[1],
-            index=0
-        )
-    
-    with col_f:
-        bio = st.text_area("📝 Bio", placeholder="Tell us about your movie preferences... (optional)", height=60)
-        device_type = st.selectbox("📱 Device Type",
-            options=[("", "Select Device"), ("web", "Web"), ("android", "Android"), ("ios", "iOS")],
-            format_func=lambda x: x[1] if x[1] else "Select Device"
-        )
+        last_name = st.text_input("👤 Last Name", placeholder="Your last name (optional)")
     
     st.markdown("#### 🔒 Security")
     col_c, col_d = st.columns(2)
@@ -1118,218 +957,228 @@ def show_basic_info_step():
         </div>
         """, unsafe_allow_html=True)
     
-    next_button = st.form_submit_button("➡️ **Next: Movie Preferences**", use_container_width=True)
+    # Terms and conditions
+    st.markdown("#### 📜 Terms & Conditions")
+    agree_terms = st.checkbox("I agree to the Terms of Service and Privacy Policy")
+    
+    next_button = st.form_submit_button("✅ **Create Account**", use_container_width=True)
     
     if next_button:
-        if all([username, email, password, password_confirm]):
+        if all([username, email, password, password_confirm]) and agree_terms:
             if password == password_confirm and len(password) >= 8:
-                # Build registration data matching your User model
+                # Build ONLY authentication data - no profile preferences
                 registration_data = {
                     "username": username,
                     "email": email.lower().strip(),
                     "password": password,
+                    "password_confirm": password_confirm,  # Required by your Django backend
                 }
                 
-                # Add optional fields only if provided
+                # Add only basic optional fields that are part of User model
                 if first_name:
                     registration_data["first_name"] = first_name
                 if last_name:
                     registration_data["last_name"] = last_name
-                if phone_number:
-                    registration_data["phone_number"] = phone_number
-                if date_of_birth:
-                    registration_data["date_of_birth"] = date_of_birth.isoformat()
-                if country:
-                    registration_data["country"] = country
-                if bio:
-                    registration_data["bio"] = bio
-                if preferred_language:
-                    registration_data["preferred_language"] = preferred_language[0]
-                if device_type and device_type[0]:
-                    registration_data["device_type"] = device_type[0]
                 
-                st.session_state.registration_data = registration_data
-                st.session_state.registration_progress = 1
-                st.rerun()
+                # Submit registration immediately - no second step needed
+                with st.spinner("🎬 Creating your CineFlow account..."):
+                    progress_bar = st.progress(0)
+                    for i in range(100):
+                        time.sleep(0.02)
+                        progress_bar.progress(i + 1)
+                    
+                    # Debug: Show what data we're sending
+                    st.info(f"🔍 **Sending to:** `/authentication/auth/register/`")
+                    with st.expander("📋 Registration Data (Debug)", expanded=False):
+                        safe_data = registration_data.copy()
+                        safe_data["password"] = "***HIDDEN***"
+                        safe_data["password_confirm"] = "***HIDDEN***"
+                        st.json(safe_data)
+                    
+                    response = make_api_request(
+                        "/authentication/auth/register/",
+                        method="POST",
+                        data=registration_data,
+                        auth_required=False,
+                        timeout=20
+                    )
+                    
+                    if response and response.status_code in [200, 201]:
+                        st.success("🎉 Account created successfully!")
+                        
+                        # Try to get user info from response
+                        try:
+                            response_data = response.json()
+                            if 'user' in response_data:
+                                st.info(f"✅ Welcome {response_data['user'].get('username', username)}!")
+                            elif 'username' in response_data:
+                                st.info(f"✅ Welcome {response_data['username']}!")
+                            else:
+                                st.info(f"✅ Welcome {username}!")
+                        except:
+                            st.info(f"✅ Welcome {username}!")
+                        
+                        # Show next steps
+                        st.markdown("""
+                        ### 🎯 What's Next?
+                        
+                        1. **Sign in** with your new credentials
+                        2. **Complete your profile** with movie preferences
+                        3. **Start rating movies** to get personalized recommendations
+                        4. **Discover** amazing movies tailored just for you!
+                        """)
+                        
+                        st.balloons()
+                        time.sleep(3)
+                        
+                        # Reset registration and go back to login
+                        st.session_state.registration_progress = 0
+                        st.session_state.registration_data = {}
+                        st.info("🔄 Redirecting to login...")
+                        time.sleep(1)
+                        st.rerun()
+                        
+                    elif response and response.status_code == 400:
+                        # Handle validation errors
+                        try:
+                            error_data = response.json()
+                            st.error("❌ Registration failed - Validation errors:")
+                            
+                            # Parse specific field errors
+                            for field, errors in error_data.items():
+                                if isinstance(errors, list):
+                                    for error in errors:
+                                        st.error(f"**{field}**: {error}")
+                                else:
+                                    st.error(f"**{field}**: {errors}")
+                            
+                            # Show common fixes
+                            st.markdown("""
+                            ### 🔧 **Common Issues:**
+                            
+                            - **Username**: Must be unique, 3-150 characters, letters/numbers/underscore only
+                            - **Email**: Must be unique and valid format
+                            - **Password**: Check Django's password requirements (usually 8+ chars, not too common)
+                            
+                            **💡 Try different username/email if they're already taken**
+                            """)
+                            
+                        except Exception as e:
+                            st.error(f"❌ Registration failed: {response.text}")
+                            
+                    else:
+                        st.error(f"❌ Registration failed with status {response.status_code if response else 'No response'}")
+                        if response:
+                            try:
+                                error_data = response.json()
+                                st.json(error_data)
+                            except:
+                                st.text(f"Response: {response.text}")
+                        
             else:
                 if password != password_confirm:
                     st.error("❌ Passwords don't match!")
                 else:
                     st.error("❌ Password must be at least 8 characters long!")
         else:
-            st.warning("⚠️ Please fill in all required fields (marked with *).")
+            missing = []
+            if not username: missing.append("Username")
+            if not email: missing.append("Email") 
+            if not password: missing.append("Password")
+            if not password_confirm: missing.append("Password confirmation")
+            if not agree_terms: missing.append("Terms agreement")
+            
+            st.warning(f"⚠️ Please complete: {', '.join(missing)}")
 
 def show_preferences_step():
-    """Step 2: Movie preferences - simplified to match auth model"""
-    st.markdown("#### 🎭 Tell us about your movie taste!")
-    st.markdown("*This helps us give you better recommendations from day one*")
+    """This function is no longer needed - preferences will be set in user profile later"""
+    pass
+
+def show_enhanced_registration_form():
+    """Simplified registration with just authentication"""
+    st.markdown('<div class="auth-container">', unsafe_allow_html=True)
     
-    # Fetch genres for selection (this would come from your Genre model)
+    col1, col2, col3 = st.columns([1, 3, 1])
+    with col2:
+        st.markdown("### 🌟 Join CineFlow Community!")
+        st.markdown("Create your account and start discovering amazing movies")
+        
+        # Single step registration - no progress indicator needed
+        with st.form("register_form", clear_on_submit=False):
+            show_basic_info_step()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# Add a separate function for setting up movie preferences after login
+def show_profile_setup_page():
+    """Show this after successful login to set up movie preferences"""
+    st.markdown("### 🎭 Complete Your Movie Profile")
+    st.markdown("Help us personalize your experience!")
+    
+    # Movie preferences
     genre_options = [
         "Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", 
         "Drama", "Family", "Fantasy", "History", "Horror", "Music", 
         "Mystery", "Romance", "Science Fiction", "Thriller", "War", "Western"
     ]
     
-    st.markdown("**Select your favorite genres:**")
-    favorite_genres = st.multiselect(
-        "🎭 Choose genres you enjoy",
-        genre_options,
-        help="Select 3-5 genres for best recommendations"
-    )
-    
-    # Optional: Add a brief explanation about how this will be used
-    if favorite_genres:
-        st.success(f"✨ Great choice! You selected {len(favorite_genres)} genres. This will help us recommend movies you'll love!")
-    else:
-        st.info("💡 **Tip:** Selecting a few genres now will give you better recommendations right away!")
-    
-    col_back, col_next = st.columns(2)
-    with col_back:
-        back_button = st.form_submit_button("⬅️ **Back**", use_container_width=True)
-    with col_next:
-        next_button = st.form_submit_button("✅ **Create Account**", use_container_width=True)
-    
-    if back_button:
-        st.session_state.registration_progress = 0
-        st.rerun()
-    
-    if next_button:
-        # Get existing registration data
-        registration_data = st.session_state.get('registration_data', {})
+    with st.form("profile_setup_form"):
+        favorite_genres = st.multiselect(
+            "🎭 What genres do you enjoy?",
+            genre_options,
+            help="Select your favorite movie genres"
+        )
         
-        # Add only the favorite genres (matching your User model)
-        registration_data.update({
-            "favorite_genres": favorite_genres,  # This will be stored as JSONField
-        })
+        preferred_language = st.selectbox("🗣️ Preferred Language", 
+            options=[
+                ("en", "English"),
+                ("es", "Spanish"), 
+                ("fr", "French"),
+                ("de", "German"),
+                ("zh", "Chinese"),
+                ("ja", "Japanese"),
+                ("ru", "Russian"),
+                ("it", "Italian"),
+                ("pt", "Portuguese"),
+                ("hi", "Hindi"),
+                ("ar", "Arabic"),
+                ("ko", "Korean")
+            ],
+            format_func=lambda x: x[1],
+            index=0
+        )
         
-        # Submit registration using actual API
-        with st.spinner("🎬 Creating your CineFlow account..."):
-            progress_bar = st.progress(0)
-            for i in range(100):
-                time.sleep(0.02)
-                progress_bar.progress(i + 1)
-            
-            # Debug: Show what data we're sending
-            st.info(f"🔍 **Debug:** Sending registration data to `/authentication/auth/register/`")
-            with st.expander("📋 Registration Data (Debug)", expanded=False):
-                st.json(registration_data)
-            
-            response = make_api_request(
-                "/authentication/auth/register/",
-                method="POST",
-                data=registration_data,
-                auth_required=False
-            )
-            
-            # Enhanced error handling and debugging
-            if response and response.status_code in [200, 201]:
-                st.session_state.registration_progress = 2
-                st.success("🎉 Account created successfully!")
-                st.balloons()
-                time.sleep(2)
+        bio = st.text_area("📝 Tell us about your movie taste", 
+                          placeholder="I love sci-fi movies, especially those with time travel themes...")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.form_submit_button("⏭️ **Skip for Now**", use_container_width=True):
+                st.info("You can set up your preferences later in your profile!")
+                st.session_state.profile_setup_complete = True
                 st.rerun()
-            else:
-                # Detailed error analysis
-                error_msg = "❌ Registration failed."
+        
+        with col2:
+            if st.form_submit_button("✅ **Save Preferences**", use_container_width=True):
+                # Save preferences via profile API endpoint
+                profile_data = {
+                    "favorite_genres": favorite_genres,
+                    "preferred_language": preferred_language[0],
+                    "bio": bio
+                }
                 
-                if response:
-                    st.error(f"🚨 **HTTP Status:** {response.status_code}")
-                    
-                    try:
-                        error_data = response.json()
-                        st.error(f"📄 **Server Response:**")
-                        st.json(error_data)
-                        
-                        # Parse specific errors
-                        if "username" in error_data:
-                            error_msg += " Username already exists."
-                        elif "email" in error_data:
-                            error_msg += " Email already registered."
-                        elif "password" in error_data:
-                            error_msg += " Password validation failed."
-                        elif "phone_number" in error_data:
-                            error_msg += " Invalid phone number format."
-                        elif "favorite_genres" in error_data:
-                            error_msg += " Invalid genre selection."
-                        elif "detail" in error_data:
-                            error_msg += f" {error_data['detail']}"
-                        elif "non_field_errors" in error_data:
-                            error_msg += f" {error_data['non_field_errors'][0]}"
-                        else:
-                            error_msg += " Check the server response above for details."
-                            
-                    except Exception as e:
-                        st.error(f"📄 **Raw Response:** {response.text}")
-                        st.error(f"🔍 **Parse Error:** {str(e)}")
-                        
-                    # Suggest fixes based on your User model
-                    st.markdown("""
-                    ### 🔧 **Troubleshooting Steps:**
-                    
-                    1. **Check Required Fields:**
-                       - Username (unique, max 150 chars)
-                       - Email (unique, valid format)
-                       - Password (min 8 characters)
-                    
-                    2. **Optional Field Formats:**
-                       - Phone: +1234567890 or 1234567890 format
-                       - Date of birth: YYYY-MM-DD format
-                       - Favorite genres: Array of strings
-                    
-                    3. **User Model Field Mapping:**
-                       - Your backend expects exact field names from the User model
-                       - Some fields have validation (phone_number, favorite_genres)
-                    
-                    4. **Try Minimal Registration:**
-                    """)
-                    
-                    # Minimal registration button
-                    if st.button("🔄 **Try Minimal Registration**", key="minimal_reg"):
-                        # Try with only required fields
-                        minimal_data = {
-                            "username": registration_data.get("username"),
-                            "email": registration_data.get("email"),
-                            "password": registration_data.get("password"),
-                        }
-                        
-                        st.info("🔄 Trying minimal registration with only required fields...")
-                        minimal_response = make_api_request(
-                            "/authentication/auth/register/",
-                            method="POST",
-                            data=minimal_data,
-                            auth_required=False
-                        )
-                        
-                        if minimal_response and minimal_response.status_code in [200, 201]:
-                            st.success("✅ Minimal registration worked!")
-                            st.session_state.registration_progress = 2
-                            st.rerun()
-                        else:
-                            st.error("❌ Even minimal registration failed")
-                            if minimal_response:
-                                st.json(minimal_response.json() if minimal_response.text else {"error": "No response"})
+                # Use a profile update endpoint instead of registration
+                response = make_api_request("/recommendations/v1/users/me/", 
+                                         method="PATCH", data=profile_data)
+                
+                if response and response.status_code == 200:
+                    st.success("✅ Profile preferences saved!")
+                    st.session_state.profile_setup_complete = True
+                    st.balloons()
+                    time.sleep(1)
+                    st.rerun()
                 else:
-                    error_msg += " No response from server. Check your connection."
-                    st.error("🌐 **Connection Issue:** Cannot reach the backend server.")
-                    st.markdown("""
-                    ### 🔧 **Connection Troubleshooting:**
-                    
-                    1. **Check Backend Status:**
-                       - Visit: `https://alx-project-nexus-y0c5.onrender.com` directly
-                       - Render services may be sleeping and need time to wake up
-                    
-                    2. **Wait and Retry:**
-                       - Render free tier sleeps after 15 minutes of inactivity
-                       - First request may take 30-60 seconds to wake up the service
-                    
-                    3. **Check API Endpoints:**
-                       - Try: `https://alx-project-nexus-y0c5.onrender.com/authentication/auth/register/`
-                       - Verify the endpoint exists and accepts POST requests
-                    """)
-                
-                st.error(error_msg)
-
+                    st.warning("⚠️ Couldn't save preferences now, but you can set them later in your profile!")
 def show_completion_step():
     """Step 3: Registration completion with onboarding"""
     st.markdown("### 🎉 Welcome to CineFlow!")
