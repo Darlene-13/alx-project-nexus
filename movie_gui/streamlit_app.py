@@ -964,7 +964,7 @@ def show_basic_info_step():
             help="Use a strong password with letters, numbers, and symbols"
         )
     with col_d:
-        password_confirm = st.text_input(
+        confirm_password = st.text_input(
             "🔒 Confirm Password *", 
             type="password", 
             placeholder="Repeat your password"
@@ -992,8 +992,137 @@ def show_basic_info_step():
     next_button = st.form_submit_button("➡️ **Next: Movie Preferences**", use_container_width=True)
     
     if next_button:
-        if all([username, email, password, password_confirm]):
-            if password == password_confirm and len(password) >= 8:
+        if all([username, email, password, confirm_password]):
+            if password == confirm_password and len(password) >= 8:
+                # Build registration data matching your User model
+                registration_data = {
+                    "username": username,
+                    "email": email.lower().strip(),
+                    "password": password,
+                }
+                
+                # Add optional fields only if provided
+                if first_name:
+                    registration_data["first_name"] = first_name
+                if last_name:
+                    registration_data["last_name"] = last_name
+                if phone_number:
+                    registration_data["phone_number"] = phone_number
+                if date_of_birth:
+                    registration_data["date_of_birth"] = date_of_birth.isoformat()
+                if country:
+                    registration_data["country"] = country
+                if bio:
+                    registration_data["bio"] = bio
+                if preferred_language:
+                    registration_data["preferred_language"] = preferred_language[0]
+                if device_type and device_type[0]:
+                    registration_data["device_type"] = device_type[0]
+                
+                st.session_state.registration_data = registration_data
+                st.session_state.registration_progress = 1
+                st.rerun()
+            else:
+                if password != confirm_password:
+                    st.error("❌ Passwords don't match!")
+                else:
+                    st.error("❌ Password must be at least 8 characters long!")
+        else:
+            st.warning("⚠️ Please fill in all required fields (marked with *).")
+
+def show_basic_info_step():
+    """Step 1: Basic information matching your User model"""
+    st.markdown("#### 🔹 Basic Information")
+    
+    col_a, col_b = st.columns(2)
+    with col_a:
+        username = st.text_input(
+            "👤 Username *", 
+            placeholder="Choose a unique username",
+            help="This will be your unique identifier on CineFlow"
+        )
+        first_name = st.text_input("👤 First Name", placeholder="Your first name")
+        phone_number = st.text_input("📱 Phone Number", placeholder="+1234567890 (optional)")
+    
+    with col_b:
+        email = st.text_input(
+            "📧 Email *", 
+            placeholder="your.email@example.com",
+            help="Must be unique - we'll use this for important updates"
+        )
+        last_name = st.text_input("👤 Last Name", placeholder="Your last name")
+        date_of_birth = st.date_input("📅 Date of Birth", value=None, help="Optional - helps with age-appropriate recommendations")
+    
+    # Additional profile fields
+    col_e, col_f = st.columns(2)
+    with col_e:
+        country = st.text_input("🌍 Country", placeholder="Your country (optional)")
+        preferred_language = st.selectbox("🗣️ Preferred Language", 
+            options=[
+                ("en", "English"),
+                ("es", "Spanish"), 
+                ("fr", "French"),
+                ("de", "German"),
+                ("zh", "Chinese"),
+                ("ja", "Japanese"),
+                ("ru", "Russian"),
+                ("it", "Italian"),
+                ("pt", "Portuguese"),
+                ("hi", "Hindi"),
+                ("ar", "Arabic"),
+                ("ko", "Korean")
+            ],
+            format_func=lambda x: x[1],
+            index=0
+        )
+    
+    with col_f:
+        bio = st.text_area("📝 Bio", placeholder="Tell us about your movie preferences... (optional)", height=60)
+        device_type = st.selectbox("📱 Device Type",
+            options=[("", "Select Device"), ("web", "Web"), ("android", "Android"), ("ios", "iOS")],
+            format_func=lambda x: x[1] if x[1] else "Select Device"
+        )
+    
+    st.markdown("#### 🔒 Security")
+    col_c, col_d = st.columns(2)
+    with col_c:
+        password = st.text_input(
+            "🔒 Password *", 
+            type="password", 
+            placeholder="Minimum 8 characters",
+            help="Use a strong password with letters, numbers, and symbols"
+        )
+    with col_d:
+        confirm_password = st.text_input(
+            "🔒 Confirm Password *", 
+            type="password", 
+            placeholder="Repeat your password"
+        )
+    
+    # Password strength indicator
+    if password:
+        strength = calculate_password_strength(password)
+        strength_colors = ["#ef4444", "#f59e0b", "#10b981"]
+        strength_texts = ["Weak", "Medium", "Strong"]
+        
+        color = strength_colors[min(strength, 2)]
+        text = strength_texts[min(strength, 2)]
+        
+        st.markdown(f"""
+        <div style="margin: 0.5rem 0;">
+            <small>Password Strength: </small>
+            <span style="color: {color}; font-weight: bold;">{text}</span>
+            <div style="width: 100%; height: 6px; background: #e5e7eb; border-radius: 3px; margin-top: 6px;">
+                <div style="width: {(strength + 1) * 33.33}%; height: 100%; background: {color}; border-radius: 3px; transition: width 0.3s;"></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    next_button = st.form_submit_button("➡️ **Next: Movie Preferences**", use_container_width=True)
+    
+    if next_button:
+        if all([username, email, password, confirm_password]):
+            if password == confirm_password and len(password) >= 8:
                 # Build registration data matching your User model
                 registration_data = {
                     "username": username,
@@ -1123,109 +1252,6 @@ def show_preferences_step():
                             error_msg += " Invalid phone number format."
                         elif "favorite_genres" in error_data:
                             error_msg += " Invalid genre selection."
-                        elif "detail" in error_data:
-                            error_msg += f" {error_data['detail']}"
-                        elif "non_field_errors" in error_data:
-                            error_msg += f" {error_data['non_field_errors'][0]}"
-                        else:
-                            error_msg += " Check the server response above for details."
-                            
-                    except Exception as e:
-                        st.error(f"📄 **Raw Response:** {response.text}")
-                        st.error(f"🔍 **Parse Error:** {str(e)}")
-                        
-                    # Suggest fixes based on your User model
-                    st.markdown("""
-                    ### 🔧 **Troubleshooting Steps:**
-                    
-                    1. **Check Required Fields:**
-                       - Username (unique, max 150 chars)
-                       - Email (unique, valid format)
-                       - Password (min 8 characters)
-                    
-                    2. **Optional Field Formats:**
-                       - Phone: +1234567890 or 1234567890 format
-                       - Date of birth: YYYY-MM-DD format
-                       - Favorite genres: Array of strings
-                    
-                    3. **User Model Field Mapping:**
-                       - Your backend expects exact field names from the User model
-                       - Some fields have validation (phone_number, favorite_genres)
-                    
-                    4. **Try Minimal Registration:**
-                    """)
-                    
-                    # Minimal registration button
-                    if st.button("🔄 **Try Minimal Registration**", key="minimal_reg"):
-                        # Try with only required fields
-                        minimal_data = {
-                            "username": registration_data.get("username"),
-                            "email": registration_data.get("email"),
-                            "password": registration_data.get("password"),
-                        }
-                        
-                        st.info("🔄 Trying minimal registration with only required fields...")
-                        minimal_response = make_api_request(
-                            "/authentication/auth/register/",
-                            method="POST",
-                            data=minimal_data,
-                            auth_required=False
-                        )
-                        
-                        if minimal_response and minimal_response.status_code in [200, 201]:
-                            st.success("✅ Minimal registration worked!")
-                            st.session_state.registration_progress = 2
-                            st.rerun()
-                        else:
-                            st.error("❌ Even minimal registration failed")
-                            if minimal_response:
-                                st.json(minimal_response.json() if minimal_response.text else {"error": "No response"})
-                else:
-                    error_msg += " No response from server. Check your connection."
-                    st.error("🌐 **Connection Issue:** Cannot reach the backend server.")
-                    st.markdown("""
-                    ### 🔧 **Connection Troubleshooting:**
-                    
-                    1. **Check Backend Status:**
-                       - Visit: `https://alx-project-nexus-y0c5.onrender.com` directly
-                       - Render services may be sleeping and need time to wake up
-                    
-                    2. **Wait and Retry:**
-                       - Render free tier sleeps after 15 minutes of inactivity
-                       - First request may take 30-60 seconds to wake up the service
-                    
-                    3. **Check API Endpoints:**
-                       - Try: `https://alx-project-nexus-y0c5.onrender.com/authentication/auth/register/`
-                       - Verify the endpoint exists and accepts POST requests
-                    """)
-                
-                st.error(error_msg)status_code in [200, 201]:
-                st.session_state.registration_progress = 2
-                st.success("🎉 Account created successfully!")
-                st.balloons()
-                time.sleep(2)
-                st.rerun()
-            else:
-                # Detailed error analysis
-                error_msg = "❌ Registration failed."
-                
-                if response:
-                    st.error(f"🚨 **HTTP Status:** {response.status_code}")
-                    
-                    try:
-                        error_data = response.json()
-                        st.error(f"📄 **Server Response:**")
-                        st.json(error_data)
-                        
-                        # Parse specific errors
-                        if "username" in error_data:
-                            error_msg += " Username already exists."
-                        elif "email" in error_data:
-                            error_msg += " Email already registered."
-                        elif "password" in error_data:
-                            error_msg += " Password validation failed."
-                        elif "phone_number" in error_data:
-                            error_msg += " Invalid phone number format."
                         elif "detail" in error_data:
                             error_msg += f" {error_data['detail']}"
                         elif "non_field_errors" in error_data:
