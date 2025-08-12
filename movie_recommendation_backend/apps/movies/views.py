@@ -3,7 +3,7 @@ This is our movie recommendation views file for the movies app.
 It contains views for our movie models.
 Includes different views for listing, creating, updating, and deleting movies.
 """
-
+import logging
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -31,6 +31,9 @@ from .serializers import (
 from .filters import MovieFilter
 
 from django.shortcuts import render
+
+# Initialize logger
+logger = logging.getLogger(__name__)
 
 def movie_hub(request):
     """Movies app hub showing all available endpoints, grouped by section."""
@@ -443,6 +446,58 @@ class GenreViewSet(viewsets.ModelViewSet):
             'empty_genres': list(empty_genres),
             'empty_genres_count': len(empty_genres)
         })
+    
+    @action(detail=True, methods=['get'], url_path='movies')
+
+    def movies(self, request, pk=None):
+        """
+        Get all movies for a specific genre.
+        
+        GET /movies/api/genres/{pk}/movies/
+        
+        Returns paginated list of movies that belong to this genre.
+        """
+        try:
+            genre = self.get_object()  # Gets the genre by pk
+            
+            # Get movies that have this genre
+            movies = Movie.objects.filter(
+                genres=genre,
+                is_active=True  # Only show active movies
+            ).select_related(
+                'director'
+            ).prefetch_related(
+                'genres', 'cast'
+            ).order_by('-release_date')
+            
+            # Apply pagination
+            page = self.paginate_queryset(movies)
+            if page is not None:
+                serializer = MovieListSerializer(page, many=True, context={'request': request})
+                return self.get_paginated_response(serializer.data)
+            
+            # If no pagination
+            serializer = MovieListSerializer(movies, many=True, context={'request': request})
+            
+            return Response({
+                'genre': {
+                    'id': genre.id,
+                    'name': genre.name
+                },
+                'movies': serializer.data,
+                'total_movies': movies.count(),
+                'message': f'Movies in {genre.name} genre retrieved successfully'
+            }, status=status.HTTP_200_OK)
+            
+        except Genre.DoesNotExist:
+            return Response({
+                'error': 'Genre not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Failed to retrieve movies for genre {pk}: {str(e)}")
+            return Response({
+                'error': 'Failed to retrieve movies for genre',
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 class MovieSearchView(APIView):
     """
