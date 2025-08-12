@@ -1637,7 +1637,449 @@ def show_profile_setup_page():
                 else:
                     st.warning("⚠️ Couldn't save preferences now, but you can set them later in your profile!")
 
-#def show_preferences_step():
+def show_preferences_step():
+    """
+    Movie preferences setup form for users.
+    Allows users to set their favorite genres, languages, and other movie preferences.
+    """
+    st.markdown('<div class="auth-container">', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 3, 1])
+    with col2:
+        st.markdown("### 🎬 Set Your Movie Preferences")
+        st.markdown("Help us personalize your movie recommendations")
+        
+        # Progress indicator
+        st.progress(0.7, text="Step 2 of 3: Preferences")
+        
+        with st.form("preferences_form", clear_on_submit=False):
+            
+            # === FAVORITE GENRES SECTION ===
+            st.markdown("#### 🎭 **Favorite Genres**")
+            st.markdown("*Select genres you enjoy (choose at least 3)*")
+            
+            # Genre options - you can fetch these from your API
+            genre_options = [
+                "Action", "Adventure", "Animation", "Comedy", "Crime", 
+                "Documentary", "Drama", "Family", "Fantasy", "History",
+                "Horror", "Music", "Mystery", "Romance", "Science Fiction",
+                "Thriller", "War", "Western"
+            ]
+            
+            # Create columns for genre checkboxes
+            genre_cols = st.columns(3)
+            selected_genres = []
+            
+            for i, genre in enumerate(genre_options):
+                with genre_cols[i % 3]:
+                    if st.checkbox(genre, key=f"genre_{genre.lower().replace(' ', '_')}"):
+                        selected_genres.append(genre)
+            
+            # Show selected count
+            if selected_genres:
+                st.success(f"✅ Selected {len(selected_genres)} genres: {', '.join(selected_genres)}")
+            else:
+                st.warning("⚠️ Please select at least 3 genres")
+            
+            st.markdown("---")
+            
+            # === LANGUAGE PREFERENCES ===
+            st.markdown("#### 🌍 **Language Preferences**")
+            
+            col_lang1, col_lang2 = st.columns(2)
+            with col_lang1:
+                primary_language = st.selectbox(
+                    "Primary Language",
+                    ["English", "Spanish", "French", "German", "Italian", "Japanese", 
+                     "Korean", "Mandarin", "Hindi", "Portuguese", "Russian", "Arabic"],
+                    help="Your preferred language for movies"
+                )
+            
+            with col_lang2:
+                subtitle_preference = st.selectbox(
+                    "Subtitle Preference",
+                    ["None", "Same as primary language", "English", "Native language"],
+                    help="Do you prefer subtitles?"
+                )
+            
+            # Additional languages
+            other_languages = st.multiselect(
+                "Other Languages You Enjoy",
+                ["English", "Spanish", "French", "German", "Italian", "Japanese", 
+                 "Korean", "Mandarin", "Hindi", "Portuguese", "Russian", "Arabic"],
+                help="Select additional languages for movie recommendations"
+            )
+            
+            st.markdown("---")
+            
+            # === CONTENT PREFERENCES ===
+            st.markdown("#### 🎯 **Content Preferences**")
+            
+            col_pref1, col_pref2 = st.columns(2)
+            
+            with col_pref1:
+                content_rating = st.selectbox(
+                    "Preferred Content Rating",
+                    ["No Preference", "G", "PG", "PG-13", "R", "NC-17"],
+                    help="Maximum content rating you're comfortable with"
+                )
+                
+                decade_preference = st.selectbox(
+                    "Preferred Era",
+                    ["No Preference", "2020s", "2010s", "2000s", "1990s", "1980s", 
+                     "1970s", "1960s", "Classic (Before 1960)"],
+                    help="Do you prefer movies from a specific time period?"
+                )
+            
+            with col_pref2:
+                movie_length = st.selectbox(
+                    "Preferred Movie Length",
+                    ["No Preference", "Short (< 90 min)", "Standard (90-120 min)", 
+                     "Long (120-150 min)", "Epic (> 150 min)"],
+                    help="How long movies do you usually prefer?"
+                )
+                
+                popularity_preference = st.selectbox(
+                    "Discovery Preference",
+                    ["Balanced", "Popular movies", "Hidden gems", "Latest releases", "Classics"],
+                    help="What type of movies do you want to discover?"
+                )
+            
+            st.markdown("---")
+            
+            # === VIEWING PREFERENCES ===
+            st.markdown("#### 📺 **Viewing Preferences**")
+            
+            col_view1, col_view2 = st.columns(2)
+            
+            with col_view1:
+                diversity_level = st.slider(
+                    "Recommendation Diversity",
+                    min_value=0.1,
+                    max_value=1.0,
+                    value=0.5,
+                    step=0.1,
+                    help="0.1 = Similar movies, 1.0 = Very diverse recommendations"
+                )
+                
+                novelty_preference = st.slider(
+                    "Try New Things",
+                    min_value=0.1,
+                    max_value=1.0,
+                    value=0.5,
+                    step=0.1,
+                    help="0.1 = Stick to favorites, 1.0 = Explore new genres"
+                )
+            
+            with col_view2:
+                recommendations_per_day = st.number_input(
+                    "Daily Recommendations",
+                    min_value=5,
+                    max_value=50,
+                    value=20,
+                    step=5,
+                    help="How many movie recommendations per day?"
+                )
+                
+                notification_frequency = st.selectbox(
+                    "Notification Frequency",
+                    ["Never", "Weekly", "Daily", "Real-time"],
+                    help="How often do you want recommendation notifications?"
+                )
+            
+            st.markdown("---")
+            
+            # === ADDITIONAL PREFERENCES ===
+            with st.expander("🔧 Advanced Preferences (Optional)", expanded=False):
+                
+                col_adv1, col_adv2 = st.columns(2)
+                
+                with col_adv1:
+                    avoid_genres = st.multiselect(
+                        "Genres to Avoid",
+                        genre_options,
+                        help="Genres you never want to see"
+                    )
+                    
+                    preferred_actors = st.text_area(
+                        "Favorite Actors/Directors",
+                        placeholder="Enter names separated by commas",
+                        help="We'll prioritize movies with these people"
+                    )
+                
+                with col_adv2:
+                    mood_based = st.checkbox(
+                        "Enable Mood-Based Recommendations",
+                        help="Get different recommendations based on time of day/season"
+                    )
+                    
+                    social_features = st.checkbox(
+                        "Enable Social Features",
+                        value=True,
+                        help="See what friends are watching, get social recommendations"
+                    )
+                    
+                    data_privacy = st.selectbox(
+                        "Data Privacy Level",
+                        ["Standard", "Enhanced Privacy", "Minimal Data"],
+                        help="How much data can we use to improve recommendations?"
+                    )
+            
+            # Submit button
+            submit = st.form_submit_button("🎬 **Save Preferences & Continue**", use_container_width=True)
+        
+        # Handle form submission
+        if submit:
+            # Validate minimum requirements
+            if len(selected_genres) < 3:
+                st.error("❌ Please select at least 3 favorite genres")
+            elif not primary_language:
+                st.error("❌ Please select your primary language")
+            else:
+                with st.spinner("🎬 Saving your preferences..."):
+                    # Progress bar for better UX
+                    progress_bar = st.progress(0)
+                    for i in range(100):
+                        time.sleep(0.01)
+                        progress_bar.progress(i + 1)
+                    
+                    # Prepare preferences data
+                    preferences_data = {
+                        "favorite_genres": [
+                            {"genre_id": _get_genre_id(genre), "weight": 0.8}
+                            for genre in selected_genres
+                        ],
+                        "primary_language": primary_language,
+                        "other_languages": other_languages,
+                        "subtitle_preference": subtitle_preference,
+                        "content_rating_preference": content_rating if content_rating != "No Preference" else None,
+                        "preferred_decade": decade_preference if decade_preference != "No Preference" else None,
+                        "movie_length_preference": movie_length if movie_length != "No Preference" else None,
+                        "popularity_preference": popularity_preference,
+                        "diversity_preference": diversity_level,
+                        "novelty_preference": novelty_preference,
+                        "daily_recommendations_count": recommendations_per_day,
+                        "notification_frequency": notification_frequency,
+                        "avoid_genres": [_get_genre_id(genre) for genre in avoid_genres],
+                        "preferred_actors": [name.strip() for name in preferred_actors.split(",")] if preferred_actors else [],
+                        "mood_based_enabled": mood_based,
+                        "social_features_enabled": social_features,
+                        "privacy_level": data_privacy,
+                        "onboarding_completed": True
+                    }
+                    
+                    # Debug preferences data
+                    st.info("🔍 **Debug:** Saving preferences")
+                    with st.expander("📋 Preferences Data (Debug)", expanded=False):
+                        safe_data = preferences_data.copy()
+                        st.json(safe_data)
+                    
+                    # Make API request to update user preferences
+                    response = make_api_request(
+                        "/authentication/auth/users/update_preferences/",
+                        method="PATCH",
+                        data=preferences_data,
+                        auth_required=True
+                    )
+                    
+                    if response and response.status_code == 200:
+                        try:
+                            data = response.json()
+                            
+                            st.info("📄 **API Response:**")
+                            st.json(data)
+                            
+                            # Store preferences in session state
+                            st.session_state.user_preferences = preferences_data
+                            st.session_state.preferences_completed = True
+                            
+                            st.success("✅ Preferences saved successfully!")
+                            st.balloons()
+                            
+                            # Show summary
+                            st.markdown("### 🎉 **Your Preferences Summary:**")
+                            col_sum1, col_sum2 = st.columns(2)
+                            
+                            with col_sum1:
+                                st.markdown(f"**🎭 Favorite Genres:** {', '.join(selected_genres[:3])}...")
+                                st.markdown(f"**🌍 Primary Language:** {primary_language}")
+                                st.markdown(f"**🎯 Content Rating:** {content_rating}")
+                            
+                            with col_sum2:
+                                st.markdown(f"**📊 Diversity Level:** {diversity_level}")
+                                st.markdown(f"**🔔 Notifications:** {notification_frequency}")
+                                st.markdown(f"**📈 Daily Recs:** {recommendations_per_day}")
+                            
+                            # Continue button
+                            if st.button("🚀 **Generate My Recommendations**", use_container_width=True):
+                                st.session_state.user_journey = 'recommendations'
+                                st.rerun()
+                            
+                        except Exception as e:
+                            st.error(f"❌ Error processing response: {str(e)}")
+                            st.text(f"Raw response: {response.text}")
+                    
+                    else:
+                        st.error("❌ Failed to save preferences")
+                        
+                        if response:
+                            st.error(f"🚨 **HTTP Status:** {response.status_code}")
+                            try:
+                                error_data = response.json()
+                                st.error("📄 **Server Response:**")
+                                st.json(error_data)
+                                
+                                # Handle specific errors
+                                if "favorite_genres" in error_data:
+                                    st.error("💡 **Genre error**: Check your genre selections")
+                                elif "primary_language" in error_data:
+                                    st.error("💡 **Language error**: Please select a valid language")
+                                elif "detail" in error_data:
+                                    st.error(f"💡 **Server message**: {error_data['detail']}")
+                                
+                            except:
+                                st.error(f"📄 **Raw Response:** {response.text}")
+                            
+                            # Troubleshooting
+                            st.markdown("""
+                            ### 🔧 **Troubleshooting:**
+                            
+                            1. **Check Authentication:**
+                               - Make sure you're logged in
+                               - Your session might have expired
+                            
+                            2. **Verify Selections:**
+                               - Ensure at least 3 genres are selected
+                               - Check that all required fields are filled
+                            
+                            3. **Try Again:**
+                               - Refresh the page and try again
+                               - Contact support if the issue persists
+                            """)
+                        
+                        else:
+                            st.error("🌐 **Connection Issue:** Cannot reach server")
+        
+        # Skip preferences option
+        st.markdown("---")
+        col_skip1, col_skip2 = st.columns(2)
+        
+        with col_skip1:
+            if st.button("⏭️ **Skip for Now**", use_container_width=True):
+                st.session_state.preferences_completed = False
+                st.session_state.user_journey = 'dashboard'
+                st.rerun()
+        
+        with col_skip2:
+            if st.button("← **Back to Profile**", use_container_width=True):
+                st.session_state.user_journey = 'profile_setup'
+                st.rerun()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+def _get_genre_id(genre_name: str) -> int:
+    """
+    Map genre names to IDs. You should replace this with actual API call
+    or database mapping based on your genre model.
+    """
+    genre_mapping = {
+        "Action": 28,
+        "Adventure": 12,
+        "Animation": 16,
+        "Comedy": 35,
+        "Crime": 80,
+        "Documentary": 99,
+        "Drama": 18,
+        "Family": 10751,
+        "Fantasy": 14,
+        "History": 36,
+        "Horror": 27,
+        "Music": 10402,
+        "Mystery": 9648,
+        "Romance": 10749,
+        "Science Fiction": 878,
+        "Thriller": 53,
+        "War": 10752,
+        "Western": 37
+    }
+    return genre_mapping.get(genre_name, 1)  # Default to 1 if not found
+
+
+def show_preferences_summary():
+    """
+    Show a summary of user's current preferences with option to edit.
+    """
+    st.markdown("### 🎬 Your Movie Preferences")
+    
+    if not st.session_state.get('user_preferences'):
+        st.warning("🔧 No preferences set yet. Let's set them up!")
+        if st.button("🎭 **Set Preferences**", use_container_width=True):
+            st.session_state.user_journey = 'preferences'
+            st.rerun()
+        return
+    
+    prefs = st.session_state.user_preferences
+    
+    # Display current preferences
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### 🎭 **Genres**")
+        if prefs.get('favorite_genres'):
+            for genre in prefs['favorite_genres'][:5]:  # Show first 5
+                st.write(f"• {genre.get('genre_name', 'Unknown Genre')}")
+        
+        st.markdown("#### 🌍 **Languages**")
+        st.write(f"Primary: {prefs.get('primary_language', 'Not set')}")
+        if prefs.get('other_languages'):
+            st.write(f"Others: {', '.join(prefs['other_languages'])}")
+    
+    with col2:
+        st.markdown("#### 🎯 **Content**")
+        st.write(f"Rating: {prefs.get('content_rating_preference', 'Any')}")
+        st.write(f"Era: {prefs.get('preferred_decade', 'Any')}")
+        
+        st.markdown("#### 📊 **Preferences**")
+        st.write(f"Diversity: {prefs.get('diversity_preference', 0.5)}")
+        st.write(f"Daily Recs: {prefs.get('daily_recommendations_count', 20)}")
+    
+    # Edit button
+    if st.button("✏️ **Edit Preferences**", use_container_width=True):
+        st.session_state.user_journey = 'preferences'
+        st.rerun()
+
+
+def get_user_preferences_from_api():
+    """
+    Fetch user preferences from API and store in session state.
+    """
+    try:
+        response = make_api_request(
+            "/authentication/auth/users/me/",
+            method="GET",
+            auth_required=True
+        )
+        
+        if response and response.status_code == 200:
+            user_data = response.json()
+            
+            # Extract preferences from user data
+            preferences = {
+                'favorite_genres': user_data.get('favorite_genres', []),
+                'primary_language': user_data.get('preferred_language'),
+                'content_rating_preference': user_data.get('content_rating_preference'),
+                'diversity_preference': user_data.get('diversity_preference', 0.5),
+                'novelty_preference': user_data.get('novelty_preference', 0.5),
+                # Add other preference fields as they exist in your user model
+            }
+            
+            st.session_state.user_preferences = preferences
+            return preferences
+    
+    except Exception as e:
+        st.error(f"Failed to load preferences: {str(e)}")
+        return None
 
 def show_completion_step():
     """Step 3: Registration completion with onboarding"""
@@ -1777,8 +2219,8 @@ def show_enhanced_preview_content():
     ✨ **Free to join** • 🎬 **Instant recommendations** • 🔍 **Advanced search** • 📊 **Personal analytics**
     """)
 
-def display_enhanced_movie_card(movie, show_interactions=True):
-    """Display a beautiful, interactive movie card - FIXED VERSION"""
+def display_enhanced_movie_card(movie, show_interactions=True, index=0):
+    """Display a beautiful, interactive movie card with API integration"""
     
     # Safely get movie data
     title = movie.get('title', 'Unknown Title')
@@ -1789,6 +2231,15 @@ def display_enhanced_movie_card(movie, show_interactions=True):
     views = movie.get('views', 0)
     like_count = movie.get('like_count', 0)
     poster_path = movie.get('poster_path')
+    movie_id = movie.get('id')
+    
+    # Handle missing movie ID
+    if not movie_id:
+        st.error("⚠️ Movie ID is missing")
+        return
+    
+    # Create unique keys using movie_id and index
+    unique_suffix = f"{movie_id}_{index}"
     
     # Create stars display
     stars_filled = int(rating) if rating else 0
@@ -1800,9 +2251,9 @@ def display_enhanced_movie_card(movie, show_interactions=True):
         poster_html = f'<img src="{poster_url}" style="width: 120px; height: 180px; object-fit: cover; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">'
     else:
         poster_html = '''
-        <div style="width: 120px; height: 180px; background: linear-gradient(45deg, #667eea, #764ba2); 
-                    border-radius: 12px; display: flex; align-items: center; justify-content: center; 
-                    color: white; font-size: 2.5rem;">🎬</div>
+        <div style="width: 120px; height: 180px; background: linear-gradient(45deg, #667eea, #764ba2);
+                     border-radius: 12px; display: flex; align-items: center; justify-content: center;
+                     color: white; font-size: 2.5rem;">🎬</div>
         '''
     
     # Truncate overview
@@ -1828,12 +2279,15 @@ def display_enhanced_movie_card(movie, show_interactions=True):
             with rating_col2:
                 st.markdown(f"**{rating}/10**")
             
-            # Movie info
+            # Movie info - use session state for real-time updates
+            current_views = st.session_state.get(f'movie_views_{movie_id}', views)
+            current_likes = st.session_state.get(f'movie_likes_{movie_id}', like_count)
+            
             info_text = f"""
             📅 **Release:** {release_date}  
             🔥 **Popularity:** {popularity_score:.1f}  
-            👁️ **Views:** {views:,}  
-            ❤️ **Likes:** {like_count:,}
+            👁️ **Views:** {current_views:,}  
+            ❤️ **Likes:** {current_likes:,}
             """
             st.markdown(info_text)
             
@@ -1844,7 +2298,13 @@ def display_enhanced_movie_card(movie, show_interactions=True):
             # Genres (if available)
             genres = movie.get('genres', [])
             if genres:
-                genre_tags = " ".join([f"`{genre}`" for genre in genres[:3]])
+                # Handle both string and dict format for genres
+                if isinstance(genres[0], dict):
+                    genre_names = [genre.get('name', str(genre)) for genre in genres[:3]]
+                else:
+                    genre_names = [str(genre) for genre in genres[:3]]
+                
+                genre_tags = " ".join([f"`{genre}`" for genre in genre_names])
                 st.markdown(f"**🎭 Genres:** {genre_tags}")
         
         # Interactive buttons for authenticated users
@@ -1852,26 +2312,230 @@ def display_enhanced_movie_card(movie, show_interactions=True):
             st.markdown("---")
             button_cols = st.columns(4)
             
-            movie_id = movie.get('id')
-            
             with button_cols[0]:
-                if st.button("⭐ Rate", key=f"rate_{movie_id}", help="Rate this movie"):
+                if st.button("⭐ Rate", key=f"rate_{unique_suffix}", help="Rate this movie"):
                     show_rating_modal(movie)
             
             with button_cols[1]:
-                if st.button("👁️ View", key=f"view_{movie_id}", help="Mark as viewed"):
+                if st.button("👁️ View", key=f"view_{unique_suffix}", help="Mark as viewed"):
                     increment_movie_views(movie_id)
             
             with button_cols[2]:
-                if st.button("❤️ Like", key=f"like_{movie_id}", help="Like this movie"):
+                if st.button("❤️ Like", key=f"like_{unique_suffix}", help="Like this movie"):
                     increment_movie_likes(movie_id)
             
             with button_cols[3]:
-                if st.button("ℹ️ Details", key=f"details_{movie_id}", help="View full details"):
+                if st.button("ℹ️ Details", key=f"details_{unique_suffix}", help="View full details"):
                     show_movie_details(movie)
         
         # Add some spacing
         st.markdown("<br>", unsafe_allow_html=True)
+
+
+def increment_movie_views(movie_id):
+    """Increment view count for a movie via API"""
+    try:
+        response = make_api_request(
+            f"/movies/api/movies/{movie_id}/increment_views/",
+            method="POST"
+        )
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            new_views = data.get('views', 0)
+            
+            # Update session state for real-time UI updates
+            st.session_state[f'movie_views_{movie_id}'] = new_views
+            
+            st.success(f"✅ View recorded! Total views: {new_views:,}")
+            
+            # Log the activity
+            log_user_activity(
+                action="movie_view",
+                movie_id=movie_id,
+                details={"new_view_count": new_views}
+            )
+            
+            # Trigger a rerun to update the UI
+            st.rerun()
+            
+        else:
+            st.error("❌ Failed to record view")
+            
+    except Exception as e:
+        st.error(f"❌ Error recording view: {str(e)}")
+
+
+def increment_movie_likes(movie_id):
+    """Increment like count for a movie via API"""
+    try:
+        response = make_api_request(
+            f"/movies/api/movies/{movie_id}/increment_likes/",
+            method="POST"
+        )
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            new_likes = data.get('likes', 0)
+            
+            # Update session state for real-time UI updates
+            st.session_state[f'movie_likes_{movie_id}'] = new_likes
+            
+            st.success(f"❤️ Liked! Total likes: {new_likes:,}")
+            
+            # Log the activity
+            log_user_activity(
+                action="movie_like",
+                movie_id=movie_id,
+                details={"new_like_count": new_likes}
+            )
+            
+            # Trigger a rerun to update the UI
+            st.rerun()
+            
+        else:
+            st.error("❌ Failed to like movie")
+            
+    except Exception as e:
+        st.error(f"❌ Error liking movie: {str(e)}")
+
+
+def show_rating_modal(movie):
+    """Show rating modal for a movie"""
+    movie_id = movie.get('id')
+    title = movie.get('title', 'Unknown Movie')
+    
+    with st.expander(f"⭐ Rate '{title}'", expanded=True):
+        st.markdown(f"### Rate: {title}")
+        
+        # Rating slider
+        rating = st.slider(
+            "Your Rating",
+            min_value=0.0,
+            max_value=10.0,
+            value=5.0,
+            step=0.5,
+            key=f"rating_slider_{movie_id}"
+        )
+        
+        # Optional review
+        review = st.text_area(
+            "Write a review (optional)",
+            placeholder="Share your thoughts about this movie...",
+            key=f"review_text_{movie_id}"
+        )
+        
+        # Submit buttons
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("🌟 Submit Rating", key=f"submit_rating_{movie_id}"):
+                submit_movie_rating(movie_id, rating, review)
+        
+        with col2:
+            if st.button("❌ Cancel", key=f"cancel_rating_{movie_id}"):
+                st.rerun()
+
+
+def submit_movie_rating(movie_id, rating, review=None):
+    """Submit a movie rating"""
+    try:
+        # Create rating data
+        rating_data = {
+            "rating": rating,
+            "review": review if review.strip() else None
+        }
+        
+        # You'll need to implement this endpoint in your Django backend
+        response = make_api_request(
+            f"/movies/api/movies/{movie_id}/rate/",
+            method="POST",
+            data=rating_data
+        )
+        
+        if response and response.status_code == 200:
+            st.success(f"✅ Rating submitted: {rating}/10")
+            
+            # Log the activity
+            log_user_activity(
+                action="movie_rating",
+                movie_id=movie_id,
+                details={"rating": rating, "has_review": bool(review)}
+            )
+            
+            st.rerun()
+        else:
+            st.error("❌ Failed to submit rating")
+            
+    except Exception as e:
+        st.error(f"❌ Error submitting rating: {str(e)}")
+
+
+def show_movie_details(movie):
+    """Show detailed movie information"""
+    movie_id = movie.get('id')
+    title = movie.get('title', 'Unknown Movie')
+    
+    with st.expander(f"ℹ️ Details for '{title}'", expanded=True):
+        # Create detailed view with more information
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            # Poster
+            poster_path = movie.get('poster_path')
+            if poster_path:
+                st.image(
+                    f"https://image.tmdb.org/t/p/w500{poster_path}",
+                    width=200
+                )
+        
+        with col2:
+            # Detailed info
+            st.markdown(f"### {title}")
+            st.markdown(f"**Rating:** {movie.get('tmdb_rating', 'N/A')}/10")
+            st.markdown(f"**Release Date:** {movie.get('release_date', 'Unknown')}")
+            st.markdown(f"**Runtime:** {movie.get('runtime', 'Unknown')} minutes")
+            st.markdown(f"**Director:** {movie.get('director', 'Unknown')}")
+            
+            # Full overview
+            overview = movie.get('overview', 'No description available')
+            st.markdown("**Overview:**")
+            st.write(overview)
+            
+            # Additional stats
+            st.markdown("**Statistics:**")
+            st.write(f"👁️ Views: {movie.get('views', 0):,}")
+            st.write(f"❤️ Likes: {movie.get('like_count', 0):,}")
+            st.write(f"🔥 Popularity: {movie.get('popularity_score', 0):.1f}")
+
+
+def log_user_activity(action, movie_id=None, details=None):
+    """Log user activity for analytics"""
+    try:
+        if not st.session_state.get('authenticated'):
+            return
+        
+        activity_data = {
+            "action_type": action,
+            "movie_id": movie_id,
+            "session_id": st.session_state.get('session_id'),
+            "source": "streamlit_app",
+            "metadata": details or {}
+        }
+        
+        # Send to analytics endpoint
+        response = make_api_request(
+            "/analytics/api/v1/activity-logs/",
+            method="POST",
+            data=activity_data
+        )
+        
+        # Don't show errors for analytics logging to avoid disrupting UX
+        
+    except Exception:
+        # Silently handle analytics errors
+        pass
+
 
 def calculate_password_strength(password):
     """Calculate password strength (0-2)"""
@@ -2587,39 +3251,110 @@ def show_movie_discovery():
                 st.error("❌ Failed to search movies. Please try again.")
 
 def show_all_movies():
-    """Display all movies with pagination"""
+    """Display all movies with pagination - SIMPLE FIXED VERSION"""
     st.markdown("### 📋 Complete Movie Collection")
-    
+
     # Pagination controls
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         page = st.number_input("📄 Page", min_value=1, value=1)
         per_page = st.selectbox("Movies per page", [12, 24, 48], index=1)
-    
+
     # Fetch movies
     with st.spinner("📚 Loading movies..."):
-        response = make_api_request(f"/movies/api/movies/?page={page}&limit={per_page}")
-        if response and response.status_code == 200:
-            data = response.json()
-            movies = data.get('results', [])
-            total_count = data.get('count', 0)
-            total_pages = (total_count + per_page - 1) // per_page
+        try:
+            response = make_api_request(f"/movies/api/movies/?page={page}&page_size={per_page}")
             
-            if movies:
-                st.info(f"📊 Page {page} of {total_pages} • {total_count:,} total movies")
+            if response and response.status_code == 200:
+                data = response.json()
                 
-                # Display movies
-                for i in range(0, len(movies), 2):
-                    cols = st.columns(2)
-                    for j, col in enumerate(cols):
-                        if i + j < len(movies):
-                            movie = movies[i + j]
-                            with col:
-                                display_enhanced_movie_card(movie, show_interactions=True)
+                # Handle both response formats safely
+                if isinstance(data, dict):
+                    movies = data.get('results', [])
+                    total_count = data.get('count', len(movies))
+                elif isinstance(data, list):
+                    movies = data
+                    total_count = len(movies)
+                else:
+                    st.error("❌ Invalid response format from API")
+                    return
+
+                # Calculate pagination
+                total_pages = (total_count + per_page - 1) // per_page if total_count else 1
+
+                if movies:
+                    st.info(f"📊 Page {page} of {total_pages} • {total_count:,} total movies")
+
+                    # Display movies with simple validation
+                    for i in range(0, len(movies), 2):
+                        cols = st.columns(2)
+                        for j, col in enumerate(cols):
+                            if i + j < len(movies):
+                                movie = movies[i + j]
+                                
+                                # Simple validation - just check if it's a dict with required fields
+                                if isinstance(movie, dict) and movie.get('id') and movie.get('title'):
+                                    
+                                    # Fix common data issues inline
+                                    if 'genres' not in movie or movie['genres'] is None:
+                                        movie['genres'] = []
+                                    elif not isinstance(movie['genres'], list):
+                                        movie['genres'] = [movie['genres']] if movie['genres'] else []
+                                    
+                                    # Ensure numeric fields are numbers
+                                    for field in ['tmdb_rating', 'popularity_score', 'views', 'like_count']:
+                                        if field not in movie or movie[field] is None:
+                                            movie[field] = 0
+                                        elif not isinstance(movie[field], (int, float)):
+                                            try:
+                                                movie[field] = float(movie[field])
+                                            except:
+                                                movie[field] = 0
+                                    
+                                    with col:
+                                        # Calculate unique index
+                                        unique_index = (page - 1) * per_page + i + j
+                                        display_enhanced_movie_card(
+                                            movie, 
+                                            show_interactions=True, 
+                                            index=unique_index
+                                        )
+                                else:
+                                    with col:
+                                        st.warning(f"⚠️ Invalid movie data")
+
+                    # Simple pagination buttons
+                    if total_pages > 1:
+                        st.markdown("---")
+                        nav_col1, nav_col2, nav_col3, nav_col4, nav_col5 = st.columns([1, 1, 2, 1, 1])
+                        
+                        with nav_col1:
+                            if st.button("⏮️ First", disabled=(page == 1), key=f"first_{page}"):
+                                st.rerun()
+                        
+                        with nav_col2:
+                            if st.button("◀️ Prev", disabled=(page == 1), key=f"prev_{page}"):
+                                st.rerun()
+                        
+                        with nav_col3:
+                            st.markdown(f"<div style='text-align: center; padding: 8px;'><strong>Page {page} of {total_pages}</strong></div>", unsafe_allow_html=True)
+                        
+                        with nav_col4:
+                            if st.button("Next ▶️", disabled=(page == total_pages), key=f"next_{page}"):
+                                st.rerun()
+                        
+                        with nav_col5:
+                            if st.button("Last ⏭️", disabled=(page == total_pages), key=f"last_{page}"):
+                                st.rerun()
+
+                else:
+                    st.info("📭 No movies found.")
             else:
-                st.info("📭 No movies found.")
-        else:
-            st.error("❌ Failed to load movies.")
+                st.error("❌ Failed to load movies.")
+                
+        except Exception as e:
+            st.error(f"❌ Error loading movies: {str(e)}")
+
 
 def show_my_ratings():
     """Show user's movie ratings"""
