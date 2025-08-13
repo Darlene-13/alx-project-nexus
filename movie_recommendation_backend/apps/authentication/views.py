@@ -90,7 +90,6 @@ def auth_hub(request):
         
         "🌐 WEB INTERFACE": [
             {"method": "GET", "url": "/authentication/", "description": "🏠 Authentication hub (this page)", "status": "✅ Active"},
-            {"method": "GET", "url": "/authentication/auth/api-auth/", "description": "🌐 Browsable API login", "status": "✅ Active"},
             {"method": "GET", "url": "/authentication/admin/", "description": "⚙️ Django admin interface", "status": "✅ Active"},
         ]
     }

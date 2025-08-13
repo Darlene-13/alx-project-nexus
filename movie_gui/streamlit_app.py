@@ -2097,7 +2097,6 @@ def show_completion_step():
     next_steps = [
         ("🔐", "**Sign in** with your new credentials"),
         ("🎯", "**Get recommendations** based on your preferences"), 
-        ("⭐", "**Rate movies** you've watched to improve suggestions"),
         ("🔍", "**Discover** new movies in our extensive catalog"),
         ("📊", "**Track** your viewing patterns and analytics")
     ]
@@ -2149,13 +2148,6 @@ def show_enhanced_preview_content():
         )
     
     with col3:
-        st.metric(
-            label="⭐ Ratings",
-            value=f"{stats.get('total_ratings', 15643):,}",
-            delta="+156 today"
-        )
-    
-    with col4:
         st.metric(
             label="🎯 Recommendations",
             value=f"{stats.get('total_recommendations', 48921):,}",
@@ -2224,7 +2216,6 @@ def display_enhanced_movie_card(movie, show_interactions=True, index=0):
     
     # Safely get movie data
     title = movie.get('title', 'Unknown Title')
-    rating = movie.get('tmdb_rating', 0)
     release_date = movie.get('release_date', 'Unknown')
     overview = movie.get('overview', 'No description available')
     popularity_score = movie.get('popularity_score', 0)
@@ -2240,11 +2231,8 @@ def display_enhanced_movie_card(movie, show_interactions=True, index=0):
     
     # Create unique keys using movie_id and index
     unique_suffix = f"{movie_id}_{index}"
-    
-    # Create stars display
-    stars_filled = int(rating) if rating else 0
-    stars_display = "⭐" * min(stars_filled, 5)  # Max 5 stars for display
-    
+    if not unique_suffix:
+        unique_suffix = str(index)
     # Create poster display
     if poster_path:
         poster_url = f"https://image.tmdb.org/t/p/w300{poster_path}"
@@ -2271,13 +2259,6 @@ def display_enhanced_movie_card(movie, show_interactions=True, index=0):
         with col2:
             # Use Streamlit native components for text
             st.markdown(f"### {title}")
-            
-            # Rating display
-            rating_col1, rating_col2 = st.columns([1, 2])
-            with rating_col1:
-                st.markdown(f"**{stars_display}**")
-            with rating_col2:
-                st.markdown(f"**{rating}/10**")
             
             # Movie info - use session state for real-time updates
             current_views = st.session_state.get(f'movie_views_{movie_id}', views)
@@ -2311,20 +2292,16 @@ def display_enhanced_movie_card(movie, show_interactions=True, index=0):
         if show_interactions and st.session_state.get('authenticated', False):
             st.markdown("---")
             button_cols = st.columns(4)
-            
+        
             with button_cols[0]:
-                if st.button("⭐ Rate", key=f"rate_{unique_suffix}", help="Rate this movie"):
-                    show_rating_modal(movie)
-            
-            with button_cols[1]:
                 if st.button("👁️ View", key=f"view_{unique_suffix}", help="Mark as viewed"):
                     increment_movie_views(movie_id)
             
-            with button_cols[2]:
+            with button_cols[1]:
                 if st.button("❤️ Like", key=f"like_{unique_suffix}", help="Like this movie"):
                     increment_movie_likes(movie_id)
             
-            with button_cols[3]:
+            with button_cols[2]:
                 if st.button("ℹ️ Details", key=f"details_{unique_suffix}", help="View full details"):
                     show_movie_details(movie)
         
@@ -2398,78 +2375,6 @@ def increment_movie_likes(movie_id):
             
     except Exception as e:
         st.error(f"❌ Error liking movie: {str(e)}")
-
-
-def show_rating_modal(movie):
-    """Show rating modal for a movie"""
-    movie_id = movie.get('id')
-    title = movie.get('title', 'Unknown Movie')
-    
-    with st.expander(f"⭐ Rate '{title}'", expanded=True):
-        st.markdown(f"### Rate: {title}")
-        
-        # Rating slider
-        rating = st.slider(
-            "Your Rating",
-            min_value=0.0,
-            max_value=10.0,
-            value=5.0,
-            step=0.5,
-            key=f"rating_slider_{movie_id}"
-        )
-        
-        # Optional review
-        review = st.text_area(
-            "Write a review (optional)",
-            placeholder="Share your thoughts about this movie...",
-            key=f"review_text_{movie_id}"
-        )
-        
-        # Submit buttons
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if st.button("🌟 Submit Rating", key=f"submit_rating_{movie_id}"):
-                submit_movie_rating(movie_id, rating, review)
-        
-        with col2:
-            if st.button("❌ Cancel", key=f"cancel_rating_{movie_id}"):
-                st.rerun()
-
-
-def submit_movie_rating(movie_id, rating, review=None):
-    """Submit a movie rating"""
-    try:
-        # Create rating data
-        rating_data = {
-            "rating": rating,
-            "review": review if review.strip() else None
-        }
-        
-        # You'll need to implement this endpoint in your Django backend
-        response = make_api_request(
-            f"/movies/api/movies/{movie_id}/rate/",
-            method="POST",
-            data=rating_data
-        )
-        
-        if response and response.status_code == 200:
-            st.success(f"✅ Rating submitted: {rating}/10")
-            
-            # Log the activity
-            log_user_activity(
-                action="movie_rating",
-                movie_id=movie_id,
-                details={"rating": rating, "has_review": bool(review)}
-            )
-            
-            st.rerun()
-        else:
-            st.error("❌ Failed to submit rating")
-            
-    except Exception as e:
-        st.error(f"❌ Error submitting rating: {str(e)}")
-
 
 def show_movie_details(movie):
     """Show detailed movie information"""
@@ -3038,7 +2943,7 @@ def main():
     if not st.session_state.get('authenticated', False):
         show_authentication_page()
     else:
-        # FIXED: Always pass a valid string to route_authenticated_pages
+        # FIXED: Always pass a valid string to route_authenticated_pages"
         if not page or not isinstance(page, str):
             page = "🏠 Dashboard"
         route_authenticated_pages(page)
@@ -3161,20 +3066,6 @@ def show_movies_management_page():
     with tab5:
         show_add_movie_form()
 
-def fetch_genres():
-    """Fetch available genres from API"""
-    if 'genres' not in st.session_state or st.session_state.genres is None:
-        try:
-            response = make_api_request("/movies/api/genres/", auth_required=False)
-            if response and response.status_code == 200:
-                genres_data = response.json()
-                st.session_state.genres = genres_data
-            else:
-                st.session_state.genres = None
-        except Exception as e:
-            st.session_state.genres = None
-            
-
 def show_movie_discovery():
     """Advanced movie discovery with filters"""
     st.markdown("### 🔍 Discover Your Next Favorite Movie")
@@ -3265,110 +3156,39 @@ def show_movie_discovery():
                 st.error("❌ Failed to search movies. Please try again.")
 
 def show_all_movies():
-    """Display all movies with pagination - SIMPLE FIXED VERSION"""
+    """Display all movies with pagination"""
     st.markdown("### 📋 Complete Movie Collection")
-
+    
     # Pagination controls
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         page = st.number_input("📄 Page", min_value=1, value=1)
         per_page = st.selectbox("Movies per page", [12, 24, 48], index=1)
-
+    
     # Fetch movies
     with st.spinner("📚 Loading movies..."):
-        try:
-            response = make_api_request(f"/movies/api/movies/?page={page}&page_size={per_page}")
+        response = make_api_request(f"/movies/api/movies/?page={page}&limit={per_page}")
+        if response and response.status_code == 200:
+            data = response.json()
+            movies = data.get('results', [])
+            total_count = data.get('count', 0)
+            total_pages = (total_count + per_page - 1) // per_page
             
-            if response and response.status_code == 200:
-                data = response.json()
+            if movies:
+                st.info(f"📊 Page {page} of {total_pages} • {total_count:,} total movies")
                 
-                # Handle both response formats safely
-                if isinstance(data, dict):
-                    movies = data.get('results', [])
-                    total_count = data.get('count', len(movies))
-                elif isinstance(data, list):
-                    movies = data
-                    total_count = len(movies)
-                else:
-                    st.error("❌ Invalid response format from API")
-                    return
-
-                # Calculate pagination
-                total_pages = (total_count + per_page - 1) // per_page if total_count else 1
-
-                if movies:
-                    st.info(f"📊 Page {page} of {total_pages} • {total_count:,} total movies")
-
-                    # Display movies with simple validation
-                    for i in range(0, len(movies), 2):
-                        cols = st.columns(2)
-                        for j, col in enumerate(cols):
-                            if i + j < len(movies):
-                                movie = movies[i + j]
-                                
-                                # Simple validation - just check if it's a dict with required fields
-                                if isinstance(movie, dict) and movie.get('id') and movie.get('title'):
-                                    
-                                    # Fix common data issues inline
-                                    if 'genres' not in movie or movie['genres'] is None:
-                                        movie['genres'] = []
-                                    elif not isinstance(movie['genres'], list):
-                                        movie['genres'] = [movie['genres']] if movie['genres'] else []
-                                    
-                                    # Ensure numeric fields are numbers
-                                    for field in ['tmdb_rating', 'popularity_score', 'views', 'like_count']:
-                                        if field not in movie or movie[field] is None:
-                                            movie[field] = 0
-                                        elif not isinstance(movie[field], (int, float)):
-                                            try:
-                                                movie[field] = float(movie[field])
-                                            except:
-                                                movie[field] = 0
-                                    
-                                    with col:
-                                        # Calculate unique index
-                                        unique_index = (page - 1) * per_page + i + j
-                                        display_enhanced_movie_card(
-                                            movie, 
-                                            show_interactions=True, 
-                                            index=unique_index
-                                        )
-                                else:
-                                    with col:
-                                        st.warning(f"⚠️ Invalid movie data")
-
-                    # Simple pagination buttons
-                    if total_pages > 1:
-                        st.markdown("---")
-                        nav_col1, nav_col2, nav_col3, nav_col4, nav_col5 = st.columns([1, 1, 2, 1, 1])
-                        
-                        with nav_col1:
-                            if st.button("⏮️ First", disabled=(page == 1), key=f"first_{page}"):
-                                st.rerun()
-                        
-                        with nav_col2:
-                            if st.button("◀️ Prev", disabled=(page == 1), key=f"prev_{page}"):
-                                st.rerun()
-                        
-                        with nav_col3:
-                            st.markdown(f"<div style='text-align: center; padding: 8px;'><strong>Page {page} of {total_pages}</strong></div>", unsafe_allow_html=True)
-                        
-                        with nav_col4:
-                            if st.button("Next ▶️", disabled=(page == total_pages), key=f"next_{page}"):
-                                st.rerun()
-                        
-                        with nav_col5:
-                            if st.button("Last ⏭️", disabled=(page == total_pages), key=f"last_{page}"):
-                                st.rerun()
-
-                else:
-                    st.info("📭 No movies found.")
+                # Display movies
+                for i in range(0, len(movies), 2):
+                    cols = st.columns(2)
+                    for j, col in enumerate(cols):
+                        if i + j < len(movies):
+                            movie = movies[i + j]
+                            with col:
+                                display_enhanced_movie_card(movie, show_interactions=True)
             else:
-                st.error("❌ Failed to load movies.")
-                
-        except Exception as e:
-            st.error(f"❌ Error loading movies: {str(e)}")
-
+                st.info("📭 No movies found.")
+        else:
+            st.error("❌ Failed to load movies.")
 
 def show_my_ratings():
     """Show user's movie ratings"""
