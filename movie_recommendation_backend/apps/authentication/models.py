@@ -94,8 +94,8 @@ class User(AbstractUser):
                                    null=True,
                                    help_text="Type of device used by the user. This field is optional and can be left blank.")
     
-    # Recommendation preferences (add these)
-    favorite_genres = models.JSONField(default=list)  # Your original design
+    # Recommendation preferences
+    favorite_genres = models.JSONField(default=list)
     algorithm_preference = models.CharField(max_length=50, blank=True, null=True, help_text="Preferred recommendation algorithm.")
     diversity_preference = models.FloatField(default=0.5, validators=[MinValueValidator(0.0), MaxValueValidator(1.0)])
     novelty_preference = models.FloatField(default=0.5, validators=[MinValueValidator(0.0), MaxValueValidator(1.0)])

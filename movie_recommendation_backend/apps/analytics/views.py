@@ -292,6 +292,7 @@ class TrendingMoviesView(generics.ListAPIView):
     Return trending movies based on recent popularity.
     Example: GET /analytics/api/v1/trending/?days=7&limit=10
     """
+    
     serializer_class = MovieListSerializer  # Use Movie serializer, not custom trending one
     permission_classes = [IsAuthenticatedOrReadOnly]
 

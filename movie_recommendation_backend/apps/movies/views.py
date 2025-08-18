@@ -277,7 +277,26 @@ class MovieViewSet(viewsets.ModelViewSet):
         movie = self.get_object()
         Movie.objects.filter(id=movie.id).update(like_count=F('like_count') + 1)
         movie.refresh_from_db()
-        return Response({'likes': movie.like_count})
+        
+    @action(detail=True, methods=['post'])
+    def rating(self, request, pk=None):
+        """POST /movies/api/movies/{movie_id}/rate/ - Update movie rating"""
+        movie = self.get_object()
+        new_rating = request.data.get('rating')
+        
+        if new_rating is None:
+            return Response({'error': 'Rating is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            new_rating = float(new_rating)
+            if not (0 <= new_rating <= 10):
+                raise ValueError("Rating must be between 0 and 10")
+        except (ValueError, TypeError):
+            return Response({'error': 'Invalid rating value'}, status=status.HTTP_400_BAD_REQUEST)
+
+        Movie.objects.filter(id=movie.id).update(tmdb_rating=new_rating)
+        movie.refresh_from_db()
+        return Response({'tmdb_rating': movie.tmdb_rating})
 
     @action(detail=True, methods=['get'])
     def similar(self, request, pk=None):
